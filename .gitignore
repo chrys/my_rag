@@ -1,0 +1,21 @@
+# Environment
+.env
+
+# IDE
+Google File Search Dashboard.code-workspace
+.vscode/settings.json
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.venv/
+
+# Project-specific
+uploads/*
+git_ignore/
+Documentation/DEPLOYMENT_GUIDE.md
+rag_data/*

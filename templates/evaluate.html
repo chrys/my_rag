@@ -1,0 +1,252 @@
+<div class="h-full flex gap-6 relative" id="evaluate-container">
+    <!-- Left Panel: Project and File Selection -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col p-4" id="evaluate-left-panel" style="width: 33.33%; min-width: 250px;">
+        <!-- Project Selection -->
+        <div class="mb-6">
+            <h2 class="font-semibold text-gray-700 mb-4">Select Project</h2>
+            <div id="evaluate-project-list" class="space-y-2 max-h-48 overflow-y-auto" hx-get="{{ url_prefix }}/api/projects?type=evaluate"
+                hx-trigger="load">
+                <!-- Project list will be loaded here -->
+                <div class="animate-pulse h-10 bg-gray-100 rounded"></div>
+            </div>
+        </div>
+
+        <!-- File Selection -->
+        <div class="flex-1 flex flex-col">
+            <h2 class="font-semibold text-gray-700 mb-4">Select File</h2>
+            <div id="evaluate-file-list" class="space-y-2 overflow-y-auto flex-1 border border-gray-200 rounded-lg p-3 bg-gray-50">
+                <p class="text-gray-500 text-sm text-center py-8">Select a project first</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resizable Divider -->
+    <div class="w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-colors" id="evaluate-divider" draggable="true"></div>
+
+    <!-- Right Panel: Generation and Results -->
+    <div class="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col" id="evaluate-right-panel">
+        <!-- Header -->
+        <div class="p-4 border-b border-gray-100 bg-gray-50 rounded-t-xl">
+            <h2 id="evaluate-header-title" class="font-semibold text-gray-700">Select a project and file to evaluate</h2>
+        </div>
+
+        <!-- Content Area -->
+        <div id="evaluate-content" class="flex-1 overflow-y-auto p-6 flex flex-col">
+            <!-- Default empty state -->
+            <div id="evaluate-empty-state" class="flex flex-col justify-center items-center h-full text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <p>No file selected</p>
+            </div>
+
+            <!-- Results area (hidden by default) -->
+            <div id="evaluate-results-area" class="hidden flex flex-col gap-4">
+                <!-- File info -->
+                <div id="file-info-section" class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <h3 class="font-semibold text-gray-700 mb-2">File Information</h3>
+                    <div id="file-info-content" class="text-sm text-gray-600 space-y-1">
+                        <!-- File details will go here -->
+                    </div>
+                </div>
+
+                <!-- Generation results -->
+                <div id="generation-results-section" class="flex-1 flex flex-col">
+                    <h3 class="font-semibold text-gray-700 mb-3">Generation Results</h3>
+                    <div id="generation-results" class="flex-1 bg-gray-50 rounded-lg p-4 border border-gray-200 overflow-y-auto">
+                        <!-- Results will be displayed here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generate Button -->
+        <div class="p-4 border-t border-gray-100 bg-white rounded-b-xl space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Evaluation Method</label>
+                <select id="evaluate-method" 
+                    class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="auto">Auto Generate</option>
+                    <option value="manual">Manual</option>
+                    <option value="deepeval">DeepEval</option>
+                </select>
+            </div>
+            <button id="evaluate-generate-btn" 
+                onclick="evaluateGenerate()"
+                class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled>
+                Generate
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedProject = null;
+    let selectedFile = null;
+
+    // Handle project selection from the list
+    function selectEvaluateProject(storeId, displayName) {
+        selectedProject = storeId;
+        selectedFile = null;
+        
+        // Update header
+        document.getElementById('evaluate-header-title').innerText = 'Evaluating: ' + displayName;
+        
+        // Remove highlight from all projects
+        document.querySelectorAll('.evaluate-project-item').forEach(el => {
+            el.classList.remove('bg-blue-50', 'border-blue-200');
+        });
+        
+        // Highlight selected project
+        document.querySelectorAll('[data-evaluate-store-id="' + storeId + '"]').forEach(el => {
+            el.classList.add('bg-blue-50', 'border-blue-200');
+        });
+        
+        // Load files for this project
+        loadEvaluateFiles(storeId);
+        
+        // Clear selected file
+        document.querySelectorAll('.evaluate-file-item').forEach(el => {
+            el.classList.remove('bg-blue-50', 'border-blue-200');
+        });
+    }
+
+    // Load files for selected project
+    function loadEvaluateFiles(storeId) {
+        fetch('{{ url_prefix }}/api/projects/' + encodeURIComponent(storeId) + '/documents?type=evaluate')
+            .then(response => response.text())
+            .then(html => {
+                // Parse the HTML response to extract document information
+                const fileListDiv = document.getElementById('evaluate-file-list');
+                fileListDiv.innerHTML = html;
+            })
+            .catch(err => {
+                console.error('Error loading files:', err);
+                document.getElementById('evaluate-file-list').innerHTML = '<p class="text-red-500 text-sm">Error loading files</p>';
+            });
+    }
+
+    // Handle file selection
+    function selectEvaluateFile(docId, docName) {
+        selectedFile = docId;
+        
+        // Remove highlight from all files
+        document.querySelectorAll('.evaluate-file-item').forEach(el => {
+            el.classList.remove('bg-blue-50', 'border-blue-200');
+        });
+        
+        // Highlight selected file
+        document.querySelectorAll('[data-evaluate-doc-id="' + docId + '"]').forEach(el => {
+            el.classList.add('bg-blue-50', 'border-blue-200');
+        });
+        
+        // Show results area
+        document.getElementById('evaluate-empty-state').classList.add('hidden');
+        document.getElementById('evaluate-results-area').classList.remove('hidden');
+        
+        // Update file info
+        document.getElementById('file-info-content').innerHTML = `
+            <p><strong>Document Name:</strong> ${escapeHtml(docName)}</p>
+            <p><strong>Document ID:</strong> ${escapeHtml(docId)}</p>
+        `;
+        
+        // Enable generate button
+        document.getElementById('evaluate-generate-btn').disabled = false;
+        
+        // Clear previous results
+        document.getElementById('generation-results').innerHTML = '';
+    }
+
+    // Evaluate/Generate button click handler
+    function evaluateGenerate() {
+        if (!selectedProject || !selectedFile) {
+            alert('Please select both a project and a file');
+            return;
+        }
+        
+        // Get selected evaluation method
+        const evaluationMethod = document.getElementById('evaluate-method').value;
+        
+        // Disable button and show loading state
+        const btn = document.getElementById('evaluate-generate-btn');
+        const originalText = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = 'Generating...';
+        
+        const resultsDiv = document.getElementById('generation-results');
+        resultsDiv.innerHTML = '<p class="text-gray-500 flex items-center gap-2"><svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Generating evaluation...</p>';
+        
+        // Make API call to generate
+        fetch('{{ url_prefix }}/api/evaluate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                store_id: selectedProject,
+                doc_id: selectedFile,
+                method: evaluationMethod
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Display results
+                resultsDiv.innerHTML = `
+                    <div class="space-y-4">
+                        <div>
+                            <h4 class="font-semibold text-gray-700 mb-3">Q&A Pairs Generated</h4>
+                            ${data.result}
+                        </div>
+                    </div>
+                `;
+            } else {
+                resultsDiv.innerHTML = `<p class="text-red-500">Error: ${escapeHtml(data.error || 'Unknown error')}</p>`;
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            resultsDiv.innerHTML = `<p class="text-red-500">Error: ${escapeHtml(err.message)}</p>`;
+        })
+        .finally(() => {
+            // Re-enable button
+            btn.disabled = false;
+            btn.innerText = originalText;
+        });
+    }
+
+    // Utility function to escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Resizable divider functionality
+    const evaluateDivider = document.getElementById('evaluate-divider');
+    const evaluateLeftPanel = document.getElementById('evaluate-left-panel');
+    const evaluateContainer = document.getElementById('evaluate-container');
+    let evaluateIsResizing = false;
+    
+    evaluateDivider.addEventListener('mousedown', (e) => {
+        evaluateIsResizing = true;
+        e.preventDefault();
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (!evaluateIsResizing) return;
+        
+        const containerRect = evaluateContainer.getBoundingClientRect();
+        const newWidth = e.clientX - containerRect.left;
+        const minWidth = 250;
+        const maxWidth = containerRect.width - 300;
+        
+        if (newWidth >= minWidth && newWidth <= maxWidth) {
+            evaluateLeftPanel.style.width = (newWidth / containerRect.width * 100) + '%';
+        }
+    });
+    
+    document.addEventListener('mouseup', () => {
+        evaluateIsResizing = false;
+    });

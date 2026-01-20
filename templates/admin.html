@@ -1,0 +1,192 @@
+<div class="h-full flex gap-6 relative" id="admin-container">
+    <!-- Projects List -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col" id="admin-left-panel" style="width: 33.33%; min-width: 250px;">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
+            <h2 class="font-semibold text-gray-700">Projects</h2>
+            <button onclick="document.getElementById('create-project-modal').classList.remove('hidden')"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                New
+            </button>
+        </div>
+        <div id="project-list" class="flex-1 overflow-y-auto p-2 space-y-2" hx-get="{{ url_prefix }}/list/"
+            hx-trigger="load, projectListChanged from:body">
+            <!-- Project items will be loaded here -->
+            <div class="animate-pulse space-y-3 p-4">
+                <div class="h-10 bg-gray-100 rounded"></div>
+                <div class="h-10 bg-gray-100 rounded"></div>
+                <div class="h-10 bg-gray-100 rounded"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resizable Divider -->
+    <div class="w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-colors" id="admin-divider" draggable="true"></div>
+
+    <!-- Project Details / Documents -->
+    <div class="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col" id="admin-right-panel">
+        <div id="project-details" class="h-full flex flex-col">
+            <!-- Prompt Editor Section -->
+            <div id="prompt-editor" class="hidden border-b border-gray-200 p-4">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-semibold text-gray-700">Custom Prompt</h3>
+                    <button onclick="closePromptEditor()" class="text-gray-400 hover:text-gray-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <form id="prompt-form" class="space-y-3">
+                    <textarea id="system-prompt" name="prompt" 
+                        class="w-full h-32 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
+                        placeholder="Enter a custom system prompt to guide the AI's responses..."></textarea>
+                    <div class="flex gap-2 justify-end">
+                        <button type="button" onclick="closePromptEditor()" 
+                            class="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-md text-sm">Cancel</button>
+                        <button type="submit" 
+                            class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">Save Prompt</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Default message when no project selected -->
+            <div id="no-project-message" class="flex-1 flex flex-col justify-center items-center text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mb-4 opacity-50" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <p>Select a project to view documents</p>
+            </div>
+
+            <!-- Documents container -->
+            <div id="documents-container" class="flex-1 overflow-y-auto"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Project Modal -->
+<div id="create-project-modal"
+    class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-96 p-6">
+        <h3 class="text-lg font-semibold mb-4">Create New Project</h3>
+        <form hx-post="{{ url_prefix }}/create/" hx-target="#project-list" hx-swap="innerHTML"
+            onsubmit="document.getElementById('create-project-modal').classList.add('hidden')">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+                <input type="text" name="display_name" required
+                    class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Storage Type</label>
+                <select name="storage_type" required
+                    class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="google">Google File Search</option>
+                    <option value="local">Locally</option>
+                </select>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button type="button" onclick="document.getElementById('create-project-modal').classList.add('hidden')"
+                    class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md">Cancel</button>
+                <button type="submit"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let currentStoreId = null;
+
+    function loadProjectDetails(storeId, displayName) {
+        currentStoreId = storeId;
+        
+        // Show prompt editor and hide no-project message
+        document.getElementById('no-project-message').classList.add('hidden');
+        document.getElementById('prompt-editor').classList.remove('hidden');
+        
+        // Load documents
+        htmx.ajax('GET', '{{ url_prefix }}/api/projects/' + storeId + '/documents', { 
+            target: '#documents-container', 
+            swap: 'innerHTML' 
+        });
+        
+        // Load existing prompt
+        fetch('{{ url_prefix }}/api/projects/' + encodeURIComponent(storeId) + '/prompt')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('system-prompt').value = data.prompt || '';
+            })
+            .catch(err => console.error('Error loading prompt:', err));
+    }
+    
+    function closePromptEditor() {
+        document.getElementById('prompt-editor').classList.add('hidden');
+        document.getElementById('no-project-message').classList.remove('hidden');
+        document.getElementById('documents-container').innerHTML = '';
+        currentStoreId = null;
+    }
+    
+    // Handle prompt form submission
+    document.getElementById('prompt-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        if (!currentStoreId) {
+            alert('No project selected');
+            return;
+        }
+        
+        const prompt = document.getElementById('system-prompt').value;
+        
+        const formData = new FormData();
+        formData.append('prompt', prompt);
+        
+        try {
+            const response = await fetch('{{ url_prefix }}/api/projects/' + encodeURIComponent(currentStoreId) + '/prompt', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                alert('Prompt saved successfully!');
+            } else {
+                alert('Failed to save prompt');
+            }
+        } catch (err) {
+            console.error('Error saving prompt:', err);
+            alert('Error saving prompt');
+        }
+    });
+    
+    // Resizable divider functionality
+    const adminDivider = document.getElementById('admin-divider');
+    const adminLeftPanel = document.getElementById('admin-left-panel');
+    const adminContainer = document.getElementById('admin-container');
+    let isResizing = false;
+    
+    adminDivider.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        e.preventDefault();
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        
+        const containerRect = adminContainer.getBoundingClientRect();
+        const newWidth = e.clientX - containerRect.left;
+        const minWidth = 250;
+        const maxWidth = containerRect.width - 300;
+        
+        if (newWidth >= minWidth && newWidth <= maxWidth) {
+            adminLeftPanel.style.width = (newWidth / containerRect.width * 100) + '%';
+        }
+    });
+    
+    document.addEventListener('mouseup', () => {
+        isResizing = false;
+    });
+</script>

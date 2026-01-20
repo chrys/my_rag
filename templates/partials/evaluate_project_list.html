@@ -1,0 +1,17 @@
+{% for store in stores %}
+<div id="evaluate-project-{{ store.name }}"
+    data-evaluate-store-id="{{ store.name }}"
+    class="evaluate-project-item group p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all cursor-pointer"
+    onclick="selectEvaluateProject('{{ store.name }}', '{{ store.display_name }}')">
+    <div class="flex justify-between items-start">
+        <div>
+            <h3 class="font-medium text-gray-800">{{ store.display_name }}</h3>
+            <p class="text-xs text-gray-500 mt-1">ID: {{ store.name.split('/')[-1] }}</p>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="text-center py-8 text-gray-500">
+    <p>No projects found.</p>
+</div>
+{% endfor %}
