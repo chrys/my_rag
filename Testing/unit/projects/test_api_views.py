@@ -162,18 +162,22 @@ class TestProjectViewSet:
             display_name='Google Project',
             storage_type='google'
         )
+        Project.objects.create(
+            project_id='filter_postgres_001_v2',
+            display_name='Postgres Project',
+            storage_type='postgres'
+        )
         
-        request = api_factory.get('/api/projects/?storage_type=local')
+        request = api_factory.get('/api/projects/?storage_type=postgres')
         force_authenticate(request, user=authenticated_user)
         
         view = ProjectViewSet.as_view({'get': 'list'})
         response = view(request)
         
         assert response.status_code == status.HTTP_200_OK
-        # Response is paginated
-        local_projects = [p for p in response.data['results'] if p['storage_type'] == 'local']
-        assert len(local_projects) == 1
-        assert local_projects[0]['storage_type'] == 'local'
+        postgres_projects = [p for p in response.data['results'] if p['storage_type'] == 'postgres']
+        assert len(postgres_projects) == 1
+        assert postgres_projects[0]['storage_type'] == 'postgres'
     
     def test_filter_projects_by_active(self, api_factory, authenticated_user):
         """Test filtering projects by active status"""

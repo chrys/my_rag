@@ -48,7 +48,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         
         # Try to find by primary key first (if it's a digit)
         lookup_value = self.kwargs[lookup_url_kwarg]
-        if lookup_value.isdigit():
+        if isinstance(lookup_value, int) or (isinstance(lookup_value, str) and lookup_value.isdigit()):
             try:
                 obj = queryset.get(pk=lookup_value)
                 self.check_object_permissions(self.request, obj)

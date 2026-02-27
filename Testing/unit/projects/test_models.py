@@ -40,6 +40,16 @@ class TestProjectModel:
         assert project.storage_type == 'google'
         assert project.external_store_id == 'google_store_123'
     
+    def test_create_project_postgres(self):
+        """Test creating a PostgreSQL project"""
+        project = Project.objects.create(
+            project_id='postgres_test_001',
+            display_name='Postgres Project',
+            storage_type='postgres'
+        )
+        
+        assert project.storage_type == 'postgres'
+        
     def test_project_id_unique(self):
         """Test that project_id is unique"""
         Project.objects.create(
@@ -102,7 +112,7 @@ class TestProjectModel:
     
     def test_project_storage_type_choices(self):
         """Test valid storage types"""
-        valid_types = ['local', 'google']
+        valid_types = ['local', 'google', 'postgres']
         
         for storage_type in valid_types:
             project = Project.objects.create(

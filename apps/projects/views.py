@@ -76,6 +76,18 @@ def create_project(request):
                 display_name=display_name,
                 storage_type='local'
             )
+        elif storage_type == 'postgres':
+            from datetime import datetime
+            import time
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            microseconds = int(time.time() * 1000000) % 1000000
+            safe_name = display_name.lower().replace(' ', '_')[:30]
+            project_id = f"postgres_{timestamp}_{microseconds}_{safe_name}"
+            Project.objects.create(
+                project_id=project_id,
+                display_name=display_name,
+                storage_type='postgres'
+            )
         else:
             # Create Google File Search store
             store_id = gfs.create_new_file_search_store(display_name)
@@ -115,9 +127,14 @@ def delete_project(request, store_id):
         if project:
             if project.storage_type == 'local':
                 storage.delete_project(project.project_id)
+            elif project.storage_type == 'postgres':
+                # Postgres deletion logic: can drop embeddings or let them persist
+                # We will implement embedding cleanup later if needed, for now just delete the project record
+                pass
             else:
                 # Delete from Google File Search
-                gfs.delete_file_search_store(project.external_store_id)
+                if project.external_store_id:
+                    gfs.delete_file_search_store(project.external_store_id)
             
             # Delete from Django database
             project.delete()
