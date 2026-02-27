@@ -2,7 +2,7 @@
 
 ## Phase 1: Documentation
 - [x] Task: Document local projects [d8e2286]
-- [ ] Task: Document Google File Search projects
+- [x] Task: Document Google File Search projects [4a03db0]
 - [ ] Task: Document API
 
 ## Phase 2: RAG Project Type Setup (PostgreSQL & txtai)
