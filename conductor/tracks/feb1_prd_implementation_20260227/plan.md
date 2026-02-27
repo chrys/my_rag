@@ -8,7 +8,7 @@
 ## Phase 2: RAG Project Type Setup (PostgreSQL & txtai)
 - [x] Task: Integrate txtai framework for embeddings [65caf2d]
 - [x] Task: Create UI and logic for New Project with PostgreSQL storage type [d05d769]
-- [ ] Task: Implement document upload for PostgreSQL projects
+- [x] Task: Implement document upload for PostgreSQL projects [4332410]
     - [ ] Add logic to create embeddings using txtai upon upload
     - [ ] Store embeddings and document metadata in PostgreSQL
 - [ ] Task: Implement Chat functionality for PostgreSQL projects
