@@ -61,9 +61,9 @@
             <h1 class="text-xl font-bold tracking-tight">Gemini File Search</h1>
         </div>
         <div class="flex gap-4">
-            <button hx-get="/" hx-target="#main-content" hx-swap="innerHTML" class="px-4 py-2 rounded-md hover:bg-gray-100 font-medium transition-colors">Admin</button>
-            <button hx-get="/chat/" hx-target="#main-content" hx-swap="innerHTML" class="px-4 py-2 rounded-md hover:bg-gray-100 font-medium transition-colors">Chat</button>
-            <button hx-get="/evaluate/" hx-target="#main-content" hx-swap="innerHTML" class="px-4 py-2 rounded-md hover:bg-gray-100 font-medium transition-colors">Evaluate</button>
+            <button hx-get="/" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true" class="px-4 py-2 rounded-md hover:bg-gray-100 font-medium transition-colors">Admin</button>
+            <button hx-get="/chat/" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true" class="px-4 py-2 rounded-md hover:bg-gray-100 font-medium transition-colors">Chat</button>
+            <button hx-get="/evaluate/" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true" class="px-4 py-2 rounded-md hover:bg-gray-100 font-medium transition-colors">Evaluate</button>
         </div>
     </nav>
 

@@ -24,6 +24,9 @@ pytest-mock==3.12.0
 # WSGI & Server
 gunicorn==21.2.0
 
+# Database
+psycopg2-binary==2.9.9
+
 # Flask dependencies (for migration period - can be removed later)
 flask
 flask-cors

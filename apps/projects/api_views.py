@@ -2,6 +2,7 @@
 DRF API Views for projects app
 """
 
+from django.db import models
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -26,9 +27,54 @@ class ProjectViewSet(viewsets.ModelViewSet):
     - GET /api/projects/{id}/ - Get project details
     - PUT /api/projects/{id}/ - Update project
     - DELETE /api/projects/{id}/ - Delete project
+    
+    Supports multiple lookup methods:
+    - By primary key (id)
+    - By project_id
+    - By external_store_id (may contain slashes)
     """
     queryset = Project.objects.all()
     permission_classes = [AllowAny]
+    lookup_field = 'pk'  # Default lookup field
+    lookup_value_regex = '[^/]+'  # Allow anything except forward slash in URL segment
+    
+    def get_object(self):
+        """
+        Override to support lookup by pk, project_id, or external_store_id
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        filter_kwargs = {self.lookup_field: self.kwargs[lookup_url_kwarg]}
+        
+        # Try to find by primary key first (if it's a digit)
+        lookup_value = self.kwargs[lookup_url_kwarg]
+        if lookup_value.isdigit():
+            try:
+                obj = queryset.get(pk=lookup_value)
+                self.check_object_permissions(self.request, obj)
+                return obj
+            except Project.DoesNotExist:
+                pass
+        
+        # Try to find by project_id
+        try:
+            obj = queryset.get(project_id=lookup_value)
+            self.check_object_permissions(self.request, obj)
+            return obj
+        except Project.DoesNotExist:
+            pass
+        
+        # Try to find by external_store_id
+        try:
+            obj = queryset.get(external_store_id=lookup_value)
+            self.check_object_permissions(self.request, obj)
+            return obj
+        except Project.DoesNotExist:
+            pass
+        
+        # If not found by any method, raise 404
+        from django.http import Http404
+        raise Http404("No Project matches the given query.")
     
     def get_serializer_class(self):
         """Return appropriate serializer based on action"""
@@ -47,11 +93,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
         
         if request.method == 'GET':
             prompt = project.system_prompt if hasattr(project, 'system_prompt') else None
-            serializer = SystemPromptSerializer(prompt)
-            return Response(serializer.data)
+            # Return in the format expected by the frontend
+            prompt_content = prompt.content if prompt else ''
+            return Response({'prompt': prompt_content})
         
         # POST - set prompt
-        content = request.data.get('content', '')
+        # Accept both 'content' (API standard) and 'prompt' (legacy frontend key)
+        content = request.data.get('content') or request.data.get('prompt', '')
         prompt, created = SystemPrompt.objects.get_or_create(
             project=project,
             defaults={'content': content}
@@ -60,7 +108,21 @@ class ProjectViewSet(viewsets.ModelViewSet):
             prompt.content = content
             prompt.save()
         
-        serializer = SystemPromptSerializer(prompt)
+        # Return in the format expected by the frontend
+        return Response({'status': 'success', 'prompt': content})
+    
+    @action(detail=True, methods=['get'])
+    def documents(self, request, pk=None):
+        """Get documents for this project"""
+        from apps.documents.models import Document
+        from apps.documents.serializers import DocumentListSerializer
+        
+        project = self.get_object()
+        
+        # Get documents for this project (Document has ForeignKey to Project)
+        docs = Document.objects.filter(project=project)
+        
+        serializer = DocumentListSerializer(docs, many=True)
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])

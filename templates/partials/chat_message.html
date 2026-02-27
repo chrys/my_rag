@@ -1,11 +1,11 @@
-<div class="flex flex-col gap-1 {{ 'items-end' if sender == 'user' else 'items-start' }}">
+<div class="flex flex-col gap-1 {% if sender == 'user' %}items-end{% else %}items-start{% endif %}">
     <div
-        class="max-w-[80%] rounded-2xl px-4 py-3 {{ 'bg-blue-600 text-white rounded-br-none' if sender == 'user' else 'bg-gray-100 text-gray-800 rounded-bl-none' }}">
-        <div class="prose prose-sm {{ 'text-white' if sender == 'user' else 'text-gray-800' }}">
+        class="max-w-[80%] rounded-2xl px-4 py-3 {% if sender == 'user' %}bg-blue-600 text-white rounded-br-none{% else %}bg-gray-100 text-gray-800 rounded-bl-none{% endif %}">
+        <div class="prose prose-sm {% if sender == 'user' %}text-white{% else %}text-gray-800{% endif %}">
             {{ message | safe }}
         </div>
     </div>
-    <span class="text-xs text-gray-400 px-1">{{ 'You' if sender == 'user' else 'Gemini' }}</span>
+    <span class="text-xs text-gray-400 px-1">{% if sender == 'user' %}You{% else %}Gemini{% endif %}</span>
     
     {% if sender == 'bot' and source_nodes and is_local %}
     <div class="max-w-[80%] mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">

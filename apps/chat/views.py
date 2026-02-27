@@ -6,6 +6,7 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
+from django.template.loader import render_to_string
 import markdown
 import sys
 import os
@@ -14,13 +15,97 @@ import json
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src'))
 
-# TODO: These imports are disabled as part of Flask-to-Django migration
-# import google_file_search as gfs
+import google_file_search as gfs
 from local_project_storage import get_local_project_storage
 from local_rag import get_rag_engine
 from prompt_storage import get_prompt_storage
 
 from .models import ChatMessage
+from apps.projects.models import Project
+
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def chat_submit(request):
+    """Handle chat submission and return HTML message for htmx"""
+    try:
+        store_id = request.POST.get('store_id') or request.data.get('store_id')
+        query = request.POST.get('query') or request.data.get('query')
+        system_prompt = request.POST.get('system_prompt') or request.data.get('system_prompt', '')
+        
+        if not store_id or not query:
+            return JsonResponse({'error': 'Missing store_id or query'}, status=400)
+        
+        # Get or create prompt if not provided
+        if not system_prompt:
+            prompt_storage = get_prompt_storage()
+            system_prompt = prompt_storage.get_prompt(store_id)
+        
+        # Look up project for storage type
+        project = Project.objects.filter(project_id=store_id).first()
+        
+        # Query the appropriate backend
+        if store_id.startswith('local_'):
+            rag_engine = get_rag_engine(store_id)
+            bot_response = rag_engine.query(query, system_prompt=system_prompt)
+        else:
+            # Google store - look up the external_store_id
+            if project and project.external_store_id:
+                google_store_id = project.external_store_id
+            else:
+                google_store_id = store_id
+            
+            bot_response = gfs.ask_store_question(
+                google_store_id,
+                query,
+                system_prompt=system_prompt
+            )
+        
+        # Convert markdown to HTML
+        bot_response_html = markdown.markdown(bot_response)
+        
+        # Store in database
+        user_msg = ChatMessage.objects.create(
+            project_id=project.id if project else 1,  # TODO: ensure project exists
+            user=request.user if request.user.is_authenticated else None,
+            message_type='user',
+            content=query
+        )
+        bot_msg = ChatMessage.objects.create(
+            project_id=project.id if project else 1,
+            user=request.user if request.user.is_authenticated else None,
+            message_type='assistant',
+            content=bot_response,
+            response_html=bot_response_html
+        )
+        
+        # Build HTML directly instead of using templates
+        user_html = f'''
+<div class="flex justify-end mb-4">
+    <div class="max-w-[80%] rounded-2xl bg-blue-600 text-white p-4 rounded-br-none">
+        <p class="text-sm">{query}</p>
+    </div>
+</div>
+'''
+        
+        bot_html = f'''
+<div class="flex justify-start mb-4">
+    <div class="max-w-[80%] rounded-2xl bg-gray-100 text-gray-800 p-4 rounded-bl-none">
+        <div class="prose prose-sm text-gray-800">
+            {bot_response_html}
+        </div>
+    </div>
+</div>
+'''
+        
+        # Return both messages as raw HTML
+        from django.http import HttpResponse
+        return HttpResponse(user_html + bot_html)
+    
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 @require_http_methods(["POST"])

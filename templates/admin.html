@@ -115,7 +115,7 @@
         });
         
         // Load existing prompt
-        fetch('{{ url_prefix }}/api/projects/' + encodeURIComponent(storeId) + '/prompt')
+        fetch('{{ url_prefix }}/api/projects/' + encodeURIComponent(storeId) + '/prompt/')
             .then(r => r.json())
             .then(data => {
                 document.getElementById('system-prompt').value = data.prompt || '';
@@ -145,7 +145,7 @@
         formData.append('prompt', prompt);
         
         try {
-            const response = await fetch('{{ url_prefix }}/api/projects/' + encodeURIComponent(currentStoreId) + '/prompt', {
+            const response = await fetch('{{ url_prefix }}/api/projects/' + encodeURIComponent(currentStoreId) + '/prompt/', {
                 method: 'POST',
                 body: formData
             });

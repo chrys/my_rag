@@ -71,7 +71,7 @@
         
         // Load custom prompt for this project
         console.log('[CHAT] Project selected, loading custom prompt...');
-        fetch('{{ url_prefix }}/api/projects/' + encodeURIComponent(storeId) + '/prompt')
+        fetch('{{ url_prefix }}/api/projects/' + encodeURIComponent(storeId) + '/prompt/')
             .then(r => r.json())
             .then(data => {
                 if (data.prompt) {

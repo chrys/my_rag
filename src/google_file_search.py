@@ -179,7 +179,7 @@ def ask_store_question(store_id: str, query: str, system_prompt: str = None) -> 
         The model's answer, potentially with citations.
     """
     
-    MODEL = "gemini-2.5-flash" # Supports File Search properly
+    MODEL = "gemini-2.5-flash-lite" # Supports File Search properly
     
     print(f"Querying store '{store_id}' with model {MODEL}...")
     if system_prompt:

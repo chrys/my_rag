@@ -15,72 +15,80 @@ import tempfile
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src'))
 
-# TODO: These imports are disabled as part of Flask-to-Django migration
-# import google_file_search as gfs
+import google_file_search as gfs
 from local_project_storage import get_local_project_storage
 from local_rag import get_rag_engine
 from urllib.parse import unquote
 
 from .models import Document
+from apps.projects.models import Project
+
+
+def _doc_adapter(doc):
+    """Return a dict that matches the interface expected by document templates."""
+    return {
+        'name': doc.document_name,
+        'display_name': doc.display_name or doc.document_name,
+        'mime_type': doc.mime_type,
+        'indexed_at': doc.indexed_at,
+        'state': type('State', (), {'name': doc.state})(),
+    }
 
 
 @require_http_methods(["GET"])
 def list_documents(request, store_id):
-    """List documents in a project"""
-    storage = get_local_project_storage()
+    """List documents in a project, returning an HTML partial."""
     doc_type = request.GET.get('type', 'admin')
-    
-    if store_id.startswith('local_'):
-        # Local project documents
-        local_projects = storage.list_projects()
-        project = next((p for p in local_projects if p['id'] == store_id), None)
+
+    # Look up project by project_id in the Django database
+    project = Project.objects.filter(project_id=store_id).first()
+
+    if project:
+        if project.storage_type == 'google':
+            # For Google projects, fetch from the API using external_store_id
+            documents = gfs.list_documents_in_store(project.external_store_id)
+        else:
+            # For local projects, use Django ORM
+            docs_qs = Document.objects.filter(project=project)
+            documents = [_doc_adapter(d) for d in docs_qs]
         
-        if not project:
-            return JsonResponse({'error': 'Project not found'}, status=404)
-        
-        documents = [
-            {
-                'name': doc_name,
-                'display_name': doc_name,
-                'mime_type': 'document',
-                'indexed_at': doc_info.get('indexed_at') if isinstance(doc_info, dict) else None,
-                'state': type('State', (), {'name': 'INDEXED'})()
-            }
-            for doc_name, doc_info in (
-                ((d, project['documents'].get(d)) if isinstance(project['documents'], dict) else (d, {}))
-                for d in project.get('documents', []) if d
-            )
-        ]
-        
-        if doc_type == 'evaluate':
-            return render(request, 'partials/evaluate_document_items.html', {'documents': documents})
-        
-        return render(request, 'partials/document_list.html', {
-            'documents': documents,
-            'store_id': store_id,
-            'project_name': project['display_name'],
-            'storage_type': 'local'
-        })
+        project_name = project.display_name
+        storage_type = project.storage_type
     else:
-        # Google store documents
-        documents = gfs.list_documents_in_store(store_id)
-        project_name = "Project Documents"
-        
-        stores = gfs.list_all_file_search_stores()
-        for store in stores:
-            if store.name == store_id:
-                project_name = store.display_name
-                break
-        
-        if doc_type == 'evaluate':
-            return render(request, 'partials/evaluate_document_items.html', {'documents': documents})
-        
-        return render(request, 'partials/document_list.html', {
-            'documents': documents,
-            'store_id': store_id,
-            'project_name': project_name,
-            'storage_type': 'google'
-        })
+        # Fallback: project not in DB yet — try legacy local_project_storage
+        storage = get_local_project_storage()
+        local_projects = storage.list_projects()
+        legacy = next((p for p in local_projects if p['id'] == store_id), None)
+        if legacy:
+            documents = [
+                {
+                    'name': doc_name,
+                    'display_name': doc_name,
+                    'mime_type': 'document',
+                    'indexed_at': doc_info.get('indexed_at') if isinstance(doc_info, dict) else None,
+                    'state': type('State', (), {'name': 'INDEXED'})(),
+                }
+                for doc_name, doc_info in (
+                    ((d, legacy['documents'].get(d)) if isinstance(legacy['documents'], dict) else (d, {}))
+                    for d in legacy.get('documents', []) if d
+                )
+            ]
+            project_name = legacy['display_name']
+            storage_type = 'local'
+        else:
+            documents = []
+            project_name = store_id
+            storage_type = 'unknown'
+
+    if doc_type == 'evaluate':
+        return render(request, 'partials/evaluate_document_items.html', {'documents': documents})
+
+    return render(request, 'partials/document_list.html', {
+        'documents': documents,
+        'store_id': store_id,
+        'project_name': project_name,
+        'storage_type': storage_type,
+    })
 
 
 @require_http_methods(["POST"])
@@ -117,32 +125,46 @@ def upload_document(request, store_id):
                     os.unlink(filepath)
                     return JsonResponse({'error': 'Failed to index document'}, status=500)
             else:
-                # Google store
-                gfs.add_document_to_store(store_id, filepath)
+                # Google store - look up the project to get the external_store_id
+                project = Project.objects.filter(project_id=store_id).first()
+                if project and project.external_store_id:
+                    # Use the actual Google store ID
+                    google_store_id = project.external_store_id
+                else:
+                    # Fallback to store_id (for backward compatibility)
+                    google_store_id = store_id
+                    
+                gfs.add_document_to_store(google_store_id, filepath)
         finally:
             if os.path.exists(filepath):
                 os.unlink(filepath)
         
         # Return updated documents list
-        local_projects = storage.list_projects()
-        project = next((p for p in local_projects if p['id'] == store_id), None)
-        
-        if project:
-            documents = [
-                {
-                    'name': doc_name,
-                    'display_name': doc_name,
-                    'mime_type': 'document',
-                    'indexed_at': doc_info.get('indexed_at') if isinstance(doc_info, dict) else None,
-                    'state': type('State', (), {'name': 'INDEXED'})()
-                }
-                for doc_name, doc_info in (
-                    ((d, project['documents'].get(d)) if isinstance(project['documents'], dict) else (d, {}))
-                    for d in project.get('documents', []) if d
-                )
-            ]
+        project = Project.objects.filter(project_id=store_id).first()
+        if project and project.storage_type == 'google':
+            # For Google projects, fetch from API
+            documents = gfs.list_documents_in_store(project.external_store_id)
         else:
-            documents = gfs.list_documents_in_store(store_id)
+            # For local projects, check local storage first
+            local_projects = storage.list_projects()
+            proj = next((p for p in local_projects if p['id'] == store_id), None)
+            
+            if proj:
+                documents = [
+                    {
+                        'name': doc_name,
+                        'display_name': doc_name,
+                        'mime_type': 'document',
+                        'indexed_at': doc_info.get('indexed_at') if isinstance(doc_info, dict) else None,
+                        'state': type('State', (), {'name': 'INDEXED'})()
+                    }
+                    for doc_name, doc_info in (
+                        ((d, proj['documents'].get(d)) if isinstance(proj['documents'], dict) else (d, {}))
+                        for d in proj.get('documents', []) if d
+                    )
+                ]
+            else:
+                documents = []
         
         return render(request, 'partials/document_items.html', {'documents': documents})
     
@@ -169,8 +191,13 @@ def delete_document(request, document_id):
             if success:
                 storage.remove_document(store_id, document_id)
         else:
-            # Google document deletion
-            if '/' in document_id:
+            # Google document deletion - look up project to get external_store_id
+            project = Project.objects.filter(project_id=store_id).first()
+            if project and project.external_store_id:
+                google_store_id = project.external_store_id
+                gfs.delete_document_from_store(google_store_id, document_id)
+            elif '/' in document_id:
+                # Fallback: extract store from document_id if it contains the store reference
                 parts = document_id.split('/')
                 if len(parts) >= 2:
                     store_id_from_doc = parts[1]

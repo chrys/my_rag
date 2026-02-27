@@ -1,8 +1,12 @@
 """
 URL routing for documents app
 """
+from django.urls import path
+from . import views
 
 app_name = 'documents'
 
-# API endpoints are handled by apps/api/api_urls.py
-urlpatterns = []
+urlpatterns = [
+    path('documents/<str:store_id>/', views.list_documents, name='list'),
+    path('documents/<str:store_id>/upload/', views.upload_document, name='upload'),
+]

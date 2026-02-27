@@ -112,13 +112,13 @@
         document.getElementById('prompt-editor').classList.remove('hidden');
         
         // Load documents
-        htmx.ajax('GET', '/api/projects/' + storeId + '/documents', { 
+        htmx.ajax('GET', '/documents/' + storeId + '/', { 
             target: '#documents-container', 
             swap: 'innerHTML' 
         });
         
         // Load existing prompt
-        fetch('/api/projects/' + encodeURIComponent(storeId) + '/prompt')
+        fetch('/api/projects/' + encodeURIComponent(storeId) + '/prompt/')
             .then(r => r.json())
             .then(data => {
                 document.getElementById('system-prompt').value = data.prompt || '';
@@ -148,7 +148,7 @@
         formData.append('prompt', prompt);
         
         try {
-            const response = await fetch('/api/projects/' + encodeURIComponent(currentStoreId) + '/prompt', {
+            const response = await fetch('/api/projects/' + encodeURIComponent(currentStoreId) + '/prompt/', {
                 method: 'POST',
                 body: formData
             });

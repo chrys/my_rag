@@ -1,8 +1,4 @@
-"""
-API URL routing for all apps
-"""
-
-from django.urls import path, include
+from django.urls import path, include, re_path
 from rest_framework.routers import DefaultRouter
 from apps.projects.api_views import ProjectViewSet, SystemPromptViewSet
 from apps.documents.api_views import DocumentViewSet
@@ -12,6 +8,8 @@ from apps.api.api_views import APIKeyViewSet, APIUsageViewSet
 
 # Create router and register viewsets
 router = DefaultRouter()
+
+# Register ProjectViewSet with custom lookup regex to accept slashes
 router.register(r'projects', ProjectViewSet, basename='project')
 router.register(r'prompts', SystemPromptViewSet, basename='prompt')
 router.register(r'documents', DocumentViewSet, basename='document')
