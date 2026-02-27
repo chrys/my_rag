@@ -11,7 +11,7 @@
 - [x] Task: Implement document upload for PostgreSQL projects [4332410]
     - [ ] Add logic to create embeddings using txtai upon upload
     - [ ] Store embeddings and document metadata in PostgreSQL
-- [ ] Task: Implement Chat functionality for PostgreSQL projects
+- [x] Task: Implement Chat functionality for PostgreSQL projects [5d3f16d]
     - [ ] Add chat interface logic for PostgreSQL project selection
     - [ ] Implement query logic using txtai to search embeddings and generate responses
 
