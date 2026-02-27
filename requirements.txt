@@ -31,4 +31,4 @@ psycopg2-binary==2.9.9
 flask
 flask-cors
 werkzeug
-python-multipart
+python-multiparttxtai
