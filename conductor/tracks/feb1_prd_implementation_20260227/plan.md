@@ -1,6 +1,6 @@
 # Implementation Plan: Implement Feb1-PRD requirements
 
-## Phase 1: Documentation
+## Phase 1: Documentation [checkpoint: 1359608]
 - [x] Task: Document local projects [d8e2286]
 - [x] Task: Document Google File Search projects [4a03db0]
 - [x] Task: Document API [6959d68]
