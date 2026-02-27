@@ -66,7 +66,7 @@ class PostgresRAGEngine:
         self.embeddings.index(data)
         return True
 
-    def query(self, query_text: str, top_k: int = 3) -> dict:
+    def query(self, query_text: str, top_k: int = 3, system_prompt: str = "") -> dict:
         """Query the txtai index and use LLM to answer"""
         # Filter by this project's ID
         search_query = f"select id, text, score from txtai where similar('{query_text}') and project_id = '{self.project_id}' limit {top_k}"
@@ -96,7 +96,8 @@ class PostgresRAGEngine:
         if not source_docs:
             response_text = "I don't have any indexed documents to answer this question. Please upload documents first."
         else:
-            prompt = f"Based on the following documents, answer this question: {query_text}\\n\\nDocuments:{context_text}"
+            base_prompt = system_prompt if system_prompt else "Based on the following documents, answer this question:"
+            prompt = f"{base_prompt}\\n\\nQuestion: {query_text}\\n\\nDocuments:{context_text}"
             response_text = self.llm.complete(prompt).text if hasattr(self.llm, 'complete') else str(self.llm(prompt))
 
         return {

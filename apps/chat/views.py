@@ -48,6 +48,11 @@ def chat_submit(request):
         if store_id.startswith('local_'):
             rag_engine = get_rag_engine(store_id)
             bot_response = rag_engine.query(query, system_prompt=system_prompt)
+        elif store_id.startswith('postgres_'):
+            from postgres_rag import PostgresRAGEngine
+            rag_engine = PostgresRAGEngine(store_id)
+            res = rag_engine.query(query, system_prompt=system_prompt)
+            bot_response = res.get("response", "Error generating response.")
         else:
             # Google store - look up the external_store_id
             if project and project.external_store_id:
@@ -130,6 +135,11 @@ def chat(request):
         if store_id.startswith('local_'):
             rag_engine = get_rag_engine(store_id)
             bot_response = rag_engine.query(query, system_prompt=system_prompt)
+        elif store_id.startswith('postgres_'):
+            from postgres_rag import PostgresRAGEngine
+            rag_engine = PostgresRAGEngine(store_id)
+            res = rag_engine.query(query, system_prompt=system_prompt)
+            bot_response = res.get("response", "Error generating response.")
         else:
             bot_response = gfs.ask_store_question(
                 store_id,
