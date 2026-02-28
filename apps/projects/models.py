@@ -4,6 +4,7 @@ Project models for managing file search stores and projects
 
 from django.db import models
 from django.utils import timezone
+from django.contrib.auth.models import User
 
 
 class Project(models.Model):
@@ -19,6 +20,14 @@ class Project(models.Model):
     ]
     
     # Identifiers
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='projects',
+        null=True,
+        blank=True,
+        help_text="The user who owns this project"
+    )
     project_id = models.CharField(
         max_length=255,
         unique=True,

@@ -35,11 +35,11 @@ class TestProjectViewSet:
     def test_list_projects(self, api_factory, authenticated_user):
         """Test listing projects"""
         # Create test projects
-        Project.objects.create(
+        Project.objects.create(user=authenticated_user, 
             project_id='list_1',
             display_name='Project 1'
         )
-        Project.objects.create(
+        Project.objects.create(user=authenticated_user, 
             project_id='list_2',
             display_name='Project 2'
         )
@@ -59,7 +59,7 @@ class TestProjectViewSet:
     
     def test_retrieve_project(self, api_factory, authenticated_user):
         """Test retrieving a single project"""
-        project = Project.objects.create(
+        project = Project.objects.create(user=authenticated_user, 
             project_id='retrieve_1',
             display_name='Retrieve Test'
         )
@@ -96,7 +96,7 @@ class TestProjectViewSet:
     
     def test_update_project(self, api_factory, authenticated_user):
         """Test updating a project"""
-        project = Project.objects.create(
+        project = Project.objects.create(user=authenticated_user, 
             project_id='update_api_001',
             display_name='Original Name'
         )
@@ -113,7 +113,7 @@ class TestProjectViewSet:
     
     def test_partial_update_project(self, api_factory, authenticated_user):
         """Test partial update of a project"""
-        project = Project.objects.create(
+        project = Project.objects.create(user=authenticated_user, 
             project_id='partial_update_001',
             display_name='Original',
             is_active=True
@@ -131,7 +131,7 @@ class TestProjectViewSet:
     
     def test_delete_project(self, api_factory, authenticated_user):
         """Test deleting a project"""
-        project = Project.objects.create(
+        project = Project.objects.create(user=authenticated_user, 
             project_id='delete_api_001',
             display_name='Delete Test'
         )
@@ -152,17 +152,17 @@ class TestProjectViewSet:
     def test_filter_projects_by_storage_type(self, api_factory, authenticated_user):
         """Test filtering projects by storage type"""
         Project.objects.all().delete()  # Clear any existing projects
-        Project.objects.create(
+        Project.objects.create(user=authenticated_user, 
             project_id='filter_local_001_v2',
             display_name='Local Project',
             storage_type='local'
         )
-        Project.objects.create(
+        Project.objects.create(user=authenticated_user, 
             project_id='filter_google_001_v2',
             display_name='Google Project',
             storage_type='google'
         )
-        Project.objects.create(
+        Project.objects.create(user=authenticated_user, 
             project_id='filter_postgres_001_v2',
             display_name='Postgres Project',
             storage_type='postgres'
@@ -181,12 +181,12 @@ class TestProjectViewSet:
     
     def test_filter_projects_by_active(self, api_factory, authenticated_user):
         """Test filtering projects by active status"""
-        Project.objects.create(
+        Project.objects.create(user=authenticated_user, 
             project_id='filter_active_001',
             display_name='Active Project',
             is_active=True
         )
-        Project.objects.create(
+        Project.objects.create(user=authenticated_user, 
             project_id='filter_inactive_001',
             display_name='Inactive Project',
             is_active=False
@@ -210,11 +210,11 @@ class TestSystemPromptViewSet:
     
     def test_list_system_prompts(self, api_factory, authenticated_user):
         """Test listing system prompts"""
-        project1 = Project.objects.create(
+        project1 = Project.objects.create(user=authenticated_user, 
             project_id='prompt_proj_1',
             display_name='Project 1'
         )
-        project2 = Project.objects.create(
+        project2 = Project.objects.create(user=authenticated_user, 
             project_id='prompt_proj_2',
             display_name='Project 2'
         )
@@ -235,7 +235,7 @@ class TestSystemPromptViewSet:
     
     def test_retrieve_system_prompt(self, api_factory, authenticated_user):
         """Test retrieving a single system prompt"""
-        project = Project.objects.create(
+        project = Project.objects.create(user=authenticated_user, 
             project_id='prompt_retrieve_proj',
             display_name='Prompt Retrieve'
         )
@@ -256,7 +256,7 @@ class TestSystemPromptViewSet:
     
     def test_create_system_prompt(self, api_factory, authenticated_user):
         """Test creating a system prompt"""
-        project = Project.objects.create(
+        project = Project.objects.create(user=authenticated_user, 
             project_id='prompt_create_proj',
             display_name='Prompt Create'
         )
@@ -277,7 +277,7 @@ class TestSystemPromptViewSet:
     
     def test_update_system_prompt(self, api_factory, authenticated_user):
         """Test updating a system prompt"""
-        project = Project.objects.create(
+        project = Project.objects.create(user=authenticated_user, 
             project_id='prompt_update_proj',
             display_name='Prompt Update'
         )
@@ -299,7 +299,7 @@ class TestSystemPromptViewSet:
     
     def test_delete_system_prompt(self, api_factory, authenticated_user):
         """Test deleting a system prompt"""
-        project = Project.objects.create(
+        project = Project.objects.create(user=authenticated_user, 
             project_id='prompt_delete_proj',
             display_name='Prompt Delete'
         )
@@ -324,11 +324,11 @@ class TestSystemPromptViewSet:
     
     def test_filter_prompts_by_project(self, api_factory, authenticated_user):
         """Test filtering prompts by project"""
-        project1 = Project.objects.create(
+        project1 = Project.objects.create(user=authenticated_user, 
             project_id='filter_prompt_proj1',
             display_name='Project 1'
         )
-        project2 = Project.objects.create(
+        project2 = Project.objects.create(user=authenticated_user, 
             project_id='filter_prompt_proj2',
             display_name='Project 2'
         )
@@ -346,3 +346,46 @@ class TestSystemPromptViewSet:
         # Response is paginated - check results
         matching = [p for p in response.data['results'] if p['project'] == project1.id]
         assert len(matching) >= 1
+
+    def test_list_projects_isolation(self, api_factory, authenticated_user):
+        """Test that a user can only list their own projects"""
+        other_user = User.objects.create_user(username='other', password='pw')
+        
+        Project.objects.create(
+            project_id='my_project',
+            display_name='My Project',
+            user=authenticated_user
+        )
+        Project.objects.create(
+            project_id='other_project',
+            display_name='Other Project',
+            user=other_user
+        )
+        
+        request = api_factory.get('/api/projects/')
+        force_authenticate(request, user=authenticated_user)
+        
+        view = ProjectViewSet.as_view({'get': 'list'})
+        response = view(request)
+        
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['count'] == 1
+        assert response.data['results'][0]['display_name'] == 'My Project'
+
+    def test_create_project_sets_user(self, api_factory, authenticated_user):
+        """Test creating a project sets the authenticated user"""
+        data = {
+            'project_id': 'create_user_001',
+            'display_name': 'User Project',
+            'storage_type': 'local'
+        }
+        
+        request = api_factory.post('/api/projects/', data, format='json')
+        force_authenticate(request, user=authenticated_user)
+        
+        view = ProjectViewSet.as_view({'post': 'create'})
+        response = view(request)
+        
+        assert response.status_code == status.HTTP_201_CREATED
+        project = Project.objects.get(project_id='create_user_001')
+        assert project.user == authenticated_user

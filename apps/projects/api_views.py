@@ -34,9 +34,19 @@ class ProjectViewSet(viewsets.ModelViewSet):
     - By external_store_id (may contain slashes)
     """
     queryset = Project.objects.all()
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     lookup_field = 'pk'  # Default lookup field
     lookup_value_regex = '[^/]+'  # Allow anything except forward slash in URL segment
+    
+    def get_queryset(self):
+        """Filter projects by authenticated user"""
+        if getattr(self, 'swagger_fake_view', False):
+            return Project.objects.none()
+        return Project.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        """Set the user to the authenticated user on create"""
+        serializer.save(user=self.request.user)
     
     def get_object(self):
         """
