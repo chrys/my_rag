@@ -22,5 +22,5 @@
 
 ## Phase 4: Verification
 - [x] Task: Verify all documentation [3c5f0c4]
-- [ ] Task: Test RAG project lifecycle (Create, Upload, Chat) with PostgreSQL
+- [x] Task: Test RAG project lifecycle (Create, Upload, Chat) with PostgreSQL [ce22b11]
 - [ ] Task: Test user management flows
