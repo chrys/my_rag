@@ -17,7 +17,7 @@
 
 ## Phase 3: User Management
 - [x] Task: Implement user management in API [a654fc1]
-- [ ] Task: Implement user management in UI
+- [x] Task: Implement user management in UI [783bf69]
 - [ ] Task: Document user management
 
 ## Phase 4: Verification
