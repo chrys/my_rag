@@ -5,7 +5,7 @@
 - [x] Task: Document Google File Search projects [4a03db0]
 - [x] Task: Document API [6959d68]
 
-## Phase 2: RAG Project Type Setup (PostgreSQL & txtai)
+## Phase 2: RAG Project Type Setup (PostgreSQL & txtai) [checkpoint: ea7b382]
 - [x] Task: Integrate txtai framework for embeddings [65caf2d]
 - [x] Task: Create UI and logic for New Project with PostgreSQL storage type [d05d769]
 - [x] Task: Implement document upload for PostgreSQL projects [4332410]
