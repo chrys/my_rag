@@ -16,7 +16,7 @@
     - [ ] Implement query logic using txtai to search embeddings and generate responses
 
 ## Phase 3: User Management
-- [ ] Task: Implement user management in API
+- [x] Task: Implement user management in API [a654fc1]
 - [ ] Task: Implement user management in UI
 - [ ] Task: Document user management
 
