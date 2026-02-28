@@ -14,10 +14,10 @@ My RAG is a robust, Django-powered platform for Retrieval-Augmented Generation (
 ## Core Features
 - **Project Management:** Create and manage different RAG projects.
 - **Document Ingestion:** Support for PDF and other document types.
-- **Hybrid Search:** Local project storage and Google File Search capabilities.
+- **Hybrid Search:** Local project storage, Google File Search, and PostgreSQL capabilities.
 - **Multi-LLM Support:** Integration with Google Gemini and Ollama.
 - **Evaluation Dashboard:** Tools to evaluate the performance and accuracy of RAG outputs.
-- **User Management:** Secure access and project isolation (planned).
+- **User Management:** Secure access and project isolation.
 
 ## Design Philosophy
 - **Scalability:** Built on Django for high performance and reliability.
