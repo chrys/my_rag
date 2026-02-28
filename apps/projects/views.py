@@ -24,13 +24,15 @@ from .models import Project, SystemPrompt
 from .serializers import ProjectSerializer, SystemPromptSerializer
 
 
-def get_combined_stores():
-    """Get combined list of Google and local projects from Django database"""
-    # Get all projects from Django database
-    projects = Project.objects.all().order_by('-created_at')
+def get_combined_stores(request=None):
+    """Get list of projects for the current user from Django database"""
+    if request and request.user.is_authenticated:
+        projects = Project.objects.filter(user=request.user).order_by('-created_at')
+    else:
+        # Show projects without an owner for unauthenticated users (legacy behavior)
+        projects = Project.objects.filter(user__isnull=True).order_by('-created_at')
     
     # Convert to store-like objects for template compatibility
-    # Always use project_id as the identifier to avoid issues with slashes in external_store_id
     stores = [
         type('Store', (), {
             'name': project.project_id,  # Use project_id consistently for both types
@@ -47,7 +49,7 @@ def get_combined_stores():
 @require_http_methods(["GET"])
 def list_projects(request):
     """List all projects/stores"""
-    stores = get_combined_stores()
+    stores = get_combined_stores(request)
     list_type = request.GET.get('type', 'admin')
     
     if list_type == 'chat':
@@ -66,6 +68,7 @@ def create_project(request):
     
     display_name = request.POST.get('display_name')
     storage_type = request.POST.get('storage_type', 'google')
+    user = request.user if request.user.is_authenticated else None
     
     if display_name:
         if storage_type == 'local':
@@ -74,7 +77,8 @@ def create_project(request):
             Project.objects.create(
                 project_id=project_id,
                 display_name=display_name,
-                storage_type='local'
+                storage_type='local',
+                user=user
             )
         elif storage_type == 'postgres':
             from datetime import datetime
@@ -86,7 +90,8 @@ def create_project(request):
             Project.objects.create(
                 project_id=project_id,
                 display_name=display_name,
-                storage_type='postgres'
+                storage_type='postgres',
+                user=user
             )
         else:
             # Create Google File Search store
@@ -104,10 +109,11 @@ def create_project(request):
                     project_id=project_id,
                     display_name=display_name,
                     storage_type='google',
-                    external_store_id=store_id
+                    external_store_id=store_id,
+                    user=user
                 )
     
-    stores = get_combined_stores()
+    stores = get_combined_stores(request)
     return render(request, 'partials/project_list.html', {'stores': stores})
 
 
@@ -141,7 +147,7 @@ def delete_project(request, store_id):
     except Exception as e:
         print(f"Error deleting project {store_id}: {e}")
     
-    stores = get_combined_stores()
+    stores = get_combined_stores(request)
     return render(request, 'partials/project_list.html', {'stores': stores})
 
 
