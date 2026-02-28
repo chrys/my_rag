@@ -15,7 +15,7 @@
     - [ ] Add chat interface logic for PostgreSQL project selection
     - [ ] Implement query logic using txtai to search embeddings and generate responses
 
-## Phase 3: User Management
+## Phase 3: User Management [checkpoint: 9bb9e6b]
 - [x] Task: Implement user management in API [a654fc1]
 - [x] Task: Implement user management in UI [783bf69]
 - [x] Task: Document user management [74e6b93]
