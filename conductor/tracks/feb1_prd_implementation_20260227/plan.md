@@ -20,7 +20,7 @@
 - [x] Task: Implement user management in UI [783bf69]
 - [x] Task: Document user management [74e6b93]
 
-## Phase 4: Verification
+## Phase 4: Verification [checkpoint: 897c93c]
 - [x] Task: Verify all documentation [3c5f0c4]
 - [x] Task: Test RAG project lifecycle (Create, Upload, Chat) with PostgreSQL [ce22b11]
 - [x] Task: Test user management flows [c2a8b57]
