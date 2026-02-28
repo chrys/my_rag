@@ -60,10 +60,20 @@
             </div>
             <h1 class="text-xl font-bold tracking-tight">Gemini File Search</h1>
         </div>
-        <div class="flex gap-4">
+        <div class="flex gap-4 items-center">
             <button hx-get="/" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true" class="px-4 py-2 rounded-md hover:bg-gray-100 font-medium transition-colors">Admin</button>
             <button hx-get="/chat/" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true" class="px-4 py-2 rounded-md hover:bg-gray-100 font-medium transition-colors">Chat</button>
             <button hx-get="/evaluate/" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true" class="px-4 py-2 rounded-md hover:bg-gray-100 font-medium transition-colors">Evaluate</button>
+            <div class="w-px h-6 bg-gray-300 mx-2"></div>
+            {% if user.is_authenticated %}
+                <span class="text-sm text-gray-600">Hi, {{ user.username }}</span>
+                <form action="{% url 'logout' %}?next=/" method="post" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="px-4 py-2 text-sm text-red-600 rounded-md hover:bg-red-50 font-medium transition-colors">Logout</button>
+                </form>
+            {% else %}
+                <a href="{% url 'login' %}" class="px-4 py-2 text-sm bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 font-medium transition-colors">Login</a>
+            {% endif %}
         </div>
     </nav>
 
