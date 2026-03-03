@@ -23,14 +23,14 @@
     - [ ] Run tests and confirm pass
 
 ### Implementation — Delete Project
-- [ ] Task: Implement test_delete_project_google — view-level test for `delete_project` with `storage_type='google'`
+- [x] Task: Implement test_delete_project_google — view-level test for `delete_project` with `storage_type='google'` [3b51c2e]
     - [ ] Create a `Project` fixture with `storage_type='google'` and `external_store_id`
     - [ ] Mock `gfs.delete_file_search_store` with `mocker`
     - [ ] Call `delete_project` view
     - [ ] Assert mock called with correct `external_store_id`
     - [ ] Assert `Project` record is deleted from DB
     - [ ] Run tests and confirm pass
-- [ ] Task: Implement test_delete_project_postgres — view-level test for `delete_project` with `storage_type='postgres'`
+- [x] Task: Implement test_delete_project_postgres — view-level test for `delete_project` with `storage_type='postgres'` [3b51c2e]
     - [ ] Create a `Project` fixture with `storage_type='postgres'`
     - [ ] Call `delete_project` view
     - [ ] Assert no external service call
