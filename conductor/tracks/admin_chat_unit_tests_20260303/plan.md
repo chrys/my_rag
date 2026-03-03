@@ -38,7 +38,7 @@
     - [ ] Run tests and confirm pass
 
 ### Service Layer Tests
-- [ ] Task: Create `Testing/unit/admin/test_admin_project_services.py` with service-layer assertions
+- [x] Task: Create `Testing/unit/admin/test_admin_project_services.py` with service-layer assertions [fb93f6e]
     - [ ] Write failing stub tests
     - [ ] Run stubs and confirm fail
     - [ ] Implement: assert `gfs.create_new_file_search_store` is called with correct `display_name`
