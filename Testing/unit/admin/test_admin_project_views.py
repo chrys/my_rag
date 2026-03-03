@@ -1,7 +1,7 @@
 import pytest
 from django.test import RequestFactory
 from django.contrib.auth.models import AnonymousUser
-from apps.projects.views import create_project
+from apps.projects.views import create_project, delete_project
 from apps.projects.models import Project
 
 @pytest.mark.django_db
@@ -45,8 +45,39 @@ class TestAdminProjectViews:
         assert project.storage_type == 'postgres'
         assert not project.external_store_id
 
-    def test_delete_project_google(self):
-        assert False, "test_delete_project_google not implemented"
+    def test_delete_project_google(self, mocker):
+        project = Project.objects.create(
+            project_id='test_google_id',
+            display_name='Test Delete Google',
+            storage_type='google',
+            external_store_id='ext_store_123'
+        )
+        mock_delete = mocker.patch('apps.projects.views.gfs.delete_file_search_store')
+        
+        factory = RequestFactory()
+        request = factory.delete('/fake-url/')
+        request.user = AnonymousUser()
+        
+        response = delete_project(request, 'test_google_id')
+        
+        assert response.status_code == 200
+        mock_delete.assert_called_once_with('ext_store_123')
+        assert not Project.objects.filter(project_id='test_google_id').exists()
 
-    def test_delete_project_postgres(self):
-        assert False, "test_delete_project_postgres not implemented"
+    def test_delete_project_postgres(self, mocker):
+        project = Project.objects.create(
+            project_id='test_postgres_id',
+            display_name='Test Delete Postgres',
+            storage_type='postgres'
+        )
+        mock_delete = mocker.patch('apps.projects.views.gfs.delete_file_search_store')
+        
+        factory = RequestFactory()
+        request = factory.delete('/fake-url/')
+        request.user = AnonymousUser()
+        
+        response = delete_project(request, 'test_postgres_id')
+        
+        assert response.status_code == 200
+        mock_delete.assert_not_called()
+        assert not Project.objects.filter(project_id='test_postgres_id').exists()
