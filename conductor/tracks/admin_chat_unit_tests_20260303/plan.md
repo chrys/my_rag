@@ -3,7 +3,7 @@
 ## Phase 1: Admin Tab — Project Management Tests
 
 ### Setup
-- [ ] Task: Write failing test stubs — Create `Testing/unit/admin/__init__.py` and `Testing/unit/admin/test_admin_project_views.py` with empty test class skeletons that fail on import or assertion.
+- [x] Task: Write failing test stubs — Create `Testing/unit/admin/__init__.py` and `Testing/unit/admin/test_admin_project_views.py` with empty test class skeletons that fail on import or assertion. [6ba26a4]
     - [ ] Create `Testing/unit/admin/` directory
     - [ ] Create `Testing/unit/admin/__init__.py`
     - [ ] Create stub test file `test_admin_project_views.py` with failing tests for FR-1.1 and FR-1.2
