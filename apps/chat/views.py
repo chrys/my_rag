@@ -29,9 +29,9 @@ from apps.projects.models import Project
 def chat_submit(request):
     """Handle chat submission and return HTML message for htmx"""
     try:
-        store_id = request.POST.get('store_id') or request.data.get('store_id')
-        query = request.POST.get('query') or request.data.get('query')
-        system_prompt = request.POST.get('system_prompt') or request.data.get('system_prompt', '')
+        store_id = request.POST.get('store_id', '')
+        query = request.POST.get('query', '')
+        system_prompt = request.POST.get('system_prompt', '')
         
         if not store_id or not query:
             return JsonResponse({'error': 'Missing store_id or query'}, status=400)

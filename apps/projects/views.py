@@ -6,6 +6,7 @@ from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
 from django.db import models
 from rest_framework import viewsets, status
 from rest_framework.decorators import api_view
@@ -46,6 +47,7 @@ def get_combined_stores(request=None):
     return stores
 
 
+@login_required
 @require_http_methods(["GET"])
 def list_projects(request):
     """List all projects/stores"""

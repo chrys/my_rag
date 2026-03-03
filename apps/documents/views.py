@@ -206,6 +206,8 @@ def delete_document(request, document_id):
     """Delete a document"""
     storage = get_local_project_storage()
     document_id = unquote(document_id)
+    # Strip trailing slash if any (from URL matching)
+    document_id = document_id.rstrip('/')
     store_id = request.GET.get('store_id')
     
     try:
@@ -233,6 +235,10 @@ def delete_document(request, document_id):
                     store_id_from_doc = parts[1]
                     gfs.delete_document_from_store(store_id_from_doc, document_id)
         
-        return JsonResponse({'status': 'success'})
+        # Return refreshed document list HTML for HTMX to swap in
+        from django.http import HttpResponse
+        response = HttpResponse(status=200)
+        response['HX-Trigger'] = 'documentListChanged'
+        return response
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)

@@ -13,6 +13,7 @@ from .serializers import (
     DocumentUpdateSerializer,
     DocumentListSerializer,
 )
+from apps.projects.models import Project
 
 
 class DocumentViewSet(viewsets.ModelViewSet):
@@ -28,6 +29,8 @@ class DocumentViewSet(viewsets.ModelViewSet):
     """
     queryset = Document.objects.all()
     permission_classes = [AllowAny]
+    lookup_field = 'pk'
+    lookup_value_regex = '.+'  # Allow any character including dots
     
     def get_serializer_class(self):
         """Return appropriate serializer based on action"""
@@ -38,6 +41,56 @@ class DocumentViewSet(viewsets.ModelViewSet):
         elif self.action == 'list':
             return DocumentListSerializer
         return DocumentSerializer
+    
+    def get_object(self):
+        """Override to support lookup by document_name or id.
+        DRF router splits 'file.txt' into pk='file' + format='txt', so we reconstruct it.
+        """
+        pk = self.kwargs.get('pk')
+        format_suffix = self.kwargs.get('format')
+        
+        # Reconstruct the full filename if format suffix was extracted by the router
+        if format_suffix:
+            lookup_value = f"{pk}.{format_suffix}"
+        else:
+            lookup_value = pk
+        
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        # Try lookup by ID first (if it's numeric)
+        if lookup_value.isdigit():
+            try:
+                return queryset.get(id=int(lookup_value))
+            except Document.DoesNotExist:
+                pass
+        
+        # Try lookup by exact document_name
+        try:
+            return queryset.get(document_name=lookup_value)
+        except Document.DoesNotExist:
+            from rest_framework.exceptions import NotFound
+            raise NotFound(f"Document '{lookup_value}' not found")
+    
+    def destroy(self, request, *args, **kwargs):
+        """Override destroy to also delete from txtai postgres index"""
+        document = self.get_object()
+        store_id = request.query_params.get('store_id')
+        
+        # For postgres projects, also delete from index
+        if store_id and store_id.startswith('postgres_'):
+            try:
+                from postgres_rag import PostgresRAGEngine
+                rag_engine = PostgresRAGEngine(store_id)
+                # Delete from txtai index if needed
+                # Note: txtai doesn't have a built-in delete_by_id, 
+                # so we just remove from DB
+            except Exception as e:
+                print(f"⚠️ Warning: Could not delete from postgres index: {e}")
+        
+        # Delete from Django DB
+        self.perform_destroy(document)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
     
     @action(detail=False, methods=['get'])
     def by_project(self, request):

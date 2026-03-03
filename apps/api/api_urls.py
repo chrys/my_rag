@@ -2,6 +2,7 @@ from django.urls import path, include, re_path
 from rest_framework.routers import DefaultRouter
 from apps.projects.api_views import ProjectViewSet, SystemPromptViewSet
 from apps.documents.api_views import DocumentViewSet
+from apps.documents.views import delete_document
 from apps.chat.api_views import ChatMessageViewSet
 from apps.evaluate.api_views import EvaluationDatasetViewSet, EvaluationResultViewSet
 from apps.api.api_views import APIKeyViewSet, APIUsageViewSet
@@ -22,5 +23,8 @@ router.register(r'usage', APIUsageViewSet, basename='apiusage')
 app_name = 'api'
 
 urlpatterns = [
+    # Must come BEFORE router.urls — the DRF router splits 'file.txt' into pk + format suffix
+    # so filenames with dots never reach get_object(). This explicit route catches them first.
+    re_path(r'^documents/(?P<document_id>[^/]+\.[^/]+)$', delete_document, name='document-delete'),
     path('', include(router.urls)),
 ]
