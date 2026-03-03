@@ -10,13 +10,13 @@
     - [ ] Run `pytest Testing/unit/admin/` and confirm all stubs fail (Red phase)
 
 ### Implementation — Create Project
-- [ ] Task: Implement test_create_project_google — view-level test for `create_project` with `storage_type='google'`
+- [x] Task: Implement test_create_project_google — view-level test for `create_project` with `storage_type='google'` [b8c57f6]
     - [ ] Mock `google_file_search.create_new_file_search_store` with `mocker`
     - [ ] POST to `create_project` view with `display_name` and `storage_type='google'`
     - [ ] Assert mock was called
     - [ ] Assert `Project` DB record exists with `storage_type='google'`
     - [ ] Run tests and confirm pass (Green phase)
-- [ ] Task: Implement test_create_project_postgres — view-level test for `create_project` with `storage_type='postgres'`
+- [x] Task: Implement test_create_project_postgres — view-level test for `create_project` with `storage_type='postgres'` [b8c57f6]
     - [ ] POST to `create_project` view with `display_name` and `storage_type='postgres'`
     - [ ] Assert no external service is called
     - [ ] Assert `Project` DB record exists with `storage_type='postgres'`
