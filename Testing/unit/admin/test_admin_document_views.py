@@ -52,8 +52,40 @@ class TestAdminDocumentViews:
         doc = Document.objects.get(project=project, document_name="test_pg_doc.txt")
         assert doc.state == 'INDEXED'
 
-    def test_delete_document_google(self):
-        assert False, "test_delete_document_google not implemented"
+    def test_delete_document_google(self, mocker):
+        project = Project.objects.create(
+            project_id='google_del_id',
+            display_name='Test Delete Google Doc',
+            storage_type='google',
+            external_store_id='ext_google_456'
+        )
+        mock_delete = mocker.patch('apps.documents.views.gfs.delete_document_from_store')
+        
+        factory = RequestFactory()
+        # The document_id is passed in the URL, and store_id in the query params
+        request = factory.delete('/fake-url/?store_id=google_del_id')
+        
+        response = delete_document(request, 'document_name_123')
+        
+        assert response.status_code == 200
+        mock_delete.assert_called_once_with('ext_google_456', 'document_name_123')
 
-    def test_delete_document_postgres(self):
-        assert False, "test_delete_document_postgres not implemented"
+    def test_delete_document_postgres(self, mocker):
+        project = Project.objects.create(
+            project_id='postgres_del_id',
+            display_name='Test Delete Postgres Doc',
+            storage_type='postgres'
+        )
+        doc = Document.objects.create(
+            project=project,
+            document_name='test_to_delete.txt',
+            state='INDEXED'
+        )
+        
+        factory = RequestFactory()
+        request = factory.delete('/fake-url/?store_id=postgres_del_id')
+        
+        response = delete_document(request, 'test_to_delete.txt')
+        
+        assert response.status_code == 200
+        assert not Document.objects.filter(id=doc.id).exists()
