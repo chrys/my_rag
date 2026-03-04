@@ -1,6 +1,6 @@
 # Implementation Plan: Unit Tests for Admin and Chat Tabs
 
-## Phase 1: Admin Tab — Project Management Tests
+## Phase 1: Admin Tab — Project Management Tests [checkpoint: 6b96773]
 
 ### Setup
 - [x] Task: Write failing test stubs — Create `Testing/unit/admin/__init__.py` and `Testing/unit/admin/test_admin_project_views.py` with empty test class skeletons that fail on import or assertion. [6ba26a4]
@@ -45,7 +45,7 @@
     - [ ] Implement: assert `gfs.delete_file_search_store` is called with correct store ID
     - [ ] Run and confirm pass
 
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Admin Project Management Tests' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Admin Project Management Tests' (Protocol in workflow.md) [6b96773]
 
 ---
 
