@@ -126,7 +126,7 @@
 
 ---
 
-## Phase 4: Chat Tab — Real LLM Tests (Google File Search)
+## Phase 4: Chat Tab — Real LLM Tests (Google File Search) [checkpoint: 732bca7]
 
 ### Setup
 - [x] Task: Write failing test stubs — Create `Testing/unit/chat/test_chat_google_llm.py` with empty test skeletons [7fc4be2]
@@ -146,11 +146,11 @@
     - [ ] Assert response contains a refusal or "cannot help" type message
     - [ ] Run and confirm pass
 
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Chat Real LLM Tests (Google)' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Chat Real LLM Tests (Google)' (Protocol in workflow.md) [732bca7]
 
 ---
 
-## Phase 5: Chat Tab — Real LLM Tests (PostgreSQL RAG)
+## Phase 5: Chat Tab — Real LLM Tests (PostgreSQL RAG) [checkpoint: 135ccd9]
 
 ### Setup
 - [x] Task: Write failing test stubs — Create `Testing/unit/chat/test_chat_rag_llm.py` with empty test skeletons [138054a]
@@ -169,7 +169,7 @@
     - [ ] Assert response contains a refusal / "cannot help"
     - [ ] Run and confirm pass
 
-- [ ] Task: Conductor - User Manual Verification 'Phase 5: Chat Real LLM Tests (RAG)' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 5: Chat Real LLM Tests (RAG)' (Protocol in workflow.md) [135ccd9]
 
 ---
 
