@@ -129,7 +129,7 @@
 ## Phase 4: Chat Tab — Real LLM Tests (Google File Search)
 
 ### Setup
-- [ ] Task: Write failing test stubs — Create `Testing/unit/chat/test_chat_google_llm.py` with empty test skeletons
+- [x] Task: Write failing test stubs — Create `Testing/unit/chat/test_chat_google_llm.py` with empty test skeletons [7fc4be2]
     - [ ] Write stubs for FR-4.1 and FR-4.2 that fail (e.g., `assert False, "not implemented"`)
     - [ ] Run and confirm fail (Red phase)
 
