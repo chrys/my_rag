@@ -158,12 +158,12 @@
     - [ ] Run and confirm fail (Red phase)
 
 ### Implementation
-- [ ] Task: Implement test_chat_rag_related_answer — real LLM test using "Test RAG" project
+- [x] Task: Implement test_chat_rag_related_answer — real LLM test using "Test RAG" project [e50fdcf]
     - [ ] Add fixture that fetches the "Test RAG" project from DB (skip if not found)
     - [ ] POST a query known to be answerable
     - [ ] Assert response is HTTP 200 and `bot_response` is non-empty
     - [ ] Run and confirm pass
-- [ ] Task: Implement test_chat_rag_unrelated_answer — real LLM test for off-topic query
+- [x] Task: Implement test_chat_rag_unrelated_answer — real LLM test for off-topic query [e50fdcf]
     - [ ] Fetch or create `SystemPrompt` for "Test RAG" that restricts answers to the topic
     - [ ] POST an off-topic query
     - [ ] Assert response contains a refusal / "cannot help"
