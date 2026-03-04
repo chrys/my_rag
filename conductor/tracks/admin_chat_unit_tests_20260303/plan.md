@@ -114,7 +114,7 @@
     - [ ] Run and confirm pass
 
 ### Implementation — Prompt Usage in Chat
-- [ ] Task: Implement test_system_prompt_passed_to_llm — verify prompt is forwarded to LLM backend
+- [x] Task: Implement test_system_prompt_passed_to_llm — verify prompt is forwarded to LLM backend [c1f19c0]
     - [ ] Create `Project` fixture
     - [ ] Mock `prompt_storage.get_prompt` to return a specific prompt string with `mocker`
     - [ ] Mock the appropriate LLM backend call (`gfs.ask_store_question` or `rag_engine.query`) with `mocker`
