@@ -94,7 +94,7 @@
 ## Phase 3: Admin Tab — Custom Prompt Management Tests
 
 ### Setup
-- [ ] Task: Write failing test stubs — Create `Testing/unit/admin/test_admin_prompt_views.py` with empty test skeletons
+- [x] Task: Write failing test stubs — Create `Testing/unit/admin/test_admin_prompt_views.py` with empty test skeletons [4cc6d4f]
     - [ ] Create stub test file with failing stubs for FR-3.1, FR-3.2, FR-3.3
     - [ ] Run and confirm fail (Red phase)
 
