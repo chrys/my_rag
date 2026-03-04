@@ -163,7 +163,7 @@ class TestProjectViewSet:
             storage_type='google'
         )
         Project.objects.create(user=authenticated_user, 
-            project_id='filter_postgres_001_v2',
+            project_id='filter_rag_001_v2',
             display_name='Postgres Project',
             storage_type='postgres'
         )
@@ -175,9 +175,9 @@ class TestProjectViewSet:
         response = view(request)
         
         assert response.status_code == status.HTTP_200_OK
-        postgres_projects = [p for p in response.data['results'] if p['storage_type'] == 'postgres']
-        assert len(postgres_projects) == 1
-        assert postgres_projects[0]['storage_type'] == 'postgres'
+        rag_projects = [p for p in response.data['results'] if p['storage_type'] == 'postgres']
+        assert len(rag_projects) == 1
+        assert rag_projects[0]['storage_type'] == 'postgres'
     
     def test_filter_projects_by_active(self, api_factory, authenticated_user):
         """Test filtering projects by active status"""

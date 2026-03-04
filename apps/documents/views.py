@@ -124,8 +124,8 @@ def upload_document(request, store_id):
                 else:
                     os.unlink(filepath)
                     return JsonResponse({'error': 'Failed to index document'}, status=500)
-            elif store_id.startswith('postgres_'):
-                # Postgres project indexing
+            elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
+                # RAG project indexing
                 from postgres_rag import PostgresRAGEngine
                 from django.utils import timezone
                 rag_engine = PostgresRAGEngine(store_id)
@@ -145,7 +145,7 @@ def upload_document(request, store_id):
                         )
                 else:
                     os.unlink(filepath)
-                    return JsonResponse({'error': 'Failed to index document in PostgreSQL'}, status=500)
+                    return JsonResponse({'error': 'Failed to index document in RAG project'}, status=500)
             else:
                 # Google store - look up the project to get the external_store_id
                 project = Project.objects.filter(project_id=store_id).first()
@@ -166,8 +166,8 @@ def upload_document(request, store_id):
         if project and project.storage_type == 'google':
             # For Google projects, fetch from API
             documents = gfs.list_documents_in_store(project.external_store_id)
-        elif project and project.storage_type == 'postgres':
-            # For postgres projects, fetch from Django DB
+        elif project and project.storage_type == 'rag':
+            # For RAG projects, fetch from Django DB
             docs_qs = Document.objects.filter(project=project)
             documents = [_doc_adapter(d) for d in docs_qs]
         else:
@@ -218,7 +218,7 @@ def delete_document(request, document_id):
             
             if success:
                 storage.remove_document(store_id, document_id)
-        elif store_id and store_id.startswith('postgres_'):
+        elif store_id and (store_id.startswith('rag_') or store_id.startswith('postgres_')):
             project = Project.objects.filter(project_id=store_id).first()
             if project:
                 Document.objects.filter(project=project, document_name=document_id).delete()

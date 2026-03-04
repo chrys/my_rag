@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='project',
             name='storage_type',
-            field=models.CharField(choices=[('local', 'Local FAISS Indexing'), ('google', 'Google File Search'), ('postgres', 'PostgreSQL (txtai)')], default='local', help_text='Type of storage backend (local FAISS or Google File Search)', max_length=20),
+            field=models.CharField(choices=[('local', 'Local FAISS Indexing'), ('google', 'Google File Search'), ('rag', 'RAG')], default='local', help_text='Type of storage backend (local FAISS or Google File Search)', max_length=20),
         ),
     ]

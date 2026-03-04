@@ -43,7 +43,7 @@ class TestProjectModel:
     def test_create_project_postgres(self):
         """Test creating a PostgreSQL project"""
         project = Project.objects.create(
-            project_id='postgres_test_001',
+            project_id='rag_test_001',
             display_name='Postgres Project',
             storage_type='postgres'
         )

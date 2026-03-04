@@ -27,8 +27,18 @@ FIXED: 2026-02-27
 """
 
 import pytest
-from django.test import Client
+from rest_framework.test import APIClient
+from django.contrib.auth.models import User
 from apps.projects.models import Project, SystemPrompt
+
+
+@pytest.fixture
+def authenticated_user():
+    """Create a test user for API authentication"""
+    return User.objects.create_user(
+        username='testuser',
+        password='testpass123'
+    )
 
 
 @pytest.mark.django_db
@@ -37,24 +47,30 @@ class TestCustomPromptSavingRegression:
     Regression test suite for custom prompt saving bug
     """
     
+    @pytest.fixture(autouse=True)
+    def setup(self, authenticated_user):
+        """Setup client and user for each test"""
+        self.client = APIClient()
+        self.client.force_authenticate(user=authenticated_user)
+        self.user = authenticated_user
+    
     def test_save_prompt_for_local_project_by_project_id(self):
         """
         Test that prompts can be saved for local projects using project_id
         """
         # Create a local project
         project = Project.objects.create(
+            user=self.user,
             project_id='local_20260227_120000_test',
             display_name='Test Local Project',
             storage_type='local'
         )
         
-        client = Client()
-        
         # Save a prompt using project_id in URL
-        response = client.post(
+        response = self.client.post(
             f'/api/projects/local_20260227_120000_test/prompt/',
             data={'content': 'You are a helpful assistant for local projects.'},
-            content_type='application/json'
+            format='json'
         )
         
         # Verify the response
@@ -73,19 +89,18 @@ class TestCustomPromptSavingRegression:
         """
         # Create a Google project
         project = Project.objects.create(
+            user=self.user,
             project_id='google_20260227_120000_test',
             display_name='Test Google Project',
             storage_type='google',
             external_store_id='fileSearchStores/test-google-abc123'
         )
         
-        client = Client()
-        
         # Save a prompt using project_id in URL (not external_store_id to avoid slash issues)
-        response = client.post(
+        response = self.client.post(
             f'/api/projects/google_20260227_120000_test/prompt/',
             data={'content': 'You are a helpful assistant for Google projects.'},
-            content_type='application/json'
+            format='json'
         )
         
         # Verify the response
@@ -104,6 +119,7 @@ class TestCustomPromptSavingRegression:
         """
         # Create project with a prompt
         project = Project.objects.create(
+            user=self.user,
             project_id='local_retrieve_test',
             display_name='Retrieve Test',
             storage_type='local'
@@ -113,10 +129,8 @@ class TestCustomPromptSavingRegression:
             content='Existing prompt content'
         )
         
-        client = Client()
-        
         # Retrieve the prompt
-        response = client.get(f'/api/projects/local_retrieve_test/prompt/')
+        response = self.client.get(f'/api/projects/local_retrieve_test/prompt/')
         
         # Verify the response
         assert response.status_code == 200
@@ -129,6 +143,7 @@ class TestCustomPromptSavingRegression:
         """
         # Create Google project with a prompt
         project = Project.objects.create(
+            user=self.user,
             project_id='google_retrieve_test',
             display_name='Google Retrieve Test',
             storage_type='google',
@@ -139,10 +154,8 @@ class TestCustomPromptSavingRegression:
             content='Google project prompt'
         )
         
-        client = Client()
-        
         # Retrieve the prompt using project_id (not external_store_id)
-        response = client.get(f'/api/projects/google_retrieve_test/prompt/')
+        response = self.client.get(f'/api/projects/google_retrieve_test/prompt/')
         
         # Verify the response
         assert response.status_code == 200
@@ -155,15 +168,14 @@ class TestCustomPromptSavingRegression:
         """
         # Create project without a prompt
         project = Project.objects.create(
+            user=self.user,
             project_id='no_prompt_test',
             display_name='No Prompt Test',
             storage_type='local'
         )
         
-        client = Client()
-        
         # Retrieve the prompt
-        response = client.get(f'/api/projects/no_prompt_test/prompt/')
+        response = self.client.get(f'/api/projects/no_prompt_test/prompt/')
         
         # Verify the response
         assert response.status_code == 200
@@ -176,6 +188,7 @@ class TestCustomPromptSavingRegression:
         """
         # Create project with initial prompt
         project = Project.objects.create(
+            user=self.user,
             project_id='update_prompt_test',
             display_name='Update Test',
             storage_type='local'
@@ -185,13 +198,11 @@ class TestCustomPromptSavingRegression:
             content='Original prompt'
         )
         
-        client = Client()
-        
         # Update the prompt
-        response = client.post(
+        response = self.client.post(
             f'/api/projects/update_prompt_test/prompt/',
             data={'content': 'Updated prompt content'},
-            content_type='application/json'
+            format='json'
         )
         
         # Verify the response
@@ -210,18 +221,17 @@ class TestCustomPromptSavingRegression:
         """
         # Create project
         project = Project.objects.create(
+            user=self.user,
             project_id='pk_test',
             display_name='PK Test',
             storage_type='local'
         )
         
-        client = Client()
-        
         # Save prompt using primary key
-        response = client.post(
+        response = self.client.post(
             f'/api/projects/{project.pk}/prompt/',
             data={'content': 'Prompt via PK'},
-            content_type='application/json'
+            format='json'
         )
         
         # Verify the response
@@ -237,6 +247,7 @@ class TestCustomPromptSavingRegression:
         
         # Create project
         project = Project.objects.create(
+            user=self.user,
             project_id='docs_test',
             display_name='Docs Test',
             storage_type='local'
@@ -250,10 +261,8 @@ class TestCustomPromptSavingRegression:
             state='INDEXED'
         )
         
-        client = Client()
-        
         # Access documents via project_id
-        response = client.get(f'/api/projects/docs_test/documents/')
+        response = self.client.get(f'/api/projects/docs_test/documents/')
         
         # Verify the response
         assert response.status_code == 200
@@ -269,6 +278,7 @@ class TestCustomPromptSavingRegression:
         
         # Create Google project
         project = Project.objects.create(
+            user=self.user,
             project_id='google_docs_test',
             display_name='Google Docs Test',
             storage_type='google',
@@ -283,10 +293,8 @@ class TestCustomPromptSavingRegression:
             state='INDEXED'
         )
         
-        client = Client()
-        
         # Access documents via project_id
-        response = client.get(f'/api/projects/google_docs_test/documents/')
+        response = self.client.get(f'/api/projects/google_docs_test/documents/')
         
         # Verify the response
         assert response.status_code == 200
@@ -298,10 +306,8 @@ class TestCustomPromptSavingRegression:
         """
         Test that accessing a non-existent project returns 404
         """
-        client = Client()
-        
         # Try to get prompt for non-existent project
-        response = client.get('/api/projects/nonexistent_project/prompt/')
+        response = self.client.get('/api/projects/nonexistent_project/prompt/')
         
         # Verify 404 response
         assert response.status_code == 404
@@ -313,11 +319,19 @@ class TestPromptResponseFormat:
     Tests for the prompt API response format compatibility
     """
     
+    @pytest.fixture(autouse=True)
+    def setup(self, authenticated_user):
+        """Setup client and user for each test"""
+        self.client = APIClient()
+        self.client.force_authenticate(user=authenticated_user)
+        self.user = authenticated_user
+    
     def test_get_prompt_response_format(self):
         """
         Test that GET /prompt returns {'prompt': 'content'} format
         """
         project = Project.objects.create(
+            user=self.user,
             project_id='format_test',
             display_name='Format Test',
             storage_type='local'
@@ -327,8 +341,7 @@ class TestPromptResponseFormat:
             content='Test content'
         )
         
-        client = Client()
-        response = client.get(f'/api/projects/format_test/prompt/')
+        response = self.client.get(f'/api/projects/format_test/prompt/')
         
         # Verify response has correct format
         assert response.status_code == 200
@@ -344,16 +357,16 @@ class TestPromptResponseFormat:
         Test that POST /prompt returns {'status': 'success', 'prompt': 'content'} format
         """
         project = Project.objects.create(
+            user=self.user,
             project_id='post_format_test',
             display_name='Post Format Test',
             storage_type='local'
         )
         
-        client = Client()
-        response = client.post(
+        response = self.client.post(
             '/api/projects/post_format_test/prompt/',
             data={'content': 'New prompt'},
-            content_type='application/json'
+            format='json'
         )
         
         # Verify response has correct format
@@ -380,20 +393,27 @@ class TestPromptFrontendFormDataRegression:
 
     FIXED: 2026-02-27 — view now accepts both 'prompt' (frontend) and 'content' (API) keys.
     """
+    
+    @pytest.fixture(autouse=True)
+    def setup(self, authenticated_user):
+        """Setup client and user for each test"""
+        self.client = APIClient()
+        self.client.force_authenticate(user=authenticated_user)
+        self.user = authenticated_user
 
     def test_save_via_formdata_prompt_key_persists(self):
         """
         Saving with FormData key 'prompt' (as the frontend does) must persist the value.
         """
         project = Project.objects.create(
+            user=self.user,
             project_id='formdata_persist_test',
             display_name='FormData Persist Test',
             storage_type='local'
         )
-        client = Client()
 
         # POST with the key the frontend actually uses
-        response = client.post(
+        response = self.client.post(
             '/api/projects/formdata_persist_test/prompt/',
             data={'prompt': 'My custom prompt text'},
         )
@@ -401,7 +421,7 @@ class TestPromptFrontendFormDataRegression:
         assert response.json()['prompt'] == 'My custom prompt text'
 
         # GET must return the same value — this was the failing assertion before the fix
-        get_response = client.get('/api/projects/formdata_persist_test/prompt/')
+        get_response = self.client.get('/api/projects/formdata_persist_test/prompt/')
         assert get_response.status_code == 200
         assert get_response.json()['prompt'] == 'My custom prompt text'
 
@@ -410,21 +430,21 @@ class TestPromptFrontendFormDataRegression:
         Saving with JSON body key 'content' (API clients) must also persist correctly.
         """
         project = Project.objects.create(
+            user=self.user,
             project_id='json_content_persist_test',
             display_name='JSON Content Persist Test',
             storage_type='local'
         )
-        client = Client()
 
-        response = client.post(
+        response = self.client.post(
             '/api/projects/json_content_persist_test/prompt/',
             data={'content': 'API prompt text'},
-            content_type='application/json'
+            format='json'
         )
         assert response.status_code == 200
         assert response.json()['prompt'] == 'API prompt text'
 
-        get_response = client.get('/api/projects/json_content_persist_test/prompt/')
+        get_response = self.client.get('/api/projects/json_content_persist_test/prompt/')
         assert get_response.status_code == 200
         assert get_response.json()['prompt'] == 'API prompt text'
 
@@ -454,4 +474,31 @@ class TestPromptFrontendFormDataRegression:
 
         # Switch back to project A — prompt must still be 'Prompt for A'
         resp_a = client.get('/api/projects/project_a/prompt/')
-        assert resp_a.json()['prompt'] == 'Prompt for A'
+    def test_switch_projects_and_back_retains_prompt(self):
+        """
+        Simulate the exact user scenario: save prompt for project A,
+        switch to project B, switch back to project A — prompt must still be there.
+        """
+        project_a = Project.objects.create(
+            user=self.user,
+            project_id='project_a',
+            display_name='Project A',
+            storage_type='local'
+        )
+        project_b = Project.objects.create(
+            user=self.user,
+            project_id='project_b',
+            display_name='Project B',
+            storage_type='local'
+        )
+
+        # Save prompt for project A (using frontend FormData key)
+        self.client.post('/api/projects/project_a/prompt/', data={'prompt': 'Prompt for A'})
+
+        # Switch to project B (loads its prompt — empty)
+        resp_b = self.client.get('/api/projects/project_b/prompt/')
+        assert resp_b.status_code == 200
+        assert resp_b.json()['prompt'] == ''
+
+        # Switch back to project A — prompt must still be 'Prompt for A'
+        resp_a = self.client.get('/api/projects/project_a/prompt/')

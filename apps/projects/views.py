@@ -135,7 +135,7 @@ def delete_project(request, store_id):
         if project:
             if project.storage_type == 'local':
                 storage.delete_project(project.project_id)
-            elif project.storage_type == 'postgres':
+            elif project.storage_type == 'rag':
                 # Postgres deletion logic: can drop embeddings or let them persist
                 # We will implement embedding cleanup later if needed, for now just delete the project record
                 pass

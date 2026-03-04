@@ -58,7 +58,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset())
         
         # Try lookup by ID first (if it's numeric)
-        if lookup_value.isdigit():
+        if str(lookup_value).isdigit():
             try:
                 return queryset.get(id=int(lookup_value))
             except Document.DoesNotExist:
@@ -72,12 +72,12 @@ class DocumentViewSet(viewsets.ModelViewSet):
             raise NotFound(f"Document '{lookup_value}' not found")
     
     def destroy(self, request, *args, **kwargs):
-        """Override destroy to also delete from txtai postgres index"""
+        """Override destroy to also delete from RAG index"""
         document = self.get_object()
         store_id = request.query_params.get('store_id')
         
-        # For postgres projects, also delete from index
-        if store_id and store_id.startswith('postgres_'):
+        # For RAG projects, also delete from index
+        if store_id and (store_id.startswith('rag_') or store_id.startswith('postgres_')):
             try:
                 from postgres_rag import PostgresRAGEngine
                 rag_engine = PostgresRAGEngine(store_id)
