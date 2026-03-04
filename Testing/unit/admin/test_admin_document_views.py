@@ -3,10 +3,102 @@ from django.test import RequestFactory
 from django.core.files.uploadedfile import SimpleUploadedFile
 from apps.projects.models import Project
 from apps.documents.models import Document
-from apps.documents.views import upload_document, delete_document
+from apps.documents.views import upload_document, delete_document, list_documents
 
 @pytest.mark.django_db
 class TestAdminDocumentViews:
+    def test_list_documents_google(self, mocker):
+        project = Project.objects.create(
+            project_id='list_google_id',
+            display_name='List Google Project',
+            storage_type='google',
+            external_store_id='ext_list_123'
+        )
+        mock_list = mocker.patch('apps.documents.views.gfs.list_documents_in_store', return_value=[
+            {'name': 'doc1', 'display_name': 'Doc 1', 'mime_type': 'text/plain', 'indexed_at': None, 'state': mocker.Mock(name='INDEXED')}
+        ])
+        
+        factory = RequestFactory()
+        request = factory.get('/fake-url/')
+        
+        response = list_documents(request, 'list_google_id')
+        
+        assert response.status_code == 200
+        mock_list.assert_called_once_with('ext_list_123')
+        assert b'Doc 1' in response.content
+
+    def test_list_documents_postgres(self, mocker):
+        project = Project.objects.create(
+            project_id='list_postgres_id',
+            display_name='List Postgres Project',
+            storage_type='postgres'
+        )
+        Document.objects.create(project=project, document_name='pg_doc.txt', display_name='PG Doc')
+        
+        factory = RequestFactory()
+        request = factory.get('/fake-url/')
+        
+        response = list_documents(request, 'list_postgres_id')
+        
+        assert response.status_code == 200
+        assert b'PG Doc' in response.content
+
+    def test_list_documents_local_legacy(self, mocker):
+        # Mock local storage to return a project with documents
+        mock_storage = mocker.Mock()
+        mock_storage.list_projects.return_value = [{
+            'id': 'local_123',
+            'display_name': 'Local Project',
+            'documents': {'doc_local.txt': {'indexed_at': '2026-03-01'}}
+        }]
+        mocker.patch('apps.documents.views.get_local_project_storage', return_value=mock_storage)
+        
+        factory = RequestFactory()
+        request = factory.get('/fake-url/')
+        
+        response = list_documents(request, 'local_123')
+        
+        assert response.status_code == 200
+        assert b'doc_local.txt' in response.content
+
+    def test_upload_document_local(self, mocker):
+        mock_storage = mocker.Mock()
+        mock_storage.list_projects.return_value = []
+        mocker.patch('apps.documents.views.get_local_project_storage', return_value=mock_storage)
+        
+        mock_engine = mocker.Mock()
+        mock_engine.index_document.return_value = True
+        mocker.patch('apps.documents.views.get_rag_engine', return_value=mock_engine)
+        
+        file_content = b"local content"
+        uploaded_file = SimpleUploadedFile("local_doc.txt", file_content, content_type="text/plain")
+        
+        factory = RequestFactory()
+        request = factory.post('/fake-url/', {'file': uploaded_file})
+        
+        response = upload_document(request, 'local_456')
+        
+        assert response.status_code == 200
+        mock_engine.index_document.assert_called_once()
+        mock_storage.add_document.assert_called_once_with('local_456', 'local_doc.txt')
+
+    def test_delete_document_local(self, mocker):
+        mock_storage = mocker.Mock()
+        mocker.patch('apps.documents.views.get_local_project_storage', return_value=mock_storage)
+        
+        mock_engine = mocker.Mock()
+        mock_engine.delete_document.return_value = True
+        mocker.patch('apps.documents.views.get_rag_engine', return_value=mock_engine)
+        
+        factory = RequestFactory()
+        request = factory.delete('/fake-url/?store_id=local_456')
+        
+        response = delete_document(request, 'local_doc.txt')
+        
+        assert response.status_code == 200
+        mock_engine.delete_document.assert_called_once_with('local_doc.txt')
+        mock_storage.remove_document.assert_called_once_with('local_456', 'local_doc.txt')
+
     def test_upload_document_google(self, mocker):
         project = Project.objects.create(
             project_id='google_test_id',

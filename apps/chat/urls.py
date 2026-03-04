@@ -11,6 +11,7 @@ urlpatterns = [
     path('', pages.index, name='index'),
     path('dashboard/', pages.admin_page, name='admin'),
     path('chat/', pages.chat_page, name='chat_page'),
+    path('api/chat/', views.chat, name='chat_api'),
     path('evaluate/', pages.evaluate_page, name='evaluate_page'),
     path('submit/', views.chat_submit, name='submit'),
     # API endpoints are registered in apps/api/api_urls.py

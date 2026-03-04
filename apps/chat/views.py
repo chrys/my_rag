@@ -48,7 +48,7 @@ def chat_submit(request):
         if store_id.startswith('local_'):
             rag_engine = get_rag_engine(store_id)
             bot_response = rag_engine.query(query, system_prompt=system_prompt)
-        elif store_id.startswith('postgres_'):
+        elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
             from postgres_rag import PostgresRAGEngine
             rag_engine = PostgresRAGEngine(store_id)
             res = rag_engine.query(query, system_prompt=system_prompt)
@@ -131,11 +131,14 @@ def chat(request):
             prompt_storage = get_prompt_storage()
             system_prompt = prompt_storage.get_prompt(store_id)
         
+        # Look up project for storage type
+        project = Project.objects.filter(project_id=store_id).first()
+        
         # Query the appropriate backend
         if store_id.startswith('local_'):
             rag_engine = get_rag_engine(store_id)
             bot_response = rag_engine.query(query, system_prompt=system_prompt)
-        elif store_id.startswith('postgres_'):
+        elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
             from postgres_rag import PostgresRAGEngine
             rag_engine = PostgresRAGEngine(store_id)
             res = rag_engine.query(query, system_prompt=system_prompt)
@@ -153,13 +156,13 @@ def chat(request):
         # Store in database if user is authenticated
         if request.user.is_authenticated:
             ChatMessage.objects.create(
-                project_id=store_id,  # This will need adjustment when Project model is populated
+                project=project,
                 user=request.user,
                 message_type='user',
                 content=query
             )
             ChatMessage.objects.create(
-                project_id=store_id,
+                project=project,
                 user=request.user,
                 message_type='assistant',
                 content=bot_response,
