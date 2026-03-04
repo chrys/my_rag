@@ -134,13 +134,13 @@
     - [ ] Run and confirm fail (Red phase)
 
 ### Implementation
-- [ ] Task: Implement test_chat_google_related_answer — real LLM test using "Test File Search" project
+- [x] Task: Implement test_chat_google_related_answer — real LLM test using "Test File Search" project [bc269d0]
     - [ ] Add fixture that fetches the "Test File Search" project from DB (skip if not found)
     - [ ] POST a query known to be answerable from the indexed document to `chat_submit` or `chat` view
     - [ ] Assert response is HTTP 200
     - [ ] Assert `bot_response` is non-empty and not an error message
     - [ ] Run and confirm pass
-- [ ] Task: Implement test_chat_google_unrelated_answer — real LLM test for off-topic query
+- [x] Task: Implement test_chat_google_unrelated_answer — real LLM test for off-topic query [bc269d0]
     - [ ] Fetch or create `SystemPrompt` for "Test File Search" that restricts answers to the topic
     - [ ] POST an off-topic query
     - [ ] Assert response contains a refusal or "cannot help" type message
