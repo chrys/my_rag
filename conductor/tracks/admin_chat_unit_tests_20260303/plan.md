@@ -52,7 +52,7 @@
 ## Phase 2: Admin Tab — Document Management Tests
 
 ### Setup
-- [ ] Task: Write failing test stubs — Create `Testing/unit/admin/test_admin_document_views.py` with empty test skeletons
+- [x] Task: Write failing test stubs — Create `Testing/unit/admin/test_admin_document_views.py` with empty test skeletons [7da6cdc]
     - [ ] Create stub test file with failing test stubs for FR-2.1 and FR-2.2
     - [ ] Run and confirm fail (Red phase)
 
