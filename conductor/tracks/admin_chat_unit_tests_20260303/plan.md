@@ -99,14 +99,14 @@
     - [ ] Run and confirm fail (Red phase)
 
 ### Implementation — Add & Edit Prompt
-- [ ] Task: Implement test_add_custom_prompt — view-level test for `manage_prompt` POST (new prompt)
+- [x] Task: Implement test_add_custom_prompt — view-level test for `manage_prompt` POST (new prompt) [f144053]
     - [ ] Create `Project` fixture
     - [ ] Mock `prompt_storage.set_prompt` with `mocker`
     - [ ] POST to `manage_prompt` view with `content`
     - [ ] Assert mock called with correct `store_id` and `content`
     - [ ] Assert response indicates success
     - [ ] Run and confirm pass
-- [ ] Task: Implement test_edit_custom_prompt — view-level test for `manage_prompt` POST (updating existing)
+- [x] Task: Implement test_edit_custom_prompt — view-level test for `manage_prompt` POST (updating existing) [f144053]
     - [ ] Create `Project` and existing `SystemPrompt` fixture
     - [ ] Mock `prompt_storage.set_prompt` with `mocker`
     - [ ] POST updated content to `manage_prompt`
