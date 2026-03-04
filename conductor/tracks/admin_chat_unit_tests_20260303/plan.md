@@ -91,7 +91,7 @@
 
 ---
 
-## Phase 3: Admin Tab — Custom Prompt Management Tests
+## Phase 3: Admin Tab — Custom Prompt Management Tests [checkpoint: d620cc5]
 
 ### Setup
 - [x] Task: Write failing test stubs — Create `Testing/unit/admin/test_admin_prompt_views.py` with empty test skeletons [4cc6d4f]
@@ -122,7 +122,7 @@
     - [ ] Assert the mocked LLM call was invoked with the expected `system_prompt` argument
     - [ ] Run and confirm pass
 
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Admin Prompt Management Tests' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Admin Prompt Management Tests' (Protocol in workflow.md) [d620cc5]
 
 ---
 
