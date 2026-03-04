@@ -153,7 +153,7 @@
 ## Phase 5: Chat Tab — Real LLM Tests (PostgreSQL RAG)
 
 ### Setup
-- [ ] Task: Write failing test stubs — Create `Testing/unit/chat/test_chat_rag_llm.py` with empty test skeletons
+- [x] Task: Write failing test stubs — Create `Testing/unit/chat/test_chat_rag_llm.py` with empty test skeletons [138054a]
     - [ ] Write stubs for FR-5.1 and FR-5.2 that fail
     - [ ] Run and confirm fail (Red phase)
 
