@@ -49,7 +49,7 @@
 
 ---
 
-## Phase 2: Admin Tab — Document Management Tests
+## Phase 2: Admin Tab — Document Management Tests [checkpoint: fbaf5a7]
 
 ### Setup
 - [x] Task: Write failing test stubs — Create `Testing/unit/admin/test_admin_document_views.py` with empty test skeletons [7da6cdc]
@@ -87,7 +87,7 @@
     - [ ] Assert `Document` DB record is removed
     - [ ] Run and confirm pass
 
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Admin Document Management Tests' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Admin Document Management Tests' (Protocol in workflow.md) [fbaf5a7]
 
 ---
 
