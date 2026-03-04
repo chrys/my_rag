@@ -57,14 +57,14 @@
     - [ ] Run and confirm fail (Red phase)
 
 ### Implementation — Upload File
-- [ ] Task: Implement test_upload_document_google — view-level test for `upload_document` with Google project
+- [x] Task: Implement test_upload_document_google — view-level test for `upload_document` with Google project [f2cc4ee]
     - [ ] Create `Project` fixture with `storage_type='google'` and `external_store_id`
     - [ ] Create a `SimpleUploadedFile` test file
     - [ ] Mock `gfs.add_document_to_store` with `mocker`
     - [ ] POST to `upload_document` view
     - [ ] Assert mock called with correct store ID
     - [ ] Run and confirm pass (Green phase)
-- [ ] Task: Implement test_upload_document_postgres — view-level test for `upload_document` with postgres project
+- [x] Task: Implement test_upload_document_postgres — view-level test for `upload_document` with postgres project [f2cc4ee]
     - [ ] Create `Project` fixture with `storage_type='postgres'`
     - [ ] Create a `SimpleUploadedFile` test file
     - [ ] Mock `PostgresRAGEngine.index_document` with `mocker`
@@ -74,13 +74,13 @@
     - [ ] Run and confirm pass
 
 ### Implementation — Delete File (with de-index verification)
-- [ ] Task: Implement test_delete_document_google — view-level test for `delete_document` with Google project
+- [x] Task: Implement test_delete_document_google — view-level test for `delete_document` with Google project [8211632]
     - [ ] Create `Project` fixture with `storage_type='google'` and `external_store_id`
     - [ ] Mock `gfs.delete_document_from_store` with `mocker`
     - [ ] Call `delete_document` view
     - [ ] Assert mock called with correct arguments
     - [ ] Run and confirm pass
-- [ ] Task: Implement test_delete_document_postgres — view-level test for `delete_document` with postgres project
+- [x] Task: Implement test_delete_document_postgres — view-level test for `delete_document` with postgres project [8211632]
     - [ ] Create `Project` and `Document` fixtures with `storage_type='postgres'`
     - [ ] Mock any RAG engine delete method if applicable with `mocker`
     - [ ] Call `delete_document` view
