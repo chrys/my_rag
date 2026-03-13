@@ -84,31 +84,21 @@ server {
 		proxy_busy_buffers_size 256k;
 	}
 
-# RAG Dashboard - Strip /rag prefix and pass to Flask app
+# RAG Dashboard - Keep /rag prefix, Django handles it
 	location /rag/ {
-# Strip the /rag prefix before passing to the app
-		rewrite ^/rag/(.*)$ /$1 break;
-		rewrite ^/rag/?$ / break;
-
-# Pass to Gunicorn socket
 		proxy_pass http://unix:/run/rag-dashboard/rag-dashboard.sock;
 
-# Headers
 		proxy_set_header Host $host;
 		proxy_set_header X-Real-IP $remote_addr;
 		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 		proxy_set_header X-Forwarded-Proto $scheme;
-		proxy_set_header X-Forwarded-Prefix /rag;
-		proxy_set_header X-Script-Name /rag;
 		proxy_set_header Upgrade $http_upgrade;
 		proxy_set_header Connection "upgrade";
 
-# Timeouts
 		proxy_connect_timeout 300s;
 		proxy_send_timeout 300s;
 		proxy_read_timeout 300s;
 
-# Buffer settings for large responses
 		proxy_buffering on;
 		proxy_buffer_size 128k;
 		proxy_buffers 4 256k;

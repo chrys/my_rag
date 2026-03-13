@@ -11,11 +11,13 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
     
-    # App URLs (templates, pages)
-    path('', include('apps.chat.urls')),
-    path('', include('apps.projects.urls')),
-    path('', include('apps.documents.urls')),
-    path('', include('apps.evaluate.urls')),
+    # RAG Dashboard routes (prefixed with /rag/)
+    path('rag/', include([
+        path('', include('apps.chat.urls')),
+        path('', include('apps.projects.urls')),
+        path('', include('apps.documents.urls')),
+        path('', include('apps.evaluate.urls')),
+    ])),
     
     # DRF API routes
     path('api/', include('apps.api.api_urls')),
