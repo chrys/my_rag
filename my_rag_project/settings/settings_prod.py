@@ -17,6 +17,7 @@ ALLOWED_HOSTS = [
 
 # Login URL with /rag/ prefix
 LOGIN_URL = '/rag/accounts/login/'
+LOGIN_REDIRECT_URL = '/rag/'
 
 # CORS settings - restrict to specific domains in production
 CORS_ALLOWED_ORIGINS = [

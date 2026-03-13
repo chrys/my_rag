@@ -9,10 +9,10 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('accounts/', include('django.contrib.auth.urls')),
     
     # RAG Dashboard routes (prefixed with /rag/)
     path('rag/', include([
+        path('accounts/', include('django.contrib.auth.urls')),
         path('', include('apps.chat.urls')),
         path('', include('apps.projects.urls')),
         path('', include('apps.documents.urls')),
