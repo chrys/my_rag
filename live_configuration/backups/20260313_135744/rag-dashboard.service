@@ -11,7 +11,7 @@ WorkingDirectory=/srv/rag-dashboard
 
 # Environment variables
 Environment="PATH=/srv/rag-dashboard/.venv/bin"
-Environment="DJANGO_ENV=production"
+Environment="FLASK_ENV=production"
 EnvironmentFile=/srv/rag-dashboard/.env
 
 # Gunicorn startup command
@@ -23,7 +23,7 @@ ExecStart=/srv/rag-dashboard/.venv/bin/gunicorn \
     --access-logfile /var/log/rag-dashboard/access.log \
     --error-logfile /var/log/rag-dashboard/error.log \
     --log-level info \
-    'my_rag_project.wsgi:application'
+    'wsgi:app'
 
 # Reload on config changes
 ExecReload=/bin/kill -s HUP $MAINPID
