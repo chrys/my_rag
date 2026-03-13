@@ -15,6 +15,9 @@ ALLOWED_HOSTS = [
     'www.fasolaki.com',
 ]
 
+# Login URL with /rag/ prefix
+LOGIN_URL = '/rag/accounts/login/'
+
 # CORS settings - restrict to specific domains in production
 CORS_ALLOWED_ORIGINS = [
     'https://www.fasolaki.com',
