@@ -1,0 +1,1 @@
+/Users/chrys/Projects/INSTRUCTIONS/Django_AGENTS.md

@@ -19,6 +19,10 @@ server {
 
 	return 301 https://$host$request_uri;
 
+
+
+
+
 }
 
 
@@ -33,13 +37,6 @@ server {
 	ssl_certificate /etc/letsencrypt/live/fasolaki.com/fullchain.pem; # managed by Certbot
 		ssl_certificate_key /etc/letsencrypt/live/fasolaki.com/privkey.pem; # managed by Certbot
 		include /etc/letsencrypt/options-ssl-nginx.conf;
-
-
-	location /nginx_status {
-		stub_status;
-		allow 127.0.0.1;
-		deny all;
-	}
 
 # Django Chatbot App
 
@@ -221,7 +218,7 @@ server {
 
 	location /yourplanner/static/ {
 
-		alias /srv/yourplanner/staticfiles/;
+		alias /srv/yourplanner/staticfiles_production/;
 		expires 30d;
 		access_log off;
 
@@ -232,7 +229,7 @@ server {
 
 	location /yourplanner/media/ {
 
-		alias /srv/yourplanner/media/;
+		alias /srv/yourplanner/media_production/;
 
 	}
 
@@ -242,14 +239,23 @@ server {
 	location /yourplanner/ {
 
 		rewrite /yourplanner/(.*) /$1 break;
+
 		proxy_pass http://unix:/run/yourplanner/yourplanner.sock;
+
 		proxy_set_header Host $host;
+
 		proxy_set_header X-Real-IP $remote_addr;
+
 		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
 		proxy_set_header X-Forwarded-Proto $scheme;
+
 		proxy_redirect off;
+
 		proxy_connect_timeout 300s;
+
 		proxy_send_timeout 300s;
+
 		proxy_read_timeout 300s;
 
 	}
@@ -364,20 +370,4 @@ server {
 
 } 
 
-server {
-    listen 127.0.0.1:9090;
 
-    location = /metrics {
-        proxy_pass https://www.fasolaki.com/yourplanner/metrics;
-        proxy_set_header Host www.fasolaki.com;
-        proxy_set_header X-Forwarded-Host www.fasolaki.com;
-        proxy_set_header X-Forwarded-Proto https;
-    }
-
-    location = /metrics/ {
-        proxy_pass https://www.fasolaki.com/yourplanner/metrics/;
-        proxy_set_header Host www.fasolaki.com;
-        proxy_set_header X-Forwarded-Host www.fasolaki.com;
-        proxy_set_header X-Forwarded-Proto https;
-    }
-}
