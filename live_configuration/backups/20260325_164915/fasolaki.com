@@ -87,37 +87,27 @@ server {
 		proxy_busy_buffers_size 256k;
 	}
 
-# RAG Dashboard static files - MUST come before /rag/ proxy
-	location /rag/static/ {
-		alias /srv/rag-dashboard/staticfiles/;
-		expires 30d;
-		access_log off;
-		add_header Cache-Control "public, immutable";
-	}
-
-	location /rag/media/ {
-		alias /srv/rag-dashboard/media/;
-		expires 7d;
-		access_log off;
-	}
-
 # RAG Dashboard - Keep /rag prefix, Django handles it
 	location /rag/ {
 		proxy_pass http://unix:/run/rag-dashboard/rag-dashboard.sock;
+
 		proxy_set_header Host $host;
 		proxy_set_header X-Real-IP $remote_addr;
 		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 		proxy_set_header X-Forwarded-Proto $scheme;
 		proxy_set_header Upgrade $http_upgrade;
 		proxy_set_header Connection "upgrade";
+
 		proxy_connect_timeout 300s;
 		proxy_send_timeout 300s;
 		proxy_read_timeout 300s;
+
 		proxy_buffering on;
 		proxy_buffer_size 128k;
 		proxy_buffers 4 256k;
 		proxy_busy_buffers_size 256k;
 	}
+
 
 	location /marlensplace/ {
 		alias /srv/marlensplace/;
@@ -321,7 +311,6 @@ server {
 
 		deny all;
 
-
 	}
 
 
@@ -376,19 +365,19 @@ server {
 } 
 
 server {
-	listen 127.0.0.1:9090;
+    listen 127.0.0.1:9090;
 
-	location = /metrics {
-		proxy_pass https://www.fasolaki.com/yourplanner/metrics;
-		proxy_set_header Host www.fasolaki.com;
-		proxy_set_header X-Forwarded-Host www.fasolaki.com;
-		proxy_set_header X-Forwarded-Proto https;
-	}
+    location = /metrics {
+        proxy_pass https://www.fasolaki.com/yourplanner/metrics;
+        proxy_set_header Host www.fasolaki.com;
+        proxy_set_header X-Forwarded-Host www.fasolaki.com;
+        proxy_set_header X-Forwarded-Proto https;
+    }
 
-	location = /metrics/ {
-		proxy_pass https://www.fasolaki.com/yourplanner/metrics/;
-		proxy_set_header Host www.fasolaki.com;
-		proxy_set_header X-Forwarded-Host www.fasolaki.com;
-		proxy_set_header X-Forwarded-Proto https;
-	}
+    location = /metrics/ {
+        proxy_pass https://www.fasolaki.com/yourplanner/metrics/;
+        proxy_set_header Host www.fasolaki.com;
+        proxy_set_header X-Forwarded-Host www.fasolaki.com;
+        proxy_set_header X-Forwarded-Proto https;
+    }
 }
