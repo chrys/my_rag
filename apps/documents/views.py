@@ -88,6 +88,7 @@ def list_documents(request, store_id):
         'store_id': store_id,
         'project_name': project_name,
         'storage_type': storage_type,
+        'url_prefix': '/rag',
     })
 
 
@@ -166,7 +167,7 @@ def upload_document(request, store_id):
         if project and project.storage_type == 'google':
             # For Google projects, fetch from API
             documents = gfs.list_documents_in_store(project.external_store_id)
-        elif project and project.storage_type == 'rag':
+        elif project and project.storage_type == 'postgres':
             # For RAG projects, fetch from Django DB
             docs_qs = Document.objects.filter(project=project)
             documents = [_doc_adapter(d) for d in docs_qs]
@@ -192,7 +193,11 @@ def upload_document(request, store_id):
             else:
                 documents = []
         
-        return render(request, 'partials/document_items.html', {'documents': documents})
+        return render(request, 'partials/document_items.html', {
+            'documents': documents,
+            'store_id': store_id,
+            'url_prefix': '/rag',
+        })
     
     except Exception as e:
         import traceback

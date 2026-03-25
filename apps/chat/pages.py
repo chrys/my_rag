@@ -11,7 +11,7 @@ from django.contrib.auth.decorators import login_required
 @require_http_methods(["GET"])
 def index(request):
     """Home page - renders admin dashboard"""
-    context = {'url_prefix': ''}
+    context = {'url_prefix': '/rag'}
     return render(request, 'projects/admin.html', context)
 
 
@@ -19,7 +19,7 @@ def index(request):
 @require_http_methods(["GET"])
 def admin_page(request):
     """Admin dashboard - can be loaded via HTMX or directly"""
-    context = {'url_prefix': ''}
+    context = {'url_prefix': '/rag'}
     return render(request, 'projects/admin.html', context)
 
 
@@ -27,11 +27,13 @@ def admin_page(request):
 @require_http_methods(["GET"])
 def chat_page(request):
     """Chat interface"""
-    return render(request, 'chat/chat.html')
+    context = {'url_prefix': '/rag'}
+    return render(request, 'chat/chat.html', context)
 
 
 @login_required
 @require_http_methods(["GET"])
 def evaluate_page(request):
     """Evaluation interface"""
-    return render(request, 'evaluate/evaluate.html')
+    context = {'url_prefix': '/rag'}
+    return render(request, 'evaluate/evaluate.html', context)

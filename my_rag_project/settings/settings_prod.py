@@ -15,6 +15,9 @@ ALLOWED_HOSTS = [
     'www.fasolaki.com',
 ]
 
+# Static files URL for /rag/ prefix
+STATIC_URL = '/rag/static/'
+
 # Login URL with /rag/ prefix
 LOGIN_URL = '/rag/accounts/login/'
 LOGIN_REDIRECT_URL = '/rag/'
