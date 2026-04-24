@@ -8,10 +8,12 @@ from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
+    # Admin at root level
+    path('admin/', admin.site.urls),
+    # Auth routes at root level
+    path('accounts/', include('django.contrib.auth.urls')),
     # RAG Dashboard routes (prefixed with /rag/)
     path('rag/', include([
-        path('admin/', admin.site.urls),
-        path('accounts/', include('django.contrib.auth.urls')),
         path('api/', include('apps.api.api_urls')),
         path('', include('apps.chat.urls')),
         path('', include('apps.projects.urls')),

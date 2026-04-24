@@ -1,40 +1,23 @@
-# Local Projects Documentation
+# Local Projects
 
-## Overview
-Local Projects in My RAG are designed to run entirely on your local machine, ensuring maximum privacy and data security. These projects use local storage for both project metadata and the vector embeddings generated from your documents.
+## Business Overview
+Local Projects provide a secure, self-contained environment for managing your AI workflows. This feature is designed specifically for businesses that require the highest levels of data privacy, compliance, and control over their sensitive information.
 
-## Storage Architecture
+## How It Adds Value
 
-### Project Metadata (`src/local_project_storage.py`)
-- **Storage Location:** Project metadata is stored in a JSON file located at `configuration/local_projects.json`.
-- **Data Structure:** Each project is assigned a unique ID (e.g., `local_20231027_153000_my_project`) and contains its display name, creation timestamp, and a dictionary of indexed documents.
-- **Operations:** The `LocalProjectStorage` class handles all CRUD (Create, Read, Update, Delete) operations for project metadata. It ensures data consistency by saving changes directly to the JSON file after any modification.
+### Maximum Data Privacy
+With Local Projects, all operations—including document storage, data processing, and AI generation—occur entirely on your organization's own infrastructure. Your proprietary documents and internal queries never leave your network, ensuring complete confidentiality.
 
-### Vector Embeddings and RAG Engine (`src/local_rag.py`)
-- **Storage Location:** Document embeddings and associated metadata are stored in the `rag_data/<project_id>` directory.
-- **Engine:** The system uses `LocalRAGEngine` which leverages the `llama-index` framework.
-- **Vector Store:** `faiss-cpu` (Facebook AI Similarity Search) is used to index and search embeddings efficiently on the CPU. It utilizes `IndexIDMap` to allow mapping vectors to specific document IDs, which facilitates document deletion.
-- **LLM & Embeddings:** The system relies on an Ollama instance running locally (typically at `http://localhost:11434`).
-  - **Embeddings Model:** `embeddinggemma`
-  - **LLM Model:** `gemma3:4b`
-- **Data Files:**
-  - `faiss_index.bin`: The binary FAISS index containing the vector embeddings.
-  - `metadata.json`: A JSON file linking the vector IDs to document metadata (name, file path, etc.) and storing the raw text for context generation.
+### Compliance and Security
+For industries with strict regulatory requirements (such as healthcare, finance, or defense), Local Projects simplify compliance by eliminating third-party data sharing. You maintain total sovereignty over your data and the AI models processing it.
 
-## Document Ingestion Flow
-1. **Upload:** A user uploads a document (e.g., PDF, TXT, MD) to a local project.
-2. **Extraction:** The `LocalRAGEngine` extracts the text from the document using libraries like `pypdf`.
-3. **Embedding:** The extracted text is passed to the local Ollama embeddings model (`embeddinggemma`) to generate vector representations.
-4. **Indexing:** The vectors are added to the FAISS index with a unique ID, and the metadata/raw text is updated in the `metadata.json` file. The index is then saved to disk.
-5. **Metadata Update:** The `LocalProjectStorage` updates the global `local_projects.json` file to reflect the newly added document.
+### Independent Operation
+Because the system runs locally, it does not rely on external cloud services or internet connectivity to function. This ensures uninterrupted access to your AI capabilities, even in highly restricted or air-gapped environments.
 
-## Query Flow (Chat)
-1. **Query:** A user submits a query in the chat interface.
-2. **Embedding:** The query is embedded using the same Ollama model used for ingestion.
-3. **Search:** The FAISS index is searched to find the most similar document embeddings (typically top 3).
-4. **Context Generation:** The raw text associated with the top matching vectors is retrieved from the `metadata.json` file.
-5. **LLM Response:** The query and the retrieved context are sent to the local Ollama LLM (`gemma3:4b`), which generates an answer based on the provided documents.
+### Cost Predictability
+Running AI models locally avoids the variable usage costs associated with cloud-based API services. Once the necessary hardware is in place, the operational costs remain predictable regardless of how heavily the system is utilized.
 
-## Limitations
-- Performance relies heavily on the local machine's hardware capabilities, particularly for the Ollama instance running the LLM and embeddings models.
-- Currently, the local FAISS implementation loads the entire index into memory when initialized.
+## Use Cases
+- Analyzing highly sensitive financial records or strategic plans.
+- Processing confidential employee records or legal documents.
+- Operating AI assistants in secure facilities with restricted external network access.

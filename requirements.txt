@@ -2,17 +2,12 @@ google-genai
 python-dotenv
 markdown
 pypdf
-llama-index
-llama-index-llms-ollama
-llama-index-embeddings-ollama
-llama-index-llms-google-genai
 spacy
-faiss-cpu
 txtai
-litellm
+
 
 # Django stack
-django==6.0.1
+django
 djangorestframework==3.14.0
 django-cors-headers==4.3.0
 django-extensions==3.2.3
