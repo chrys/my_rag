@@ -1,17 +1,30 @@
 import os
 import json
-from txtai.embeddings import Embeddings
 import pypdf
 from pathlib import Path
 import dotenv
 dotenv.load_dotenv()
-from llama_index.llms.google_genai import GoogleGenAI
+
+try:
+    from txtai.embeddings import Embeddings
+    from llama_index.llms.google_genai import GoogleGenAI
+    POSTGRES_RAG_DEPENDENCIES_AVAILABLE = True
+except ImportError:
+    Embeddings = None
+    GoogleGenAI = None
+    POSTGRES_RAG_DEPENDENCIES_AVAILABLE = False
 
 # Base directory for persisted per-project ANN indices
 INDICES_DIR = Path(__file__).parent.parent / "rag_data" / "indices"
 
 class PostgresRAGEngine:
     def __init__(self, project_id: str):
+        if not POSTGRES_RAG_DEPENDENCIES_AVAILABLE:
+            raise ImportError(
+                "PostgresRAGEngine requires the optional AI dependencies. "
+                "Install them with: pip install -r requirements-ai.txt"
+            )
+
         self.project_id = project_id
         self.index_path = str(INDICES_DIR / project_id)
         

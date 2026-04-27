@@ -2,8 +2,9 @@ google-genai
 python-dotenv
 markdown
 pypdf
-spacy
-txtai
+
+# Optional vector-indexing dependencies for local/postgres RAG features live in
+# requirements-ai.txt so the default install stays small enough for production.
 
 
 # Django stack
@@ -24,8 +25,4 @@ gunicorn==21.2.0
 # Database
 psycopg2-binary==2.9.9
 
-# Flask dependencies (for migration period - can be removed later)
-flask
-flask-cors
-werkzeug
 

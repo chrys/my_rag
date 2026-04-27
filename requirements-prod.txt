@@ -15,7 +15,6 @@ psycopg2-binary
 # Configuration
 python-dotenv
 
-# Vector search & document processing
-txtai
+# Document processing
 markdown
 pypdf

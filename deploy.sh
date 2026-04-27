@@ -25,7 +25,7 @@ NC='\033[0m' # No Color
 
 # 2. Install/update dependencies
 echo -e "${YELLOW}[2/6]${NC} Installing/updating Python dependencies..."
-sudo -u deploy /srv/rag-dashboard/.venv/bin/pip install -q -r requirements.txt
+sudo -u deploy /srv/rag-dashboard/.venv/bin/pip install -q -r requirements-prod.txt
 echo -e "${GREEN}✓ Dependencies installed${NC}"
 echo ""
 
