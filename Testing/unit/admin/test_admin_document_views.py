@@ -3,10 +3,13 @@ from django.test import RequestFactory
 from django.core.files.uploadedfile import SimpleUploadedFile
 from apps.projects.models import Project
 from apps.documents.models import Document
-from apps.documents.views import upload_document, delete_document, list_documents
+from apps.documents.views import _sanitize_uploaded_filename, upload_document, delete_document, list_documents
 
 @pytest.mark.django_db
 class TestAdminDocumentViews:
+    def test_sanitize_uploaded_filename_strips_path_segments(self):
+        assert _sanitize_uploaded_filename('../../unsafe folder/test doc?.txt') == 'test_doc.txt'
+
     def test_list_documents_google(self, mocker):
         project = Project.objects.create(
             project_id='list_google_id',

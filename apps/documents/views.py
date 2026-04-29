@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.core.files.storage import default_storage
-from werkzeug.utils import secure_filename
+from django.utils.text import get_valid_filename
 import sys
 import os
 import tempfile
@@ -25,6 +25,16 @@ from apps.projects.models import Project
 
 
 SUPPORTED_TEXT_FILE_EXTENSIONS = {'.pdf', '.txt', '.md'}
+
+
+def _sanitize_uploaded_filename(filename: str) -> str:
+    """Return a filesystem-safe upload filename without requiring Werkzeug."""
+    normalized_name = filename.replace("\\", "/").split("/")[-1].strip()
+    if not normalized_name:
+        return "upload"
+
+    sanitized_name = get_valid_filename(normalized_name)
+    return sanitized_name or "upload"
 
 
 def _doc_adapter(doc):
@@ -109,7 +119,7 @@ def upload_document(request, store_id):
         return JsonResponse({'error': 'Invalid file'}, status=400)
     
     try:
-        filename = secure_filename(file.name)
+        filename = _sanitize_uploaded_filename(file.name)
         file_ext = os.path.splitext(filename)[1].lower()
 
         if (store_id.startswith('rag_') or store_id.startswith('postgres_')) and file_ext not in SUPPORTED_TEXT_FILE_EXTENSIONS:
