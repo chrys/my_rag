@@ -17,7 +17,6 @@ import json
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src'))
 
 from local_project_storage import get_local_project_storage
-from local_rag import get_rag_engine
 from optional_dependencies import LazyModuleProxy
 from prompt_storage import get_prompt_storage
 
@@ -29,6 +28,12 @@ gfs = LazyModuleProxy(
     "google_file_search",
     "Google File Search dependencies are not installed in this environment.",
 )
+
+
+def get_rag_engine(*args, **kwargs):
+    from local_rag import get_rag_engine as local_get_rag_engine
+
+    return local_get_rag_engine(*args, **kwargs)
 
 
 def _user_can_access_project(project: Project | None, user) -> bool:

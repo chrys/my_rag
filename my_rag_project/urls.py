@@ -14,6 +14,7 @@ urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),
     # RAG Dashboard routes (prefixed with /rag/)
     path('rag/', include([
+        path('accounts/', include('django.contrib.auth.urls')),
         path('api/', include('apps.api.api_urls')),
         path('', include('apps.chat.urls')),
         path('', include('apps.projects.urls')),

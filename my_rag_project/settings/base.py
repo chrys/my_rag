@@ -153,3 +153,7 @@ LOGGING = {
 # Application settings from Flask config
 ALLOW_FILE_UPLOADS = True
 JSON_SORT_KEYS = False
+
+# Auth routes for the dashboard live under /rag/.
+LOGIN_URL = '/rag/accounts/login/'
+LOGIN_REDIRECT_URL = '/rag/'
