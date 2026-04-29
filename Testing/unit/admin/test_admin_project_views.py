@@ -73,8 +73,7 @@ class TestAdminProjectViews:
         )
         Document.objects.create(project=project, document_name='doc1.txt', state='INDEXED')
         Document.objects.create(project=project, document_name='doc2.txt', state='INDEXED')
-        mock_engine = mocker.Mock()
-        mocker.patch('postgres_rag.PostgresRAGEngine', return_value=mock_engine)
+        mock_cleanup = mocker.patch('postgres_rag.cleanup_project_artifacts')
         mock_delete = mocker.patch('apps.projects.views.gfs.delete_file_search_store')
         
         factory = RequestFactory()
@@ -85,7 +84,7 @@ class TestAdminProjectViews:
         
         assert response.status_code == 200
         mock_delete.assert_not_called()
-        mock_engine.delete_project_artifacts.assert_called_once_with(['doc1.txt', 'doc2.txt'])
+        mock_cleanup.assert_called_once_with('test_postgres_id', ['doc1.txt', 'doc2.txt'])
         assert not Project.objects.filter(project_id='test_postgres_id').exists()
 
     def test_delete_project_postgres_without_optional_ai_dependencies(self, mocker):
@@ -96,8 +95,8 @@ class TestAdminProjectViews:
         )
         Document.objects.create(project=project, document_name='doc1.txt', state='INDEXED')
         mocker.patch(
-            'postgres_rag.PostgresRAGEngine',
-            side_effect=ImportError('PostgresRAGEngine requires the optional AI dependencies')
+            'postgres_rag.cleanup_project_artifacts',
+            side_effect=ImportError('google-genai required')
         )
 
         factory = RequestFactory()
