@@ -16,7 +16,7 @@ class Project(models.Model):
     STORAGE_TYPES = [
         ('local', 'Local FAISS Indexing'),
         ('google', 'Google File Search'),
-        ('rag', 'RAG'),
+        ('postgres', 'Postgres RAG'),
     ]
     
     # Identifiers

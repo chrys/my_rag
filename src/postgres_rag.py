@@ -1,5 +1,6 @@
 import os
 import json
+import shutil
 import pypdf
 from pathlib import Path
 import dotenv
@@ -7,18 +8,20 @@ dotenv.load_dotenv()
 
 try:
     from txtai.embeddings import Embeddings
-    from llama_index.llms.google_genai import GoogleGenAI
+    from google import genai
+    from google.genai import types
     POSTGRES_RAG_DEPENDENCIES_AVAILABLE = True
 except ImportError:
     Embeddings = None
-    GoogleGenAI = None
+    genai = None
+    types = None
     POSTGRES_RAG_DEPENDENCIES_AVAILABLE = False
 
 # Base directory for persisted per-project ANN indices
 INDICES_DIR = Path(__file__).parent.parent / "rag_data" / "indices"
 
 class PostgresRAGEngine:
-    def __init__(self, project_id: str):
+    def __init__(self, project_id: str, require_llm: bool = True):
         if not POSTGRES_RAG_DEPENDENCIES_AVAILABLE:
             raise ImportError(
                 "PostgresRAGEngine requires the optional AI dependencies. "
@@ -35,12 +38,17 @@ class PostgresRAGEngine:
         db_host = os.getenv('DB_HOST', '')
         db_port = os.getenv('DB_PORT', '5432')
         
-        # Use a local SQLite fallback if postgres env vars are not set (for testing/safety)
         if all([db_name, db_user, db_pass, db_host]):
             content_url = f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
         else:
-            content_url = "sqlite:///txtai_fallback.db"
-            print("⚠️ Postgres environment variables not fully set. Falling back to SQLite.")
+            raise ValueError(
+                "PostgresRAGEngine requires PostgreSQL configuration via DB_NAME, DB_USER, "
+                "DB_PASSWORD, and DB_HOST"
+            )
+
+        api_key = os.getenv("GOOGLE_API_KEY", "")
+        if require_llm and not api_key:
+            raise ValueError("PostgresRAGEngine requires GOOGLE_API_KEY to be set")
 
         # Load persisted ANN index if it exists, otherwise create a fresh one.
         # txtai separates the ANN vector index (saved to disk) from content storage
@@ -57,11 +65,7 @@ class PostgresRAGEngine:
             print(f"[INIT] Creating new index for project: {project_id}")
         
         # Initialize LLM for query answering
-        self.llm = GoogleGenAI(
-            model="gemini-2.5-flash-lite",
-            api_key=os.getenv("GOOGLE_API_KEY"),
-            temperature=0.7
-        )
+        self.llm_client = genai.Client(api_key=api_key) if require_llm else None
 
     def extract_text_from_file(self, file_path: str) -> str:
         """Extract text from various file formats"""
@@ -91,7 +95,7 @@ class PostgresRAGEngine:
             
         # txtai format: (id, text, tags) — tags must be a JSON string, not a dict
         tags = json.dumps({"project_id": self.project_id, "document_name": document_name})
-        data = [(file_path, text, tags)]
+        data = [(document_name, text, tags)]
 
         # upsert adds to existing index; index() would wipe it
         if os.path.exists(self.index_path):
@@ -103,6 +107,24 @@ class PostgresRAGEngine:
         INDICES_DIR.mkdir(parents=True, exist_ok=True)
         self.embeddings.save(self.index_path)
         print(f"[INDEX] Saved index to {self.index_path}")
+        return True
+
+    def delete_document(self, document_name: str) -> bool:
+        """Delete a document from the txtai index and persist the updated ANN index."""
+        self.embeddings.delete([document_name])
+        self.embeddings.save(self.index_path)
+        return True
+
+    def delete_project_artifacts(self, document_names: list[str]) -> bool:
+        """Delete project-scoped indexed content and remove the persisted ANN index."""
+        if document_names:
+            self.embeddings.delete(document_names)
+
+        if os.path.isdir(self.index_path):
+            shutil.rmtree(self.index_path)
+        elif os.path.exists(self.index_path):
+            os.remove(self.index_path)
+
         return True
 
     def query(self, query_text: str, top_k: int = 3, system_prompt: str = "") -> dict:
@@ -117,6 +139,7 @@ class PostgresRAGEngine:
                 print(f"[QUERY] First result type: {type(results[0])}, keys: {list(results[0].keys()) if isinstance(results[0], dict) else 'N/A'}")
 
             source_docs = []
+            seen_documents = set()
             context_text = ""
 
             for i, result in enumerate(results):
@@ -136,7 +159,10 @@ class PostgresRAGEngine:
 
                 # No project filter needed — each engine loads its own per-project
                 # ANN index, so all results already belong to self.project_id.
-                source_docs.append({"document": str(doc_id), "score": float(score)})
+                document_name = str(doc_id)
+                if document_name not in seen_documents:
+                    source_docs.append({"document": document_name})
+                    seen_documents.add(document_name)
                 context_text += f"\n---\n{text[:1000]}\n"
 
                 if len(source_docs) >= top_k:
@@ -155,7 +181,12 @@ class PostgresRAGEngine:
         else:
             base_prompt = system_prompt if system_prompt else "Based on the following documents, answer this question:"
             prompt = f"{base_prompt}\\n\\nQuestion: {query_text}\\n\\nDocuments:{context_text}"
-            response_text = self.llm.complete(prompt).text if hasattr(self.llm, 'complete') else str(self.llm(prompt))
+            response = self.llm_client.models.generate_content(
+                model="gemini-2.5-flash-lite",
+                contents=prompt,
+                config=types.GenerateContentConfig(temperature=0.7),
+            )
+            response_text = response.text or ""
 
         return {
             "response": response_text,

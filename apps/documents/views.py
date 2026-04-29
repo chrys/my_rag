@@ -24,6 +24,9 @@ from .models import Document
 from apps.projects.models import Project
 
 
+SUPPORTED_TEXT_FILE_EXTENSIONS = {'.pdf', '.txt', '.md'}
+
+
 def _doc_adapter(doc):
     """Return a dict that matches the interface expected by document templates."""
     return {
@@ -107,9 +110,16 @@ def upload_document(request, store_id):
     
     try:
         filename = secure_filename(file.name)
+        file_ext = os.path.splitext(filename)[1].lower()
+
+        if (store_id.startswith('rag_') or store_id.startswith('postgres_')) and file_ext not in SUPPORTED_TEXT_FILE_EXTENSIONS:
+            return JsonResponse(
+                {'error': f'Unsupported file type: {file_ext or "[none]"}. Supported file types are: .pdf, .txt, .md'},
+                status=400,
+            )
         
         # Save to temporary location
-        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1]) as tmp:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
             for chunk in file.chunks():
                 tmp.write(chunk)
             filepath = tmp.name
@@ -129,11 +139,26 @@ def upload_document(request, store_id):
                 # RAG project indexing
                 from postgres_rag import PostgresRAGEngine
                 from django.utils import timezone
-                rag_engine = PostgresRAGEngine(store_id)
-                success = rag_engine.index_document(filepath, filename)
+                project = Project.objects.filter(project_id=store_id).first()
+
+                try:
+                    rag_engine = PostgresRAGEngine(store_id)
+                    success = rag_engine.index_document(filepath, filename)
+                except Exception as exc:
+                    if project:
+                        Document.objects.update_or_create(
+                            project=project,
+                            document_name=filename,
+                            defaults={
+                                'display_name': filename,
+                                'state': 'FAILED',
+                                'error_message': str(exc),
+                                'indexed_at': None,
+                            }
+                        )
+                    return JsonResponse({'error': f'Upload failed: {str(exc)}'}, status=500)
                 
                 if success:
-                    project = Project.objects.filter(project_id=store_id).first()
                     if project:
                         Document.objects.update_or_create(
                             project=project,
@@ -141,11 +166,22 @@ def upload_document(request, store_id):
                             defaults={
                                 'display_name': filename,
                                 'state': 'INDEXED',
+                                'error_message': '',
                                 'indexed_at': timezone.now(),
                             }
                         )
                 else:
-                    os.unlink(filepath)
+                    if project:
+                        Document.objects.update_or_create(
+                            project=project,
+                            document_name=filename,
+                            defaults={
+                                'display_name': filename,
+                                'state': 'FAILED',
+                                'error_message': 'Failed to index document in RAG project',
+                                'indexed_at': None,
+                            }
+                        )
                     return JsonResponse({'error': 'Failed to index document in RAG project'}, status=500)
             else:
                 # Google store - look up the project to get the external_store_id
@@ -226,6 +262,9 @@ def delete_document(request, document_id):
         elif store_id and (store_id.startswith('rag_') or store_id.startswith('postgres_')):
             project = Project.objects.filter(project_id=store_id).first()
             if project:
+                from postgres_rag import PostgresRAGEngine
+                rag_engine = PostgresRAGEngine(store_id, require_llm=False)
+                rag_engine.delete_document(document_id)
                 Document.objects.filter(project=project, document_name=document_id).delete()
         else:
             # Google document deletion - look up project to get external_store_id

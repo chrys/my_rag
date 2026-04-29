@@ -1,4 +1,5 @@
 {
   "test_google_file_search_id": "Only answer questions about the document topic. For anything else, say 'I cannot help with that'.",
-  "postgres_test_rag_id": "Only answer questions about the document topic. For anything else, say 'I cannot help with that'."
+  "postgres_test_rag_id": "Only answer questions about the document topic. For anything else, say 'I cannot help with that'.",
+  "postgres_prompt_store": "You are a postgres assistant."
 }

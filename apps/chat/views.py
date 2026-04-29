@@ -7,6 +7,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.template.loader import render_to_string
+from django.utils.html import escape
 import markdown
 import sys
 import os
@@ -21,7 +22,41 @@ from local_rag import get_rag_engine
 from prompt_storage import get_prompt_storage
 
 from .models import ChatMessage
-from apps.projects.models import Project
+from apps.projects.models import Project, SystemPrompt
+
+
+def _user_can_access_project(project: Project | None, user) -> bool:
+    """Return whether the current user can access the given project."""
+    if not project or project.user_id is None:
+        return True
+
+    return bool(getattr(user, 'is_authenticated', False) and user.id == project.user_id)
+
+
+def _get_project_system_prompt(project: Project | None, store_id: str) -> str:
+    """Return the persisted system prompt for the given project/store."""
+    if project and project.storage_type == 'postgres':
+        prompt = SystemPrompt.objects.filter(project=project).values_list('content', flat=True).first()
+        return prompt or ''
+
+    prompt_storage = get_prompt_storage()
+    return prompt_storage.get_prompt(store_id)
+
+
+def _extract_source_documents(source_nodes) -> list[str]:
+    """Return a deduplicated list of document names from engine source metadata."""
+    document_names: list[str] = []
+
+    for source in source_nodes or []:
+        if isinstance(source, dict):
+            document_name = source.get('document') or source.get('name') or source.get('id')
+        else:
+            document_name = str(source) if source else ''
+
+        if document_name and document_name not in document_names:
+            document_names.append(str(document_name))
+
+    return document_names
 
 
 @require_http_methods(["POST"])
@@ -35,24 +70,30 @@ def chat_submit(request):
         
         if not store_id or not query:
             return JsonResponse({'error': 'Missing store_id or query'}, status=400)
+
+        # Look up project for storage type
+        project = Project.objects.filter(project_id=store_id).first()
+
+        if not _user_can_access_project(project, request.user):
+            return JsonResponse({'error': 'Forbidden'}, status=403)
         
         # Get or create prompt if not provided
         if not system_prompt:
-            prompt_storage = get_prompt_storage()
-            system_prompt = prompt_storage.get_prompt(store_id)
-        
-        # Look up project for storage type
-        project = Project.objects.filter(project_id=store_id).first()
+            system_prompt = _get_project_system_prompt(project, store_id)
         
         # Query the appropriate backend
         if store_id.startswith('local_'):
             rag_engine = get_rag_engine(store_id)
             bot_response = rag_engine.query(query, system_prompt=system_prompt)
+            source_documents = _extract_source_documents(bot_response.get('source_nodes', [])) if isinstance(bot_response, dict) else []
+            if isinstance(bot_response, dict):
+                bot_response = bot_response.get('response', 'Error generating response.')
         elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
             from postgres_rag import PostgresRAGEngine
             rag_engine = PostgresRAGEngine(store_id)
             res = rag_engine.query(query, system_prompt=system_prompt)
             bot_response = res.get("response", "Error generating response.")
+            source_documents = _extract_source_documents(res.get('source_nodes', []))
         else:
             # Google store - look up the external_store_id
             if project and project.external_store_id:
@@ -65,6 +106,7 @@ def chat_submit(request):
                 query,
                 system_prompt=system_prompt
             )
+            source_documents = []
         
         # Convert markdown to HTML
         bot_response_html = markdown.markdown(bot_response)
@@ -93,12 +135,26 @@ def chat_submit(request):
 </div>
 '''
         
+        sources_html = ''
+        if source_documents:
+            source_items = ''.join(
+                f'<li class="text-xs text-gray-600">{escape(document_name)}</li>'
+                for document_name in source_documents
+            )
+            sources_html = f'''
+        <div class="mt-3 border-t border-gray-200 pt-3">
+            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Sources</p>
+            <ul class="mt-1 space-y-1">{source_items}</ul>
+        </div>
+'''
+
         bot_html = f'''
 <div class="flex justify-start mb-4">
     <div class="max-w-[80%] rounded-2xl bg-gray-100 text-gray-800 p-4 rounded-bl-none">
         <div class="prose prose-sm text-gray-800">
             {bot_response_html}
         </div>
+        {sources_html}
     </div>
 </div>
 '''
@@ -125,30 +181,37 @@ def chat(request):
         
         if not store_id or not query:
             return JsonResponse({'error': 'Missing store_id or query'}, status=400)
+
+        # Look up project for storage type
+        project = Project.objects.filter(project_id=store_id).first()
+
+        if not _user_can_access_project(project, request.user):
+            return JsonResponse({'error': 'Forbidden'}, status=403)
         
         # Get prompt if not provided
         if not system_prompt:
-            prompt_storage = get_prompt_storage()
-            system_prompt = prompt_storage.get_prompt(store_id)
-        
-        # Look up project for storage type
-        project = Project.objects.filter(project_id=store_id).first()
+            system_prompt = _get_project_system_prompt(project, store_id)
         
         # Query the appropriate backend
         if store_id.startswith('local_'):
             rag_engine = get_rag_engine(store_id)
             bot_response = rag_engine.query(query, system_prompt=system_prompt)
+            source_documents = _extract_source_documents(bot_response.get('source_nodes', [])) if isinstance(bot_response, dict) else []
+            if isinstance(bot_response, dict):
+                bot_response = bot_response.get('response', 'Error generating response.')
         elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
             from postgres_rag import PostgresRAGEngine
             rag_engine = PostgresRAGEngine(store_id)
             res = rag_engine.query(query, system_prompt=system_prompt)
             bot_response = res.get("response", "Error generating response.")
+            source_documents = _extract_source_documents(res.get('source_nodes', []))
         else:
             bot_response = gfs.ask_store_question(
                 store_id,
                 query,
                 system_prompt=system_prompt
             )
+            source_documents = []
         
         # Convert markdown to HTML
         bot_response_html = markdown.markdown(bot_response)
@@ -172,7 +235,8 @@ def chat(request):
         return JsonResponse({
             'user_message': query,
             'bot_response': bot_response,
-            'bot_response_html': bot_response_html
+            'bot_response_html': bot_response_html,
+            'source_documents': source_documents,
         })
     
     except Exception as e:

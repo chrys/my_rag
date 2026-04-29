@@ -9,6 +9,7 @@ from django.contrib.auth.models import AnonymousUser
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../src')))
 
 from apps.projects.models import Project
+from apps.projects.models import SystemPrompt
 from apps.chat.views import chat, chat_submit
 
 from django.contrib.auth.models import User
@@ -136,6 +137,128 @@ class TestChatViews:
         
         assert response.status_code == 200
         assert b"RAG response." in response.content
+
+    def test_chat_submit_rag_includes_document_name_attribution(self, mocker):
+        Project.objects.create(
+            project_id='postgres_attribution_submit',
+            display_name='Attributed RAG Submit Project',
+            storage_type='postgres'
+        )
+
+        mock_engine = mocker.Mock()
+        mock_engine.query.return_value = {
+            "response": "RAG response with sources.",
+            "source_nodes": [
+                {"document": "alpha.txt"},
+                {"document": "beta.md"},
+            ],
+        }
+        mocker.patch('postgres_rag.PostgresRAGEngine', return_value=mock_engine)
+
+        factory = RequestFactory()
+        request = factory.post('/submit/', {
+            'store_id': 'postgres_attribution_submit',
+            'query': 'Attributed RAG query'
+        })
+        request.user = AnonymousUser()
+
+        response = chat_submit(request)
+
+        assert response.status_code == 200
+        assert b"Sources" in response.content
+        assert b"alpha.txt" in response.content
+        assert b"beta.md" in response.content
+
+    def test_chat_submit_rag_uses_project_system_prompt(self, mocker):
+        project = Project.objects.create(
+            project_id='postgres_prompted_submit',
+            display_name='Prompted RAG Submit Project',
+            storage_type='postgres'
+        )
+        SystemPrompt.objects.create(
+            project=project,
+            content='Use only the project system prompt.'
+        )
+
+        mock_engine = mocker.Mock()
+        mock_engine.query.return_value = {"response": "Prompted RAG response."}
+        mocker.patch('postgres_rag.PostgresRAGEngine', return_value=mock_engine)
+
+        factory = RequestFactory()
+        request = factory.post('/submit/', {
+            'store_id': 'postgres_prompted_submit',
+            'query': 'Prompted RAG query'
+        })
+        request.user = AnonymousUser()
+
+        response = chat_submit(request)
+
+        assert response.status_code == 200
+        mock_engine.query.assert_called_once_with(
+            'Prompted RAG query',
+            system_prompt='Use only the project system prompt.'
+        )
+
+    def test_chat_submit_rag_rejects_non_owner(self, mocker):
+        owner = User.objects.create_user(username='ragowner', password='password')
+        intruder = User.objects.create_user(username='ragintruder', password='password')
+        Project.objects.create(
+            project_id='postgres_owned_submit',
+            display_name='Owned RAG Submit Project',
+            storage_type='postgres',
+            user=owner,
+        )
+
+        mock_engine = mocker.Mock()
+        mocker.patch('postgres_rag.PostgresRAGEngine', return_value=mock_engine)
+
+        factory = RequestFactory()
+        request = factory.post('/submit/', {
+            'store_id': 'postgres_owned_submit',
+            'query': 'Blocked RAG query'
+        })
+        request.user = intruder
+
+        response = chat_submit(request)
+
+        assert response.status_code == 403
+        mock_engine.query.assert_not_called()
+
+    def test_chat_api_rag_returns_document_name_attribution(self, mocker):
+        Project.objects.create(
+            project_id='postgres_attribution_api',
+            display_name='Attributed RAG API Project',
+            storage_type='postgres'
+        )
+
+        mock_engine = mocker.Mock()
+        mock_engine.query.return_value = {
+            "response": "API RAG response.",
+            "source_nodes": [
+                {"document": "alpha.txt", "score": 0.91},
+                {"document": "alpha.txt", "score": 0.82},
+                {"document": "beta.md", "score": 0.77},
+            ],
+        }
+        mocker.patch('postgres_rag.PostgresRAGEngine', return_value=mock_engine)
+
+        factory = RequestFactory()
+        request = factory.post(
+            '/api/chat/',
+            data=json.dumps({
+                'store_id': 'postgres_attribution_api',
+                'query': 'API attributed query'
+            }),
+            content_type='application/json'
+        )
+        request.user = AnonymousUser()
+
+        response = chat(request)
+
+        assert response.status_code == 200
+        data = json.loads(response.content)
+        assert data['bot_response'] == 'API RAG response.'
+        assert data['source_documents'] == ['alpha.txt', 'beta.md']
 
     def test_chat_api_missing_params(self):
         client = Client()

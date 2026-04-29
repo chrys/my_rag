@@ -25,6 +25,14 @@ from .models import Project, SystemPrompt
 from .serializers import ProjectSerializer, SystemPromptSerializer
 
 
+def _user_can_access_project(project, user):
+    """Return whether the current user can access the given project."""
+    if not project or project.user_id is None:
+        return True
+
+    return bool(getattr(user, 'is_authenticated', False) and user.id == project.user_id)
+
+
 def get_combined_stores(request=None):
     """Get list of projects for the current user from Django database"""
     if request and request.user.is_authenticated:
@@ -136,9 +144,11 @@ def delete_project(request, store_id):
             if project.storage_type == 'local':
                 storage.delete_project(project.project_id)
             elif project.storage_type == 'postgres':
-                # Postgres deletion logic: can drop embeddings or let them persist
-                # We will implement embedding cleanup later if needed, for now just delete the project record
-                pass
+                from postgres_rag import PostgresRAGEngine
+
+                document_names = sorted(project.documents.values_list('document_name', flat=True))
+                rag_engine = PostgresRAGEngine(project.project_id, require_llm=False)
+                rag_engine.delete_project_artifacts(document_names)
             else:
                 # Delete from Google File Search
                 if project.external_store_id:
@@ -157,6 +167,23 @@ def delete_project(request, store_id):
 @csrf_exempt
 def manage_prompt(request, store_id):
     """Get or set system prompt for a project"""
+    project = Project.objects.filter(project_id=store_id).first()
+
+    if not _user_can_access_project(project, getattr(request, 'user', None)):
+        return JsonResponse({'error': 'Forbidden'}, status=403)
+
+    if project and project.storage_type == 'postgres':
+        if request.method == 'GET':
+            prompt = getattr(project.system_prompt, 'content', '') if hasattr(project, 'system_prompt') else ''
+            return JsonResponse({'prompt': prompt})
+
+        content = request.POST.get('content', '')
+        SystemPrompt.objects.update_or_create(
+            project=project,
+            defaults={'content': content}
+        )
+        return JsonResponse({'status': 'success', 'prompt': content})
+
     prompt_storage = get_prompt_storage()
     
     if request.method == 'GET':

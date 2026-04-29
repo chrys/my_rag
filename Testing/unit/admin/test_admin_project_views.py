@@ -3,6 +3,7 @@ from django.test import RequestFactory
 from django.contrib.auth.models import AnonymousUser
 from apps.projects.views import create_project, delete_project
 from apps.projects.models import Project
+from apps.documents.models import Document
 
 @pytest.mark.django_db
 class TestAdminProjectViews:
@@ -70,6 +71,10 @@ class TestAdminProjectViews:
             display_name='Test Delete Postgres',
             storage_type='postgres'
         )
+        Document.objects.create(project=project, document_name='doc1.txt', state='INDEXED')
+        Document.objects.create(project=project, document_name='doc2.txt', state='INDEXED')
+        mock_engine = mocker.Mock()
+        mocker.patch('postgres_rag.PostgresRAGEngine', return_value=mock_engine)
         mock_delete = mocker.patch('apps.projects.views.gfs.delete_file_search_store')
         
         factory = RequestFactory()
@@ -80,4 +85,5 @@ class TestAdminProjectViews:
         
         assert response.status_code == 200
         mock_delete.assert_not_called()
+        mock_engine.delete_project_artifacts.assert_called_once_with(['doc1.txt', 'doc2.txt'])
         assert not Project.objects.filter(project_id='test_postgres_id').exists()

@@ -143,6 +143,55 @@ class TestAdminDocumentViews:
         
         doc = Document.objects.get(project=project, document_name="test_pg_doc.txt")
         assert doc.state == 'INDEXED'
+        assert doc.indexed_at is not None
+        assert doc.error_message == ''
+
+    def test_upload_document_postgres_marks_failed_state(self, mocker):
+        project = Project.objects.create(
+            project_id='postgres_failed_test_id',
+            display_name='Test Failed Upload Postgres',
+            storage_type='postgres'
+        )
+        mocker.patch(
+            'postgres_rag.PostgresRAGEngine.index_document',
+            side_effect=ValueError('Postgres configuration missing')
+        )
+
+        file_content = b"test postgres failure"
+        uploaded_file = SimpleUploadedFile("failed_pg_doc.txt", file_content, content_type="text/plain")
+
+        factory = RequestFactory()
+        request = factory.post('/fake-url/', {'file': uploaded_file})
+
+        response = upload_document(request, 'postgres_failed_test_id')
+
+        assert response.status_code == 500
+
+        doc = Document.objects.get(project=project, document_name="failed_pg_doc.txt")
+        assert doc.state == 'FAILED'
+        assert doc.indexed_at is None
+        assert 'Postgres configuration missing' in doc.error_message
+
+    def test_upload_document_postgres_rejects_unsupported_file_type(self, mocker):
+        project = Project.objects.create(
+            project_id='postgres_unsupported_test_id',
+            display_name='Test Unsupported Upload Postgres',
+            storage_type='postgres'
+        )
+        mock_index = mocker.patch('postgres_rag.PostgresRAGEngine.index_document', return_value=True)
+
+        file_content = b"binary data"
+        uploaded_file = SimpleUploadedFile("malware.exe", file_content, content_type="application/octet-stream")
+
+        factory = RequestFactory()
+        request = factory.post('/fake-url/', {'file': uploaded_file})
+
+        response = upload_document(request, 'postgres_unsupported_test_id')
+
+        assert response.status_code == 400
+        assert b'Unsupported file type' in response.content
+        mock_index.assert_not_called()
+        assert not Document.objects.filter(project=project, document_name="malware.exe").exists()
 
     def test_delete_document_google(self, mocker):
         project = Project.objects.create(
@@ -168,6 +217,9 @@ class TestAdminDocumentViews:
             display_name='Test Delete Postgres Doc',
             storage_type='postgres'
         )
+        mock_engine = mocker.Mock()
+        mock_engine.delete_document.return_value = True
+        mocker.patch('postgres_rag.PostgresRAGEngine', return_value=mock_engine)
         doc = Document.objects.create(
             project=project,
             document_name='test_to_delete.txt',
@@ -180,4 +232,5 @@ class TestAdminDocumentViews:
         response = delete_document(request, 'test_to_delete.txt')
         
         assert response.status_code == 200
+        mock_engine.delete_document.assert_called_once_with('test_to_delete.txt')
         assert not Document.objects.filter(id=doc.id).exists()

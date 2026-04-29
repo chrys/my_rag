@@ -121,6 +121,13 @@ class TestProjectModel:
                 storage_type=storage_type
             )
             assert project.storage_type == storage_type
+
+    def test_project_declares_postgres_storage_choice(self):
+        """Test the model exposes postgres as a first-class storage choice."""
+        choice_values = [value for value, _label in Project.STORAGE_TYPES]
+
+        assert 'postgres' in choice_values
+        assert 'rag' not in choice_values
     
     def test_project_document_count_default(self):
         """Test document_count defaults to 0"""

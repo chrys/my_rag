@@ -1,11 +1,48 @@
 import pytest
 from django.test import RequestFactory
+from django.contrib.auth.models import User
 from apps.projects.models import Project, SystemPrompt
 from apps.projects.views import manage_prompt
 from apps.chat.views import chat_submit
 
 @pytest.mark.django_db
 class TestAdminPromptViews:
+    def test_postgres_prompt_rejects_non_owner(self):
+        owner = User.objects.create_user(username='promptowner', password='password')
+        intruder = User.objects.create_user(username='promptintruder', password='password')
+        Project.objects.create(
+            project_id='postgres_owned_prompt_store',
+            display_name='Owned Postgres Prompt Project',
+            storage_type='postgres',
+            user=owner,
+        )
+
+        factory = RequestFactory()
+        request = factory.post('/fake-url/', {'content': 'You should not save this.'})
+        request.user = intruder
+
+        response = manage_prompt(request, 'postgres_owned_prompt_store')
+
+        assert response.status_code == 403
+        assert not SystemPrompt.objects.exists()
+
+    def test_add_custom_prompt_postgres_uses_system_prompt_model(self):
+        project = Project.objects.create(
+            project_id='postgres_prompt_store',
+            display_name='Postgres Prompt Project',
+            storage_type='postgres'
+        )
+
+        factory = RequestFactory()
+        request = factory.post('/fake-url/', {'content': 'You are a postgres assistant.'})
+
+        response = manage_prompt(request, 'postgres_prompt_store')
+
+        assert response.status_code == 200
+
+        prompt = SystemPrompt.objects.get(project=project)
+        assert prompt.content == 'You are a postgres assistant.'
+
     def test_add_custom_prompt(self, mocker):
         project = Project.objects.create(
             project_id='test_prompt_store',
