@@ -8,14 +8,21 @@ dotenv.load_dotenv()
 
 try:
     from txtai.embeddings import Embeddings
-    from google import genai
-    from google.genai import types
-    POSTGRES_RAG_DEPENDENCIES_AVAILABLE = True
+    TXTAI_AVAILABLE = True
 except ImportError:
     Embeddings = None
+    TXTAI_AVAILABLE = False
+
+try:
+    from google import genai
+    from google.genai import types
+    GENAI_AVAILABLE = True
+except ImportError:
     genai = None
     types = None
-    POSTGRES_RAG_DEPENDENCIES_AVAILABLE = False
+    GENAI_AVAILABLE = False
+
+POSTGRES_RAG_DEPENDENCIES_AVAILABLE = TXTAI_AVAILABLE
 
 # Base directory for persisted per-project ANN indices
 INDICES_DIR = Path(__file__).parent.parent / "rag_data" / "indices"
@@ -23,7 +30,7 @@ INDICES_DIR = Path(__file__).parent.parent / "rag_data" / "indices"
 
 def cleanup_project_artifacts(project_id: str, document_names: list[str]) -> bool:
     """Best-effort cleanup for a Postgres RAG project's persisted artifacts."""
-    if POSTGRES_RAG_DEPENDENCIES_AVAILABLE:
+    if TXTAI_AVAILABLE:
         try:
             rag_engine = PostgresRAGEngine(project_id, require_llm=False)
             return rag_engine.delete_project_artifacts(document_names)
@@ -40,10 +47,16 @@ def cleanup_project_artifacts(project_id: str, document_names: list[str]) -> boo
 
 class PostgresRAGEngine:
     def __init__(self, project_id: str, require_llm: bool = True):
-        if not POSTGRES_RAG_DEPENDENCIES_AVAILABLE:
+        if not TXTAI_AVAILABLE:
             raise ImportError(
                 "PostgresRAGEngine requires the optional AI dependencies. "
                 "Install them with: pip install -r requirements-ai.txt"
+            )
+
+        if require_llm and not GENAI_AVAILABLE:
+            raise ImportError(
+                "PostgresRAGEngine LLM queries require google-genai. "
+                "Install it with: pip install google-genai"
             )
 
         self.project_id = project_id
