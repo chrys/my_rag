@@ -20,6 +20,24 @@ except ImportError:
 # Base directory for persisted per-project ANN indices
 INDICES_DIR = Path(__file__).parent.parent / "rag_data" / "indices"
 
+
+def cleanup_project_artifacts(project_id: str, document_names: list[str]) -> bool:
+    """Best-effort cleanup for a Postgres RAG project's persisted artifacts."""
+    if POSTGRES_RAG_DEPENDENCIES_AVAILABLE:
+        try:
+            rag_engine = PostgresRAGEngine(project_id, require_llm=False)
+            return rag_engine.delete_project_artifacts(document_names)
+        except ImportError:
+            pass
+
+    index_path = INDICES_DIR / project_id
+    if index_path.is_dir():
+        shutil.rmtree(index_path)
+    elif index_path.exists():
+        index_path.unlink()
+
+    return True
+
 class PostgresRAGEngine:
     def __init__(self, project_id: str, require_llm: bool = True):
         if not POSTGRES_RAG_DEPENDENCIES_AVAILABLE:

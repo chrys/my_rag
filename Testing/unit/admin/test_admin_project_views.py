@@ -87,3 +87,24 @@ class TestAdminProjectViews:
         mock_delete.assert_not_called()
         mock_engine.delete_project_artifacts.assert_called_once_with(['doc1.txt', 'doc2.txt'])
         assert not Project.objects.filter(project_id='test_postgres_id').exists()
+
+    def test_delete_project_postgres_without_optional_ai_dependencies(self, mocker):
+        project = Project.objects.create(
+            project_id='test_postgres_missing_deps',
+            display_name='Test Delete Postgres Missing Deps',
+            storage_type='postgres'
+        )
+        Document.objects.create(project=project, document_name='doc1.txt', state='INDEXED')
+        mocker.patch(
+            'postgres_rag.PostgresRAGEngine',
+            side_effect=ImportError('PostgresRAGEngine requires the optional AI dependencies')
+        )
+
+        factory = RequestFactory()
+        request = factory.delete('/fake-url/')
+        request.user = AnonymousUser()
+
+        response = delete_project(request, 'test_postgres_missing_deps')
+
+        assert response.status_code == 200
+        assert not Project.objects.filter(project_id='test_postgres_missing_deps').exists()

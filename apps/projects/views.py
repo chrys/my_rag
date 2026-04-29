@@ -150,11 +150,10 @@ def delete_project(request, store_id):
             if project.storage_type == 'local':
                 storage.delete_project(project.project_id)
             elif project.storage_type == 'postgres':
-                from postgres_rag import PostgresRAGEngine
+                from postgres_rag import cleanup_project_artifacts
 
                 document_names = sorted(project.documents.values_list('document_name', flat=True))
-                rag_engine = PostgresRAGEngine(project.project_id, require_llm=False)
-                rag_engine.delete_project_artifacts(document_names)
+                cleanup_project_artifacts(project.project_id, document_names)
             else:
                 # Delete from Google File Search
                 if project.external_store_id:
