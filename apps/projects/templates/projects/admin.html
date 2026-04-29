@@ -146,6 +146,13 @@
         currentStoreId = null;
     }
     
+    function getCsrfToken() {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; csrftoken=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return '';
+    }
+
     // Handle prompt form submission
     document.getElementById('prompt-form').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -163,6 +170,7 @@
         try {
             const response = await fetch(ragApiBase + '/projects/' + encodeURIComponent(currentStoreId) + '/prompt/', {
                 method: 'POST',
+                headers: { 'X-CSRFToken': getCsrfToken() },
                 body: formData
             });
             

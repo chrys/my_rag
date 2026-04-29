@@ -69,7 +69,10 @@ def list_documents(request, store_id):
     if project:
         if project.storage_type == 'google':
             # For Google projects, fetch from the API using external_store_id
-            documents = gfs.list_documents_in_store(project.external_store_id)
+            try:
+                documents = gfs.list_documents_in_store(project.external_store_id)
+            except Exception:
+                documents = []
         else:
             # For local projects, use Django ORM
             docs_qs = Document.objects.filter(project=project)
