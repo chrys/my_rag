@@ -286,8 +286,11 @@ def delete_document(request, document_id):
             project = Project.objects.filter(project_id=store_id).first()
             if project:
                 from postgres_rag import PostgresRAGEngine
-                rag_engine = PostgresRAGEngine(store_id, require_llm=False)
-                rag_engine.delete_document(document_id)
+                try:
+                    rag_engine = PostgresRAGEngine(store_id, require_llm=False)
+                    rag_engine.delete_document(document_id)
+                except Exception as cleanup_error:
+                    print(f"Warning: RAG engine cleanup failed for {document_id}: {cleanup_error}")
                 Document.objects.filter(project=project, document_name=document_id).delete()
         else:
             # Google document deletion - look up project to get external_store_id
