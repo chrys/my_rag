@@ -19,6 +19,7 @@ uploads/*
 git_ignore/
 Documentation/DEPLOYMENT_GUIDE.md
 rag_data/*
+live_configuration/
 
 #local only 
 db.sqlite3
