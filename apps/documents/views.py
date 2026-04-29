@@ -15,9 +15,9 @@ import tempfile
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src'))
 
-import google_file_search as gfs
 from local_project_storage import get_local_project_storage
 from local_rag import get_rag_engine
+from optional_dependencies import LazyModuleProxy
 from urllib.parse import unquote
 
 from .models import Document
@@ -25,6 +25,11 @@ from apps.projects.models import Project
 
 
 SUPPORTED_TEXT_FILE_EXTENSIONS = {'.pdf', '.txt', '.md'}
+
+gfs = LazyModuleProxy(
+    "google_file_search",
+    "Google File Search dependencies are not installed in this environment.",
+)
 
 
 def _sanitize_uploaded_filename(filename: str) -> str:

@@ -17,12 +17,18 @@ import os
 # Add src to path to import Flask modules (temporarily)
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src'))
 
-import google_file_search as gfs
 from local_project_storage import get_local_project_storage
+from optional_dependencies import LazyModuleProxy
 from prompt_storage import get_prompt_storage
 
 from .models import Project, SystemPrompt
 from .serializers import ProjectSerializer, SystemPromptSerializer
+
+
+gfs = LazyModuleProxy(
+    "google_file_search",
+    "Google File Search dependencies are not installed in this environment.",
+)
 
 
 def _user_can_access_project(project, user):

@@ -16,13 +16,19 @@ import json
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src'))
 
-import google_file_search as gfs
 from local_project_storage import get_local_project_storage
 from local_rag import get_rag_engine
+from optional_dependencies import LazyModuleProxy
 from prompt_storage import get_prompt_storage
 
 from .models import ChatMessage
 from apps.projects.models import Project, SystemPrompt
+
+
+gfs = LazyModuleProxy(
+    "google_file_search",
+    "Google File Search dependencies are not installed in this environment.",
+)
 
 
 def _user_can_access_project(project: Project | None, user) -> bool:

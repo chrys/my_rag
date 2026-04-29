@@ -14,6 +14,7 @@ psycopg2-binary
 
 # Configuration
 python-dotenv
+google-genai
 
 # Document processing
 markdown
