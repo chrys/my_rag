@@ -111,7 +111,11 @@ def create_project(request):
             )
         else:
             # Create Google File Search store
-            store_id = gfs.create_new_file_search_store(display_name)
+            try:
+                store_id = gfs.create_new_file_search_store(display_name)
+            except Exception as e:
+                print(f"Warning: could not create Google File Search store: {e}")
+                store_id = None
             if store_id:
                 # Create Django model record with external store ID
                 from datetime import datetime
