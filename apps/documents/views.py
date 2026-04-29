@@ -165,7 +165,7 @@ def upload_document(request, store_id):
                 project = Project.objects.filter(project_id=store_id).first()
 
                 try:
-                    rag_engine = PostgresRAGEngine(store_id)
+                    rag_engine = PostgresRAGEngine(store_id, require_llm=False)
                     success = rag_engine.index_document(filepath, filename)
                 except Exception as exc:
                     if project:
