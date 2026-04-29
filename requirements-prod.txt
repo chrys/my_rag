@@ -19,3 +19,4 @@ google-genai
 # Document processing
 markdown
 pypdf
+numpy

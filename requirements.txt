@@ -2,6 +2,7 @@ google-genai
 python-dotenv
 markdown
 pypdf
+numpy
 
 # Optional vector-indexing dependencies for local/postgres RAG features live in
 # requirements-ai.txt so the default install stays small enough for production.
