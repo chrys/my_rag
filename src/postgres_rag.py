@@ -6,6 +6,12 @@ from pathlib import Path
 import dotenv
 dotenv.load_dotenv()
 
+# Redirect HuggingFace cache to a path writable under systemd ProtectHome=true.
+# /home is read-only in the production service; use .cache inside the project root.
+_project_root = Path(__file__).parent.parent
+if not os.environ.get('HF_HOME'):
+    os.environ['HF_HOME'] = str(_project_root / '.cache' / 'huggingface')
+
 try:
     from txtai.embeddings import Embeddings
     TXTAI_AVAILABLE = True
