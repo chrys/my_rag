@@ -108,3 +108,25 @@ class TestAdminProjectViews:
 
         assert response.status_code == 200
         assert not Project.objects.filter(project_id='test_postgres_missing_deps').exists()
+
+    def test_delete_project_google_without_gfs_deps_still_deletes_db_record(self, mocker):
+        """When gfs cleanup raises (e.g. missing deps), the Django record must still be deleted."""
+        project = Project.objects.create(
+            project_id='test_google_missing_deps',
+            display_name='Test Delete Google Missing Deps',
+            storage_type='google',
+            external_store_id='ext_store_456'
+        )
+        mocker.patch(
+            'apps.projects.views.gfs.delete_file_search_store',
+            side_effect=Exception('Google File Search dependencies are not installed in this environment.')
+        )
+
+        factory = RequestFactory()
+        request = factory.delete('/fake-url/')
+        request.user = AnonymousUser()
+
+        response = delete_project(request, 'test_google_missing_deps')
+
+        assert response.status_code == 200
+        assert not Project.objects.filter(project_id='test_google_missing_deps').exists()

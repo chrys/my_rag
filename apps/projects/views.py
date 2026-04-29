@@ -147,19 +147,22 @@ def delete_project(request, store_id):
         ).first()
         
         if project:
-            if project.storage_type == 'local':
-                storage.delete_project(project.project_id)
-            elif project.storage_type == 'postgres':
-                from postgres_rag import cleanup_project_artifacts
+            try:
+                if project.storage_type == 'local':
+                    storage.delete_project(project.project_id)
+                elif project.storage_type == 'postgres':
+                    from postgres_rag import cleanup_project_artifacts
 
-                document_names = sorted(project.documents.values_list('document_name', flat=True))
-                cleanup_project_artifacts(project.project_id, document_names)
-            else:
-                # Delete from Google File Search
-                if project.external_store_id:
-                    gfs.delete_file_search_store(project.external_store_id)
-            
-            # Delete from Django database
+                    document_names = sorted(project.documents.values_list('document_name', flat=True))
+                    cleanup_project_artifacts(project.project_id, document_names)
+                else:
+                    # Delete from Google File Search
+                    if project.external_store_id:
+                        gfs.delete_file_search_store(project.external_store_id)
+            except Exception as cleanup_error:
+                print(f"Warning: external cleanup failed for {store_id}: {cleanup_error}")
+
+            # Always delete the Django database record
             project.delete()
     except Exception as e:
         print(f"Error deleting project {store_id}: {e}")
