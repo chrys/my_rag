@@ -175,6 +175,34 @@ class TestAdminDocumentViews:
         assert doc.indexed_at is None
         assert 'Postgres configuration missing' in doc.error_message
 
+    def test_upload_document_postgres_rate_limit_returns_503(self, mocker):
+        from postgres_rag import EmbeddingRateLimitError
+
+        project = Project.objects.create(
+            project_id='postgres_rate_limit_test_id',
+            display_name='Test Rate Limited Upload Postgres',
+            storage_type='postgres'
+        )
+        mocker.patch(
+            'postgres_rag.PostgresRAGEngine.index_document',
+            side_effect=EmbeddingRateLimitError('Gemini embedding API is temporarily rate limited. Please try again in a minute.')
+        )
+
+        file_content = b"test postgres rate limited"
+        uploaded_file = SimpleUploadedFile("rate_limited_pg_doc.txt", file_content, content_type="text/plain")
+
+        factory = RequestFactory()
+        request = factory.post('/fake-url/', {'file': uploaded_file})
+
+        response = upload_document(request, 'postgres_rate_limit_test_id')
+
+        assert response.status_code == 503
+
+        doc = Document.objects.get(project=project, document_name="rate_limited_pg_doc.txt")
+        assert doc.state == 'FAILED'
+        assert doc.indexed_at is None
+        assert 'temporarily rate limited' in doc.error_message
+
     def test_upload_document_postgres_rejects_unsupported_file_type(self, mocker):
         project = Project.objects.create(
             project_id='postgres_unsupported_test_id',

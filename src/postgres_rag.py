@@ -5,14 +5,18 @@ import numpy as np
 import pypdf
 from pathlib import Path
 import dotenv
+import time
+
 dotenv.load_dotenv()
 
 try:
     from google import genai
+    from google.genai import errors as genai_errors
     from google.genai import types
     GENAI_AVAILABLE = True
 except ImportError:
     genai = None
+    genai_errors = None
     types = None
     GENAI_AVAILABLE = False
 
@@ -28,6 +32,18 @@ EMBEDDING_DIM = 768
 EMBEDDING_MODEL = "gemini-embedding-001"
 
 
+class EmbeddingRateLimitError(RuntimeError):
+    """Raised when the embedding API remains rate limited after retries."""
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    return bool(
+        genai_errors
+        and isinstance(exc, genai_errors.ClientError)
+        and getattr(exc, "code", None) == 429
+    )
+
+
 def _embed_texts(client, texts: list[str], task_type: str = "RETRIEVAL_DOCUMENT") -> np.ndarray:
     """
     Call Gemini embedding API and return a float32 array of shape (N, EMBEDDING_DIM).
@@ -39,15 +55,22 @@ def _embed_texts(client, texts: list[str], task_type: str = "RETRIEVAL_DOCUMENT"
     task_type : str
         "RETRIEVAL_DOCUMENT" for indexing, "RETRIEVAL_QUERY" for queries.
     """
-    result = client.models.embed_content(
-        model=EMBEDDING_MODEL,
-        contents=texts,
-        config=types.EmbedContentConfig(
-            task_type=task_type,
-            output_dimensionality=EMBEDDING_DIM,
-        ),
-    )
-    return np.array([e.values for e in result.embeddings], dtype=np.float32)
+    attempts = 3
+    for attempt in range(attempts):
+        try:
+            result = client.models.embed_content(
+                model=EMBEDDING_MODEL,
+                contents=texts,
+                config=types.EmbedContentConfig(
+                    task_type=task_type,
+                    output_dimensionality=EMBEDDING_DIM,
+                ),
+            )
+            return np.array([e.values for e in result.embeddings], dtype=np.float32)
+        except Exception as exc:
+            if not _is_rate_limit_error(exc) or attempt == attempts - 1:
+                raise
+            time.sleep(min(2 ** attempt, 8))
 
 
 def _cosine_scores(query_vec: np.ndarray, matrix: np.ndarray) -> np.ndarray:
@@ -164,7 +187,14 @@ class PostgresRAGEngine:
         # Replace any existing entry for this document before adding the new one.
         self._remove_entries(document_name)
 
-        vec = _embed_texts(self.client, [text], task_type="RETRIEVAL_DOCUMENT")
+        try:
+            vec = _embed_texts(self.client, [text], task_type="RETRIEVAL_DOCUMENT")
+        except Exception as exc:
+            if _is_rate_limit_error(exc):
+                raise EmbeddingRateLimitError(
+                    "Gemini embedding API is temporarily rate limited. Please try again in a minute."
+                ) from exc
+            raise
         self._embeddings = (
             np.vstack([self._embeddings, vec]) if self._embeddings.shape[0] else vec
         )

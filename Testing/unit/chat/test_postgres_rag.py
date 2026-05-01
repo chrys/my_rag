@@ -231,3 +231,25 @@ def test_postgres_rag_engine_delete_project_artifacts_removes_index_directory(mo
     assert not index_dir.exists()
 
     sys.modules.pop("postgres_rag", None)
+
+def test_postgres_rag_engine_wraps_rate_limit_errors(monkeypatch, tmp_path):
+    postgres_rag = importlib.import_module("postgres_rag")
+
+    monkeypatch.setenv("GOOGLE_API_KEY", "test-api-key")
+    monkeypatch.setattr(postgres_rag, "INDICES_DIR", tmp_path)
+
+    class FakeClient:
+        pass
+
+    monkeypatch.setattr(postgres_rag.genai, "Client", lambda api_key=None: FakeClient())
+
+    engine = postgres_rag.PostgresRAGEngine("postgres_test_project")
+    monkeypatch.setattr(engine, "extract_text_from_file", lambda file_path: "rate limited content")
+
+    def raise_rate_limit(*args, **kwargs):
+        raise postgres_rag.genai_errors.ClientError(429, {"error": {"message": "quota hit"}}, None)
+
+    monkeypatch.setattr(postgres_rag, "_embed_texts", raise_rate_limit)
+
+    with pytest.raises(postgres_rag.EmbeddingRateLimitError, match="temporarily rate limited"):
+        engine.index_document("/tmp/doc.txt", "doc.txt")

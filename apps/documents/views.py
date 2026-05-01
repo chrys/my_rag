@@ -160,7 +160,7 @@ def upload_document(request, store_id):
                     return JsonResponse({'error': 'Failed to index document'}, status=500)
             elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
                 # RAG project indexing
-                from postgres_rag import PostgresRAGEngine
+                from postgres_rag import EmbeddingRateLimitError, PostgresRAGEngine
                 from django.utils import timezone
                 project = Project.objects.filter(project_id=store_id).first()
 
@@ -179,6 +179,8 @@ def upload_document(request, store_id):
                                 'indexed_at': None,
                             }
                         )
+                    if isinstance(exc, EmbeddingRateLimitError):
+                        return JsonResponse({'error': str(exc)}, status=503)
                     return JsonResponse({'error': f'Upload failed: {str(exc)}'}, status=500)
                 
                 if success:
