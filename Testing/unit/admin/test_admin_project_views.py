@@ -1,16 +1,16 @@
 import pytest
 from django.test import RequestFactory
 from django.contrib.auth.models import AnonymousUser
-from apps.projects.views import create_project, delete_project
-from apps.projects.models import Project
-from apps.documents.models import Document
+from src.apps.projects.views import create_project, delete_project
+from src.apps.projects.models import Project
+from src.apps.documents.models import Document
 
 @pytest.mark.django_db
 class TestAdminProjectViews:
     def test_create_project_google(self, mocker):
         # Mock the external Google File Search creation
         mock_create = mocker.patch(
-            'apps.projects.views.gfs.create_new_file_search_store',
+            'src.apps.projects.views.gfs.create_new_file_search_store',
             return_value='mock_store_id'
         )
         
@@ -53,7 +53,7 @@ class TestAdminProjectViews:
             storage_type='google',
             external_store_id='ext_store_123'
         )
-        mock_delete = mocker.patch('apps.projects.views.gfs.delete_file_search_store')
+        mock_delete = mocker.patch('src.apps.projects.views.gfs.delete_file_search_store')
         
         factory = RequestFactory()
         request = factory.delete('/fake-url/')
@@ -74,7 +74,7 @@ class TestAdminProjectViews:
         Document.objects.create(project=project, document_name='doc1.txt', state='INDEXED')
         Document.objects.create(project=project, document_name='doc2.txt', state='INDEXED')
         mock_cleanup = mocker.patch('postgres_rag.cleanup_project_artifacts')
-        mock_delete = mocker.patch('apps.projects.views.gfs.delete_file_search_store')
+        mock_delete = mocker.patch('src.apps.projects.views.gfs.delete_file_search_store')
         
         factory = RequestFactory()
         request = factory.delete('/fake-url/')
@@ -117,7 +117,7 @@ class TestAdminProjectViews:
             external_store_id='ext_store_456'
         )
         mocker.patch(
-            'apps.projects.views.gfs.delete_file_search_store',
+            'src.apps.projects.views.gfs.delete_file_search_store',
             side_effect=Exception('Google File Search dependencies are not installed in this environment.')
         )
 

@@ -5,9 +5,9 @@ Tests ChatMessage serializers with validation and data flow
 
 import pytest
 from django.contrib.auth.models import User
-from apps.projects.models import Project
-from apps.chat.models import ChatMessage
-from apps.chat.serializers import (
+from src.apps.projects.models import Project
+from src.apps.chat.models import ChatMessage
+from src.apps.chat.serializers import (
     ChatMessageSerializer,
     ChatMessageCreateSerializer,
     ChatMessageListSerializer,

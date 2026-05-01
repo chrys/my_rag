@@ -5,8 +5,8 @@ Tests Document model with relationships, state management, and constraints
 
 import pytest
 from django.utils import timezone
-from apps.projects.models import Project
-from apps.documents.models import Document
+from src.apps.projects.models import Project
+from src.apps.documents.models import Document
 
 
 @pytest.fixture

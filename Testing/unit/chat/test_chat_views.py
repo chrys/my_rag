@@ -8,9 +8,9 @@ from django.contrib.auth.models import AnonymousUser
 # Add src to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../src')))
 
-from apps.projects.models import Project
-from apps.projects.models import SystemPrompt
-from apps.chat.views import chat, chat_submit
+from src.apps.projects.models import Project
+from src.apps.projects.models import SystemPrompt
+from src.apps.chat.views import chat, chat_submit
 
 from django.contrib.auth.models import User
 
@@ -26,7 +26,7 @@ class TestChatViews:
         
         mock_engine = mocker.Mock()
         mock_engine.query.return_value = "Auth response."
-        mocker.patch('apps.chat.views.get_rag_engine', return_value=mock_engine)
+        mocker.patch('src.apps.chat.views.get_rag_engine', return_value=mock_engine)
         
         factory = RequestFactory()
         request = factory.post('/submit/', {
@@ -41,7 +41,7 @@ class TestChatViews:
         assert b"Auth response." in response.content
         
         # Verify ChatMessage records created
-        from apps.chat.models import ChatMessage
+        from src.apps.chat.models import ChatMessage
         assert ChatMessage.objects.filter(user=user, message_type='user').exists()
         assert ChatMessage.objects.filter(user=user, message_type='assistant').exists()
 
@@ -54,7 +54,7 @@ class TestChatViews:
         
         mock_engine = mocker.Mock()
         mock_engine.query.return_value = "Local response."
-        mocker.patch('apps.chat.views.get_rag_engine', return_value=mock_engine)
+        mocker.patch('src.apps.chat.views.get_rag_engine', return_value=mock_engine)
         
         factory = RequestFactory()
         request = factory.post('/submit/', {
@@ -77,7 +77,7 @@ class TestChatViews:
         
         mock_engine = mocker.Mock()
         mock_engine.query.return_value = "Local API response."
-        mocker.patch('apps.chat.views.get_rag_engine', return_value=mock_engine)
+        mocker.patch('src.apps.chat.views.get_rag_engine', return_value=mock_engine)
         
         client = Client()
         response = client.post('/api/chat/', data=json.dumps({
@@ -101,7 +101,7 @@ class TestChatViews:
         
         mock_engine = mocker.Mock()
         mock_engine.query.return_value = "API Auth response."
-        mocker.patch('apps.chat.views.get_rag_engine', return_value=mock_engine)
+        mocker.patch('src.apps.chat.views.get_rag_engine', return_value=mock_engine)
         
         client = Client()
         client.login(username='apiuser', password='password')
@@ -111,7 +111,7 @@ class TestChatViews:
         }), content_type='application/json')
         
         assert response.status_code == 200
-        from apps.chat.models import ChatMessage
+        from src.apps.chat.models import ChatMessage
         # Use project=project since the view should handle the lookup or we fix the view if it's broken
         assert ChatMessage.objects.filter(user=user, message_type='user').exists()
 

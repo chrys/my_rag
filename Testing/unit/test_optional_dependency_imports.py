@@ -6,14 +6,14 @@ import pytest
 
 
 OPTIONAL_GOOGLE_VIEW_MODULES = [
-    "apps.documents.views",
-    "apps.chat.views",
-    "apps.projects.views",
+    "src.apps.documents.views",
+    "src.apps.chat.views",
+    "src.apps.projects.views",
 ]
 
 OPTIONAL_LOCAL_RAG_VIEW_MODULES = [
-    "apps.documents.views",
-    "apps.chat.views",
+    "src.apps.documents.views",
+    "src.apps.chat.views",
 ]
 
 

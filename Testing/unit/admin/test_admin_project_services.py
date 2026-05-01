@@ -1,13 +1,13 @@
 import pytest
 from django.test import RequestFactory
 from django.contrib.auth.models import AnonymousUser
-from apps.projects.views import create_project, delete_project
-from apps.projects.models import Project
+from src.apps.projects.views import create_project, delete_project
+from src.apps.projects.models import Project
 
 @pytest.mark.django_db
 class TestAdminProjectServices:
     def test_create_project_service_call(self, mocker):
-        mock_create = mocker.patch('apps.projects.views.gfs.create_new_file_search_store', return_value='service_store_id')
+        mock_create = mocker.patch('src.apps.projects.views.gfs.create_new_file_search_store', return_value='service_store_id')
         
         factory = RequestFactory()
         request = factory.post('/fake-url/', {
@@ -27,7 +27,7 @@ class TestAdminProjectServices:
             storage_type='google',
             external_store_id='ext_service_123'
         )
-        mock_delete = mocker.patch('apps.projects.views.gfs.delete_file_search_store')
+        mock_delete = mocker.patch('src.apps.projects.views.gfs.delete_file_search_store')
         
         factory = RequestFactory()
         request = factory.delete('/fake-url/')

@@ -4,8 +4,8 @@ Tests all serializers for Project and SystemPrompt
 """
 
 import pytest
-from apps.projects.models import Project, SystemPrompt
-from apps.projects.serializers import (
+from src.apps.projects.models import Project, SystemPrompt
+from src.apps.projects.serializers import (
     ProjectSerializer,
     ProjectCreateSerializer,
     ProjectUpdateSerializer,

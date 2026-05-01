@@ -6,7 +6,7 @@ Tests Project and SystemPrompt models
 import pytest
 from django.utils import timezone
 from django.db import IntegrityError
-from apps.projects.models import Project, SystemPrompt
+from src.apps.projects.models import Project, SystemPrompt
 
 
 @pytest.mark.django_db

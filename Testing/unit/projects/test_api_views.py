@@ -8,8 +8,8 @@ from rest_framework.test import APIRequestFactory
 from rest_framework.test import force_authenticate
 from rest_framework import status
 from django.contrib.auth.models import User
-from apps.projects.models import Project, SystemPrompt
-from apps.projects.api_views import ProjectViewSet, SystemPromptViewSet
+from src.apps.projects.models import Project, SystemPrompt
+from src.apps.projects.api_views import ProjectViewSet, SystemPromptViewSet
 
 
 @pytest.fixture

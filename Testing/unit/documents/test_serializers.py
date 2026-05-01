@@ -4,9 +4,9 @@ Tests Document serializers with validation and data flow
 """
 
 import pytest
-from apps.projects.models import Project
-from apps.documents.models import Document
-from apps.documents.serializers import (
+from src.apps.projects.models import Project
+from src.apps.documents.models import Document
+from src.apps.documents.serializers import (
     DocumentSerializer,
     DocumentCreateSerializer,
     DocumentUpdateSerializer,
