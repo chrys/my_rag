@@ -160,13 +160,14 @@ def upload_document(request, store_id):
                     return JsonResponse({'error': 'Failed to index document'}, status=500)
             elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
                 # RAG project indexing
-                from src.postgres_rag import PostgresRAGEngine
+                from src.apps.documents.services import LlamaIndexIngestionPipeline
                 from django.utils import timezone
                 project = Project.objects.filter(project_id=store_id).first()
 
                 try:
-                    rag_engine = PostgresRAGEngine(store_id, require_llm=False)
-                    success = rag_engine.index_document(filepath, filename)
+                    pipeline = LlamaIndexIngestionPipeline(project_id=store_id)
+                    index = pipeline.index_document(filepath)
+                    success = index is not None
                 except Exception as exc:
                     if project:
                         Document.objects.update_or_create(

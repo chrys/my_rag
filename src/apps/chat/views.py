@@ -100,11 +100,23 @@ def chat_submit(request):
             if isinstance(bot_response, dict):
                 bot_response = bot_response.get('response', 'Error generating response.')
         elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
-            from src.postgres_rag import PostgresRAGEngine
-            rag_engine = PostgresRAGEngine(store_id)
-            res = rag_engine.query(query, system_prompt=system_prompt)
-            bot_response = res.get("response", "Error generating response.")
-            source_documents = _extract_source_documents(res.get('source_nodes', []))
+            from llama_index.core import VectorStoreIndex
+            from llama_index.vector_stores.postgres import PGVectorStore
+            from django.conf import settings
+            
+            # Using table_name consistent with services.py
+            vector_store = PGVectorStore.from_params(
+                database=settings.DATABASES['default'].get('NAME', 'postgres'),
+                host=settings.DATABASES['default'].get('HOST', 'localhost'),
+                table_name=f"rag_project_{store_id}"
+            )
+            index = VectorStoreIndex.from_vector_store(vector_store)
+            query_engine = index.as_query_engine()
+            
+            prompt = system_prompt or "You are a helpful assistant."
+            response = query_engine.query(f"System Context: {prompt}\n\nQuery: {query}")
+            bot_response = str(response)
+            source_documents = [] # LlamaIndex 0.14+ retrieval integration required here
         else:
             # Google store - look up the external_store_id
             if project and project.external_store_id:
@@ -211,11 +223,23 @@ def chat(request):
             if isinstance(bot_response, dict):
                 bot_response = bot_response.get('response', 'Error generating response.')
         elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
-            from src.postgres_rag import PostgresRAGEngine
-            rag_engine = PostgresRAGEngine(store_id)
-            res = rag_engine.query(query, system_prompt=system_prompt)
-            bot_response = res.get("response", "Error generating response.")
-            source_documents = _extract_source_documents(res.get('source_nodes', []))
+            from llama_index.core import VectorStoreIndex
+            from llama_index.vector_stores.postgres import PGVectorStore
+            from django.conf import settings
+            
+            # Using table_name consistent with services.py
+            vector_store = PGVectorStore.from_params(
+                database=settings.DATABASES['default'].get('NAME', 'postgres'),
+                host=settings.DATABASES['default'].get('HOST', 'localhost'),
+                table_name=f"rag_project_{store_id}"
+            )
+            index = VectorStoreIndex.from_vector_store(vector_store)
+            query_engine = index.as_query_engine()
+            
+            prompt = system_prompt or "You are a helpful assistant."
+            response = query_engine.query(f"System Context: {prompt}\n\nQuery: {query}")
+            bot_response = str(response)
+            source_documents = [] # LlamaIndex 0.14+ retrieval integration required here
         else:
             bot_response = gfs.ask_store_question(
                 store_id,
