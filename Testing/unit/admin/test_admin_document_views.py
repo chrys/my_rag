@@ -125,6 +125,53 @@ class TestAdminDocumentViews:
         args, _ = mock_add.call_args
         assert args[0] == 'ext_google_123'
 
+    def test_upload_document_google_returns_403_when_permission_denied(self, mocker):
+        from google_file_search import GoogleFileSearchPermissionError
+
+        Project.objects.create(
+            project_id='google_permission_test_id',
+            display_name='Test Upload Google Permission',
+            storage_type='google',
+            external_store_id='fileSearchStores/denied-store'
+        )
+        mocker.patch(
+            'apps.documents.views.gfs.add_document_to_store',
+            side_effect=GoogleFileSearchPermissionError(
+                'Google File Search permission denied for store fileSearchStores/denied-store. Check that the configured API key can access this store and that the store still exists.'
+            )
+        )
+
+        file_content = b"test document content"
+        uploaded_file = SimpleUploadedFile("test_doc.txt", file_content, content_type="text/plain")
+
+        factory = RequestFactory()
+        request = factory.post('/fake-url/', {'file': uploaded_file})
+
+        response = upload_document(request, 'google_permission_test_id')
+
+        assert response.status_code == 403
+        assert b'permission denied' in response.content.lower()
+
+    def test_upload_document_google_returns_502_when_backend_upload_fails(self, mocker):
+        Project.objects.create(
+            project_id='google_backend_failure_test_id',
+            display_name='Test Upload Google Backend Failure',
+            storage_type='google',
+            external_store_id='fileSearchStores/backend-failure-store'
+        )
+        mocker.patch('apps.documents.views.gfs.add_document_to_store', return_value='')
+
+        file_content = b"test document content"
+        uploaded_file = SimpleUploadedFile("test_doc.txt", file_content, content_type="text/plain")
+
+        factory = RequestFactory()
+        request = factory.post('/fake-url/', {'file': uploaded_file})
+
+        response = upload_document(request, 'google_backend_failure_test_id')
+
+        assert response.status_code == 502
+        assert b'Failed to upload document to Google File Search store' in response.content
+
     def test_upload_document_postgres(self, mocker):
         project = Project.objects.create(
             project_id='postgres_test_id',

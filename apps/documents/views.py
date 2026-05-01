@@ -210,6 +210,8 @@ def upload_document(request, store_id):
                     return JsonResponse({'error': 'Failed to index document in RAG project'}, status=500)
             else:
                 # Google store - look up the project to get the external_store_id
+                from google_file_search import GoogleFileSearchPermissionError
+
                 project = Project.objects.filter(project_id=store_id).first()
                 if project and project.external_store_id:
                     # Use the actual Google store ID
@@ -217,8 +219,14 @@ def upload_document(request, store_id):
                 else:
                     # Fallback to store_id (for backward compatibility)
                     google_store_id = store_id
-                    
-                gfs.add_document_to_store(google_store_id, filepath)
+
+                try:
+                    document_resource_name = gfs.add_document_to_store(google_store_id, filepath)
+                except GoogleFileSearchPermissionError as exc:
+                    return JsonResponse({'error': str(exc)}, status=403)
+
+                if not document_resource_name:
+                    return JsonResponse({'error': 'Failed to upload document to Google File Search store'}, status=502)
         finally:
             if os.path.exists(filepath):
                 os.unlink(filepath)

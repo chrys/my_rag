@@ -1,5 +1,6 @@
 import time
 from google import genai
+from google.genai import errors as genai_errors
 from google.genai import types 
 import dotenv
 import os
@@ -17,7 +18,16 @@ else:
 
 os.environ["GEMINI_API_KEY"] = API_KEY
 
-client = genai.Client()
+client = genai.Client(api_key=API_KEY) if API_KEY else genai.Client()
+
+
+class GoogleFileSearchPermissionError(RuntimeError):
+    """Raised when the configured Google API credentials cannot access a file search store."""
+
+
+def _is_permission_error(exc: Exception) -> bool:
+    return isinstance(exc, genai_errors.ClientError) and getattr(exc, "code", None) == 403
+
 
 def create_new_file_search_store(store_display_name: str) -> str:
     """
@@ -163,6 +173,10 @@ def add_document_to_store(store_id: str, file_path: str) -> str:
         
     except Exception as e:
         print(f"❌ Failed to add document to store: {e}")
+        if _is_permission_error(e):
+            raise GoogleFileSearchPermissionError(
+                f"Google File Search permission denied for store {store_id}. Check that the configured API key can access this store and that the store still exists."
+            ) from e
         return ""
 
 def ask_store_question(store_id: str, query: str, system_prompt: str = None) -> str:
