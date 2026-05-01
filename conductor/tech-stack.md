@@ -10,7 +10,7 @@
 ## Data Storage
 - **Primary Database:** SQLite (for application data)
 - **RAG Database:** PostgreSQL (for document storage and embeddings)
-- **Vector Store:** FAISS (cpu)
+- **Vector Store:** PostgreSQL Vector (pgvector) via LlamaIndex
 
 ## LLM Integrations
 - **Cloud:** Google Gemini

@@ -3,12 +3,12 @@
 ## Phase 1: Environment & Dependency Setup
 
 ### Install Dependencies
-- [ ] Task: Add and configure LlamaIndex and PostgreSQL Vector dependencies
-    - [ ] Add `llama-index` and `llama-index-vector-stores-postgres` to `requirements.txt`
-    - [ ] Run dependency installation commands
-    - [ ] Update `tech-stack.md` to reflect LlamaIndex usage for vector store logic
+- [x] Task: Add and configure LlamaIndex and PostgreSQL Vector dependencies
+    - [x] Add `llama-index` and `llama-index-vector-stores-postgres` to `requirements.txt`
+    - [x] Run dependency installation commands
+    - [x] Update `tech-stack.md` to reflect LlamaIndex usage for vector store logic
 
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Environment & Dependency Setup' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Environment & Dependency Setup' (Protocol in workflow.md) [6b96773]
 
 ## Phase 2: Ingestion & Indexing Pipeline
 
