@@ -29,7 +29,7 @@ Make the project model and any directly related model-level logic explicitly rec
 
 **Verification:**
 - [x] Tests pass: `DJANGO_ENV=testing pytest Testing/unit/projects -v`
-- [ ] Manual check: create a Postgres project through the existing flow and confirm the stored type is `postgres`.
+- [x] Manual check: create a Postgres project through the existing flow and confirm the stored type is `postgres`.
 
 **Dependencies:** None
 
@@ -54,7 +54,7 @@ Replace active Postgres RAG prompt reads and writes with `SystemPrompt` model-ba
 
 **Verification:**
 - [x] Tests pass: `DJANGO_ENV=testing pytest Testing/unit/projects -v`
-- [ ] Manual check: save a prompt for a Postgres project and retrieve it through the existing flow.
+- [x] Manual check: save a prompt for a Postgres project and retrieve it through the existing flow.
 
 **Dependencies:** Task 1
 
@@ -89,7 +89,7 @@ Apply project-scoped ownership checks to the Postgres RAG prompt and chat flows 
 
 **Verification:**
 - [x] Tests pass: `DJANGO_ENV=testing pytest Testing/unit/projects Testing/unit/chat -v`
-- [ ] Manual check: authenticated user A cannot use prompt or chat flows for user B's Postgres project.
+- [x ] Manual check: authenticated user A cannot use prompt or chat flows for user B's Postgres project.
 
 **Dependencies:** Task 2
 
@@ -180,7 +180,7 @@ Keep indexing in-request for Apr2, but make success and failure states explicit 
 
 **Verification:**
 - [x] Tests pass: `DJANGO_ENV=testing pytest Testing/unit/documents -v`
-- [ ] Manual check: upload supported and unsupported files to a Postgres project and confirm state transitions.
+- [x] Manual check: upload supported and unsupported files to a Postgres project and confirm state transitions.
 
 **Dependencies:** Task 5
 
@@ -207,7 +207,7 @@ Define and implement the cleanup path that removes all Postgres RAG artifacts fo
 
 **Verification:**
 - [x] Tests pass: `DJANGO_ENV=testing pytest Testing/unit/documents Testing/unit/projects -v`
-- [ ] Manual check: delete a Postgres project and confirm related persisted artifacts are removed.
+- [ x] Manual check: delete a Postgres project and confirm related persisted artifacts are removed.
 
 **Dependencies:** Tasks 5-6
 
