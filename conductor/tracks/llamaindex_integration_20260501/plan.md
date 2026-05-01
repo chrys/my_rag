@@ -13,10 +13,10 @@
 ## Phase 2: Ingestion & Indexing Pipeline
 
 ### Implement LlamaIndex Ingestion
-- [ ] Task: Write tests for LlamaIndex ingestion pipeline
-    - [ ] Create unit tests validating the ingestion pipeline triggers on document upload
-    - [ ] Assert the embedding model (`gemini-embedding-001`) is correctly instantiated
-    - [ ] Run failing tests (Red phase)
+- [x] Task: Write tests for LlamaIndex ingestion pipeline
+    - [x] Create unit tests validating the ingestion pipeline triggers on document upload
+    - [x] Assert the embedding model (`gemini-embedding-001`) is correctly instantiated
+    - [x] Run failing tests (Red phase)
 - [ ] Task: Implement `LlamaIndex` pipeline for RAG document uploads
     - [ ] Update the `upload_document` view (or its underlying service) for RAG projects
     - [ ] Configure `PostgresVectorStore` and `StorageContext`
