@@ -94,7 +94,7 @@ class TestAdminPromptViews:
         mocker.patch('src.apps.chat.views.get_prompt_storage', return_value=mock_storage)
         
         # Mock Google File Search backend
-        mock_ask = mocker.patch('src.apps.chat.views.gfs.ask_store_question', return_value="Meow.")
+        mock_ask = mocker.patch('src.apps.chat.views.gfs.ask_store_question', return_value="Meow.", create=True)
         
         factory = RequestFactory()
         request = factory.post('/fake-url/', {

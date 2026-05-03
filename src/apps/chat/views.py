@@ -13,9 +13,6 @@ import sys
 import os
 import json
 
-# Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src'))
-
 from src.local_project_storage import get_local_project_storage
 from src.optional_dependencies import LazyModuleProxy
 from src.prompt_storage import get_prompt_storage
@@ -25,13 +22,13 @@ from src.apps.projects.models import Project, SystemPrompt
 
 
 gfs = LazyModuleProxy(
-    "google_file_search",
+    "src.google_file_search",
     "Google File Search dependencies are not installed in this environment.",
 )
 
 
 def get_rag_engine(*args, **kwargs):
-    from local_rag import get_rag_engine as local_get_rag_engine
+    from src.local_rag import get_rag_engine as local_get_rag_engine
 
     return local_get_rag_engine(*args, **kwargs)
 

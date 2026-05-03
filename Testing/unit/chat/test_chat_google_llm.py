@@ -23,7 +23,7 @@ class TestChatGoogleLLM:
         )
         
         client = Client()
-        response = client.post('/submit/', {
+        response = client.post('/rag/submit/', {
             'store_id': project.project_id,
             'query': 'What is the main topic of the uploaded document?'
         })
@@ -56,7 +56,7 @@ class TestChatGoogleLLM:
         )
         
         client = Client()
-        response = client.post('/submit/', {
+        response = client.post('/rag/submit/', {
             'store_id': project.project_id,
             'query': 'How do I bake a cake?'
         })

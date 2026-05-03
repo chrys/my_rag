@@ -73,7 +73,7 @@ class TestAdminProjectViews:
         )
         Document.objects.create(project=project, document_name='doc1.txt', state='INDEXED')
         Document.objects.create(project=project, document_name='doc2.txt', state='INDEXED')
-        mock_cleanup = mocker.patch('postgres_rag.cleanup_project_artifacts')
+        mock_cleanup = mocker.patch('src.postgres_rag.cleanup_project_artifacts')
         mock_delete = mocker.patch('src.apps.projects.views.gfs.delete_file_search_store')
         
         factory = RequestFactory()
@@ -95,7 +95,7 @@ class TestAdminProjectViews:
         )
         Document.objects.create(project=project, document_name='doc1.txt', state='INDEXED')
         mocker.patch(
-            'postgres_rag.cleanup_project_artifacts',
+            'src.postgres_rag.cleanup_project_artifacts',
             side_effect=ImportError('google-genai required')
         )
 

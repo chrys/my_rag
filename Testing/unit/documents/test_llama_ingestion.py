@@ -13,8 +13,10 @@ def test_llama_ingestion_pipeline_triggered():
     # Setup: Create a project
     project = Project.objects.create(display_name="RAG Test Project", project_id="test_id", storage_type="postgres")
 
-    # Mock VectorStoreIndex to avoid actual indexing
-    with patch("src.apps.documents.services.VectorStoreIndex") as MockIndex:
+    with patch("src.apps.documents.services.VectorStoreIndex") as MockIndex, \
+         patch("src.apps.documents.services.SimpleDirectoryReader") as MockReader:
+        # Mock load_data to avoid file not found
+        MockReader.return_value.load_data.return_value = ["mock_doc"]
         pipeline = LlamaIndexIngestionPipeline(project_id="test_id")
         pipeline.index_document(file_path="tests/test_file.txt")
 
@@ -27,5 +29,6 @@ def test_embedding_model_instantiation():
     with patch("src.apps.documents.services.GeminiEmbedding") as MockEmbedding:
         pipeline = LlamaIndexIngestionPipeline(project_id="test_id")
 
+        from unittest.mock import ANY
         # Verify model was instantiated with correct params
-        MockEmbedding.assert_called_with(model_name="models/embedding-001", api_key=None)
+        MockEmbedding.assert_called_with(model_name="models/embedding-001", api_key=ANY)

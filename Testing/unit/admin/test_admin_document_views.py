@@ -131,7 +131,8 @@ class TestAdminDocumentViews:
             display_name='Test Upload Postgres',
             storage_type='postgres'
         )
-        mock_index = mocker.patch('postgres_rag.PostgresRAGEngine.index_document', return_value=True)
+        mock_pipeline = mocker.Mock()
+        mock_pipeline_class = mocker.patch('src.apps.documents.services.LlamaIndexIngestionPipeline', return_value=mock_pipeline)
         
         file_content = b"test postgres content"
         uploaded_file = SimpleUploadedFile("test_pg_doc.txt", file_content, content_type="text/plain")
@@ -142,7 +143,7 @@ class TestAdminDocumentViews:
         response = upload_document(request, 'postgres_test_id')
         
         assert response.status_code == 200
-        mock_index.assert_called_once()
+        mock_pipeline.index_document.assert_called_once()
         
         doc = Document.objects.get(project=project, document_name="test_pg_doc.txt")
         assert doc.state == 'INDEXED'
@@ -155,10 +156,9 @@ class TestAdminDocumentViews:
             display_name='Test Failed Upload Postgres',
             storage_type='postgres'
         )
-        mocker.patch(
-            'postgres_rag.PostgresRAGEngine.index_document',
-            side_effect=ValueError('Postgres configuration missing')
-        )
+        mock_pipeline = mocker.Mock()
+        mock_pipeline.index_document.side_effect = ValueError('Postgres configuration missing')
+        mocker.patch('src.apps.documents.services.LlamaIndexIngestionPipeline', return_value=mock_pipeline)
 
         file_content = b"test postgres failure"
         uploaded_file = SimpleUploadedFile("failed_pg_doc.txt", file_content, content_type="text/plain")
@@ -181,7 +181,8 @@ class TestAdminDocumentViews:
             display_name='Test Unsupported Upload Postgres',
             storage_type='postgres'
         )
-        mock_index = mocker.patch('postgres_rag.PostgresRAGEngine.index_document', return_value=True)
+        mock_pipeline = mocker.Mock()
+        mock_pipeline_class = mocker.patch('src.apps.documents.services.LlamaIndexIngestionPipeline', return_value=mock_pipeline)
 
         file_content = b"binary data"
         uploaded_file = SimpleUploadedFile("malware.exe", file_content, content_type="application/octet-stream")
@@ -193,7 +194,7 @@ class TestAdminDocumentViews:
 
         assert response.status_code == 400
         assert b'Unsupported file type' in response.content
-        mock_index.assert_not_called()
+        mock_pipeline.index_document.assert_not_called()
         assert not Document.objects.filter(project=project, document_name="malware.exe").exists()
 
     def test_delete_document_google(self, mocker):
@@ -222,7 +223,7 @@ class TestAdminDocumentViews:
         )
         mock_engine = mocker.Mock()
         mock_engine.delete_document.return_value = True
-        mocker.patch('postgres_rag.PostgresRAGEngine', return_value=mock_engine)
+        mocker.patch('src.postgres_rag.PostgresRAGEngine', return_value=mock_engine)
         doc = Document.objects.create(
             project=project,
             document_name='test_to_delete.txt',
@@ -236,4 +237,5 @@ class TestAdminDocumentViews:
         
         assert response.status_code == 200
         mock_engine.delete_document.assert_called_once_with('test_to_delete.txt')
+        assert not Document.objects.filter(id=doc.id).exists()
         assert not Document.objects.filter(id=doc.id).exists()

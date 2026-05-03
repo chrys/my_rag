@@ -18,7 +18,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from django.contrib.auth.models import User
 from django.test import Client
-from apps.projects.models import Project
+from src.apps.projects.models import Project
 
 
 @pytest.fixture
@@ -52,14 +52,14 @@ class TestGoogleFileSearchProjectCreationRegression:
         could not be created because the creation code was commented out.
         """
         # Mock the Google File Search API call to avoid actual API calls
-        with patch('apps.projects.views.gfs.create_new_file_search_store') as mock_create:
+        with patch('src.apps.projects.views.gfs.create_new_file_search_store') as mock_create:
             # Mock returns a valid store ID
             mock_store_id = 'fileSearchStores/test-store-123'
             mock_create.return_value = mock_store_id
             
             # Make POST request to create a Google File Search project
             response = authenticated_client.post(
-                '/create/',
+                '/rag/create/',
                 data={
                     'display_name': 'Test Google Project',
                     'storage_type': 'google'
@@ -89,7 +89,7 @@ class TestGoogleFileSearchProjectCreationRegression:
         Test that project creation handles Google API failures gracefully
         """
         # Mock the Google File Search API to return empty string (failure)
-        with patch('apps.projects.views.gfs.create_new_file_search_store') as mock_create:
+        with patch('src.apps.projects.views.gfs.create_new_file_search_store') as mock_create:
             mock_create.return_value = ''  # Empty string indicates failure
             
             # Count projects before
@@ -97,7 +97,7 @@ class TestGoogleFileSearchProjectCreationRegression:
             
             # Make POST request
             response = authenticated_client.post(
-                '/create/',
+                '/rag/create/',
                 data={
                     'display_name': 'Failed Google Project',
                     'storage_type': 'google'
@@ -117,11 +117,11 @@ class TestGoogleFileSearchProjectCreationRegression:
         """
         Test that Google projects get unique project_id values
         """
-        with patch('apps.projects.views.gfs.create_new_file_search_store') as mock_create:
+        with patch('src.apps.projects.views.gfs.create_new_file_search_store') as mock_create:
             # Create first project
             mock_create.return_value = 'fileSearchStores/store-1'
             authenticated_client.post(
-                '/create/',
+                '/rag/create/',
                 data={
                     'display_name': 'Google Project 1',
                     'storage_type': 'google'
@@ -131,7 +131,7 @@ class TestGoogleFileSearchProjectCreationRegression:
             # Create second project with same display name
             mock_create.return_value = 'fileSearchStores/store-2'
             authenticated_client.post(
-                '/create/',
+                '/rag/create/',
                 data={
                     'display_name': 'Google Project 1',
                     'storage_type': 'google'
@@ -157,14 +157,14 @@ class TestGoogleFileSearchProjectCreationRegression:
         Test that local project creation is not affected by the fix
         """
         # Mock local storage
-        with patch('apps.projects.views.get_local_project_storage') as mock_storage:
+        with patch('src.apps.projects.views.get_local_project_storage') as mock_storage:
             mock_storage_instance = MagicMock()
             mock_storage_instance.create_project.return_value = 'local_20260227_120000_test'
             mock_storage.return_value = mock_storage_instance
             
             # Make POST request to create local project
             response = authenticated_client.post(
-                '/create/',
+                '/rag/create/',
                 data={
                     'display_name': 'Test Local Project',
                     'storage_type': 'local'
@@ -202,9 +202,9 @@ class TestGoogleFileSearchProjectCreationRegression:
         )
         
         # Mock the Google File Search API delete call
-        with patch('apps.projects.views.gfs.delete_file_search_store') as mock_delete:
+        with patch('src.apps.projects.views.gfs.delete_file_search_store') as mock_delete:
             # Delete via the view
-            response = authenticated_client.delete(f'/delete/{project.project_id}/')
+            response = authenticated_client.delete(f'/rag/delete/{project.project_id}/')
             
             # Verify response is successful
             assert response.status_code == 302 or response.status_code == 200  # Redirect or success
@@ -236,7 +236,7 @@ class TestGoogleFileSearchProjectCreationRegression:
         )
         
         # Request the project list
-        response = authenticated_client.get('/list/')
+        response = authenticated_client.get('/rag/list/')
         
         # Verify response is successful
         assert response.status_code == 200
@@ -261,7 +261,7 @@ class TestGoogleFileSearchAPIIntegration:
         the Google File Search API. This is by design for the REST API, which
         expects the external_store_id to be provided by the client.
         """
-        from apps.projects.serializers import ProjectCreateSerializer
+        from src.apps.projects.serializers import ProjectCreateSerializer
         
         # Create project via serializer (as API would)
         data = {

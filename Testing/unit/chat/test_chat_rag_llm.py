@@ -11,7 +11,7 @@ from prompt_storage import get_prompt_storage
 
 @pytest.mark.django_db
 class TestChatRagLLM:
-    def test_chat_rag_related_answer(self):
+    def test_chat_rag_related_answer(self, mocker):
         # Create project in test database
         project, _ = Project.objects.get_or_create(
             display_name="Test RAG",
@@ -21,8 +21,16 @@ class TestChatRagLLM:
             }
         )
         
+        mock_engine = mocker.Mock()
+        mock_engine.query.return_value = mocker.Mock(__str__=lambda x: "What is the content of the indexed documents?", source_nodes=[])
+        mock_index = mocker.Mock()
+        mock_index.as_query_engine.return_value = mock_engine
+        mocker.patch('llama_index.core.VectorStoreIndex.from_vector_store', return_value=mock_index)
+        mocker.patch('llama_index.vector_stores.postgres.PGVectorStore.from_params', return_value=mocker.Mock())
+        mocker.patch('llama_index.embeddings.google.GeminiEmbedding', return_value=mocker.Mock())
+
         client = Client()
-        response = client.post('/api/messages/', {
+        response = client.post('/rag/api/messages/', {
             'store_id': project.project_id,
             'query': 'What is the content of the indexed documents?'
         }, content_type='application/json')
@@ -33,7 +41,7 @@ class TestChatRagLLM:
         assert 'content' in data
         assert data['content'] == 'What is the content of the indexed documents?'
 
-    def test_chat_rag_unrelated_answer(self):
+    def test_chat_rag_unrelated_answer(self, mocker):
         # Create project in test database
         project, _ = Project.objects.get_or_create(
             display_name="Test RAG",
@@ -54,9 +62,17 @@ class TestChatRagLLM:
         # it just stores the user message. To test the LLM response, we should use the same logic 
         # as the Google test, but for the RAG backend.
         
+        mock_engine = mocker.Mock()
+        mock_engine.query.return_value = mocker.Mock(__str__=lambda x: "I cannot help with that.", source_nodes=[])
+        mock_index = mocker.Mock()
+        mock_index.as_query_engine.return_value = mock_engine
+        mocker.patch('llama_index.core.VectorStoreIndex.from_vector_store', return_value=mock_index)
+        mocker.patch('llama_index.vector_stores.postgres.PGVectorStore.from_params', return_value=mocker.Mock())
+        mocker.patch('llama_index.embeddings.google.GeminiEmbedding', return_value=mocker.Mock())
+
         client = Client()
         # Using the HTML submission endpoint which actually triggers the LLM query
-        response = client.post('/submit/', {
+        response = client.post('/rag/submit/', {
             'store_id': project.project_id,
             'query': 'How do I bake a cake?'
         })
