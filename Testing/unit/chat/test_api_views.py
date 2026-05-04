@@ -8,9 +8,9 @@ from rest_framework.test import APIRequestFactory
 from rest_framework.test import force_authenticate
 from rest_framework import status
 from django.contrib.auth.models import User
-from apps.projects.models import Project
-from apps.chat.models import ChatMessage
-from apps.chat.api_views import ChatMessageViewSet
+from src.apps.projects.models import Project
+from src.apps.chat.models import ChatMessage
+from src.apps.chat.api_views import ChatMessageViewSet
 
 
 @pytest.fixture

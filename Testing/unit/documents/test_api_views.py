@@ -6,9 +6,9 @@ Tests DocumentViewSet and custom actions
 import pytest
 from rest_framework.test import APIRequestFactory
 from rest_framework import status
-from apps.projects.models import Project
-from apps.documents.models import Document
-from apps.documents.api_views import DocumentViewSet
+from src.apps.projects.models import Project
+from src.apps.documents.models import Document
+from src.apps.documents.api_views import DocumentViewSet
 
 
 @pytest.fixture

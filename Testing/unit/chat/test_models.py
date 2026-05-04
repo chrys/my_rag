@@ -5,8 +5,8 @@ Tests ChatMessage model with relationships, timestamps, and constraints
 
 import pytest
 from django.contrib.auth.models import User
-from apps.projects.models import Project
-from apps.chat.models import ChatMessage
+from src.apps.projects.models import Project
+from src.apps.chat.models import ChatMessage
 
 
 @pytest.fixture

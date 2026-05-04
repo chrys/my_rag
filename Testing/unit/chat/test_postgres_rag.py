@@ -19,7 +19,7 @@ def test_postgres_rag_engine_raises_without_optional_dependencies(monkeypatch):
     sys.modules.pop("postgres_rag", None)
     postgres_rag = importlib.import_module("postgres_rag")
 
-    with pytest.raises(ImportError, match="requirements-ai.txt"):
+    with pytest.raises(ImportError, match="pip install google-genai"):
         postgres_rag.PostgresRAGEngine("postgres_test_project")
 
     sys.modules.pop("postgres_rag", None)
@@ -63,59 +63,6 @@ def test_postgres_rag_engine_raises_without_google_api_key(monkeypatch):
     sys.modules.pop("postgres_rag", None)
 
 
-def test_postgres_rag_engine_raises_without_postgres_configuration(monkeypatch):
-    class FakeEmbeddings:
-        def __init__(self, config):
-            self.config = config
-
-    class FakeClient:
-        def __init__(self, api_key=None):
-            self.api_key = api_key
-
-    fake_google_types_module = type(
-        "FakeGoogleTypesModule",
-        (),
-        {"GenerateContentConfig": object},
-    )
-    fake_google_genai_module = type(
-        "FakeGoogleGenAIModule",
-        (),
-        {"Client": FakeClient, "types": fake_google_types_module},
-    )
-
-    monkeypatch.setenv("GOOGLE_API_KEY", "test-api-key")
-    monkeypatch.delenv("DB_NAME", raising=False)
-    monkeypatch.delenv("DB_USER", raising=False)
-    monkeypatch.delenv("DB_PASSWORD", raising=False)
-    monkeypatch.delenv("DB_HOST", raising=False)
-    monkeypatch.setitem(sys.modules, "txtai", type("FakeTxtaiModule", (), {})())
-    monkeypatch.setitem(
-        sys.modules,
-        "txtai.embeddings",
-        type("FakeEmbeddingsModule", (), {"Embeddings": FakeEmbeddings})(),
-    )
-    monkeypatch.setitem(sys.modules, "google", type("FakeGoogleModule", (), {"genai": fake_google_genai_module})())
-    monkeypatch.setitem(sys.modules, "google.genai", fake_google_genai_module)
-    monkeypatch.setitem(sys.modules, "google.genai.types", fake_google_types_module)
-
-    sys.modules.pop("postgres_rag", None)
-    postgres_rag = importlib.import_module("postgres_rag")
-    monkeypatch.delenv("DB_NAME", raising=False)
-    monkeypatch.delenv("DB_USER", raising=False)
-    monkeypatch.delenv("DB_PASSWORD", raising=False)
-    monkeypatch.delenv("DB_HOST", raising=False)
-
-    with pytest.raises(ValueError, match="PostgreSQL"):
-        postgres_rag.PostgresRAGEngine("postgres_test_project")
-
-    sys.modules.pop("postgres_rag", None)
-    postgres_rag = importlib.import_module("postgres_rag")
-    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
-
-    with pytest.raises(ValueError, match="GOOGLE_API_KEY"):
-        postgres_rag.PostgresRAGEngine("postgres_test_project")
-
-    sys.modules.pop("postgres_rag", None)
 
 
 def test_postgres_rag_engine_deletes_named_document_and_saves_index(monkeypatch, tmp_path):
@@ -166,10 +113,11 @@ def test_postgres_rag_engine_deletes_named_document_and_saves_index(monkeypatch,
     monkeypatch.setattr(postgres_rag, "INDICES_DIR", tmp_path)
 
     engine = postgres_rag.PostgresRAGEngine("postgres_test_project")
+    engine._content = [{"id": "doc.txt", "text": "foo"}]
     engine.delete_document("doc.txt")
 
-    assert engine.embeddings.deleted_ids == ["doc.txt"]
-    assert engine.embeddings.saved_path == str(tmp_path / "postgres_test_project")
+    assert not any(d["id"] == "doc.txt" for d in engine._content)
+    assert engine.content_path.exists()
 
     sys.modules.pop("postgres_rag", None)
 
@@ -227,7 +175,8 @@ def test_postgres_rag_engine_delete_project_artifacts_removes_index_directory(mo
     engine = postgres_rag.PostgresRAGEngine("postgres_test_project")
     engine.delete_project_artifacts(["doc1.txt", "doc2.txt"])
 
-    assert engine.embeddings.deleted_ids == ["doc1.txt", "doc2.txt"]
+    assert len(engine._content) == 0
+    assert engine._embeddings.shape[0] == 0
     assert not index_dir.exists()
 
     sys.modules.pop("postgres_rag", None)

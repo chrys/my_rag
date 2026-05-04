@@ -8,9 +8,9 @@ from django.contrib.auth.models import AnonymousUser
 # Add src to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../src')))
 
-from apps.projects.models import Project
-from apps.projects.models import SystemPrompt
-from apps.chat.views import chat, chat_submit
+from src.apps.projects.models import Project
+from src.apps.projects.models import SystemPrompt
+from src.apps.chat.views import chat, chat_submit
 
 from django.contrib.auth.models import User
 
@@ -26,7 +26,7 @@ class TestChatViews:
         
         mock_engine = mocker.Mock()
         mock_engine.query.return_value = "Auth response."
-        mocker.patch('apps.chat.views.get_rag_engine', return_value=mock_engine)
+        mocker.patch('src.apps.chat.views.get_rag_engine', return_value=mock_engine)
         
         factory = RequestFactory()
         request = factory.post('/submit/', {
@@ -41,7 +41,7 @@ class TestChatViews:
         assert b"Auth response." in response.content
         
         # Verify ChatMessage records created
-        from apps.chat.models import ChatMessage
+        from src.apps.chat.models import ChatMessage
         assert ChatMessage.objects.filter(user=user, message_type='user').exists()
         assert ChatMessage.objects.filter(user=user, message_type='assistant').exists()
 
@@ -54,7 +54,7 @@ class TestChatViews:
         
         mock_engine = mocker.Mock()
         mock_engine.query.return_value = "Local response."
-        mocker.patch('apps.chat.views.get_rag_engine', return_value=mock_engine)
+        mocker.patch('src.apps.chat.views.get_rag_engine', return_value=mock_engine)
         
         factory = RequestFactory()
         request = factory.post('/submit/', {
@@ -77,15 +77,15 @@ class TestChatViews:
         
         mock_engine = mocker.Mock()
         mock_engine.query.return_value = "Local API response."
-        mocker.patch('apps.chat.views.get_rag_engine', return_value=mock_engine)
+        mocker.patch('src.apps.chat.views.get_rag_engine', return_value=mock_engine)
         
         client = Client()
-        response = client.post('/api/chat/', data=json.dumps({
+        response = client.post('/rag/api/chat/', data=json.dumps({
             'store_id': 'local_api_id',
             'query': 'API query'
         }), content_type='application/json')
         
-        # Note: /api/chat/ endpoint is views.chat
+        # Note: /rag/api/chat/ endpoint is views.chat
         
         assert response.status_code == 200
         data = response.json()
@@ -101,17 +101,17 @@ class TestChatViews:
         
         mock_engine = mocker.Mock()
         mock_engine.query.return_value = "API Auth response."
-        mocker.patch('apps.chat.views.get_rag_engine', return_value=mock_engine)
+        mocker.patch('src.apps.chat.views.get_rag_engine', return_value=mock_engine)
         
         client = Client()
         client.login(username='apiuser', password='password')
-        response = client.post('/api/chat/', data=json.dumps({
+        response = client.post('/rag/api/chat/', data=json.dumps({
             'store_id': 'local_api_auth_id',
             'query': 'API auth query'
         }), content_type='application/json')
         
         assert response.status_code == 200
-        from apps.chat.models import ChatMessage
+        from src.apps.chat.models import ChatMessage
         # Use project=project since the view should handle the lookup or we fix the view if it's broken
         assert ChatMessage.objects.filter(user=user, message_type='user').exists()
 
@@ -122,9 +122,16 @@ class TestChatViews:
             storage_type='postgres'
         )
         
+        mock_response = mocker.Mock()
+        mock_response.__str__ = lambda x: "RAG response."
+        mock_response.source_nodes = []
         mock_engine = mocker.Mock()
-        mock_engine.query.return_value = {"response": "RAG response."}
-        mocker.patch('postgres_rag.PostgresRAGEngine', return_value=mock_engine)
+        mock_engine.query.return_value = mock_response
+        mock_index = mocker.Mock()
+        mock_index.as_query_engine.return_value = mock_engine
+        mocker.patch("llama_index.embeddings.google.GeminiEmbedding", return_value=mocker.Mock())
+        mocker.patch('llama_index.core.VectorStoreIndex.from_vector_store', return_value=mock_index)
+        mocker.patch('llama_index.vector_stores.postgres.PGVectorStore.from_params', return_value=mocker.Mock())
         
         factory = RequestFactory()
         request = factory.post('/submit/', {
@@ -145,15 +152,18 @@ class TestChatViews:
             storage_type='postgres'
         )
 
+        mock_response = mocker.Mock()
+        mock_response.__str__ = lambda x: "RAG response with sources."
+        node1 = mocker.Mock(); node1.node.metadata = {"document": "alpha.txt"}
+        node2 = mocker.Mock(); node2.node.metadata = {"document": "beta.md"}
+        mock_response.source_nodes = [node1, node2]
         mock_engine = mocker.Mock()
-        mock_engine.query.return_value = {
-            "response": "RAG response with sources.",
-            "source_nodes": [
-                {"document": "alpha.txt"},
-                {"document": "beta.md"},
-            ],
-        }
-        mocker.patch('postgres_rag.PostgresRAGEngine', return_value=mock_engine)
+        mock_engine.query.return_value = mock_response
+        mock_index = mocker.Mock()
+        mock_index.as_query_engine.return_value = mock_engine
+        mocker.patch("llama_index.embeddings.google.GeminiEmbedding", return_value=mocker.Mock())
+        mocker.patch('llama_index.core.VectorStoreIndex.from_vector_store', return_value=mock_index)
+        mocker.patch('llama_index.vector_stores.postgres.PGVectorStore.from_params', return_value=mocker.Mock())
 
         factory = RequestFactory()
         request = factory.post('/submit/', {
@@ -180,9 +190,16 @@ class TestChatViews:
             content='Use only the project system prompt.'
         )
 
+        mock_response = mocker.Mock()
+        mock_response.__str__ = lambda x: "Prompted RAG response."
+        mock_response.source_nodes = []
         mock_engine = mocker.Mock()
-        mock_engine.query.return_value = {"response": "Prompted RAG response."}
-        mocker.patch('postgres_rag.PostgresRAGEngine', return_value=mock_engine)
+        mock_engine.query.return_value = mock_response
+        mock_index = mocker.Mock()
+        mock_index.as_query_engine.return_value = mock_engine
+        mocker.patch("llama_index.embeddings.google.GeminiEmbedding", return_value=mocker.Mock())
+        mocker.patch('llama_index.core.VectorStoreIndex.from_vector_store', return_value=mock_index)
+        mocker.patch('llama_index.vector_stores.postgres.PGVectorStore.from_params', return_value=mocker.Mock())
 
         factory = RequestFactory()
         request = factory.post('/submit/', {
@@ -195,8 +212,7 @@ class TestChatViews:
 
         assert response.status_code == 200
         mock_engine.query.assert_called_once_with(
-            'Prompted RAG query',
-            system_prompt='Use only the project system prompt.'
+            'System Context: Use only the project system prompt.\n\nQuery: Prompted RAG query'
         )
 
     def test_chat_submit_rag_rejects_non_owner(self, mocker):
@@ -210,7 +226,11 @@ class TestChatViews:
         )
 
         mock_engine = mocker.Mock()
-        mocker.patch('postgres_rag.PostgresRAGEngine', return_value=mock_engine)
+        mock_index = mocker.Mock()
+        mock_index.as_query_engine.return_value = mock_engine
+        mocker.patch("llama_index.embeddings.google.GeminiEmbedding", return_value=mocker.Mock())
+        mocker.patch('llama_index.core.VectorStoreIndex.from_vector_store', return_value=mock_index)
+        mocker.patch('llama_index.vector_stores.postgres.PGVectorStore.from_params', return_value=mocker.Mock())
 
         factory = RequestFactory()
         request = factory.post('/submit/', {
@@ -231,20 +251,23 @@ class TestChatViews:
             storage_type='postgres'
         )
 
+        mock_response = mocker.Mock()
+        mock_response.__str__ = lambda x: "API RAG response."
+        node1 = mocker.Mock(); node1.node.metadata = {"document": "alpha.txt"}
+        node2 = mocker.Mock(); node2.node.metadata = {"document": "alpha.txt"}
+        node3 = mocker.Mock(); node3.node.metadata = {"document": "beta.md"}
+        mock_response.source_nodes = [node1, node2, node3]
         mock_engine = mocker.Mock()
-        mock_engine.query.return_value = {
-            "response": "API RAG response.",
-            "source_nodes": [
-                {"document": "alpha.txt", "score": 0.91},
-                {"document": "alpha.txt", "score": 0.82},
-                {"document": "beta.md", "score": 0.77},
-            ],
-        }
-        mocker.patch('postgres_rag.PostgresRAGEngine', return_value=mock_engine)
+        mock_engine.query.return_value = mock_response
+        mock_index = mocker.Mock()
+        mock_index.as_query_engine.return_value = mock_engine
+        mocker.patch("llama_index.embeddings.google.GeminiEmbedding", return_value=mocker.Mock())
+        mocker.patch('llama_index.core.VectorStoreIndex.from_vector_store', return_value=mock_index)
+        mocker.patch('llama_index.vector_stores.postgres.PGVectorStore.from_params', return_value=mocker.Mock())
 
         factory = RequestFactory()
         request = factory.post(
-            '/api/chat/',
+            '/rag/api/chat/',
             data=json.dumps({
                 'store_id': 'postgres_attribution_api',
                 'query': 'API attributed query'
@@ -262,7 +285,7 @@ class TestChatViews:
 
     def test_chat_api_missing_params(self):
         client = Client()
-        response = client.post('/api/chat/', data=json.dumps({
+        response = client.post('/rag/api/chat/', data=json.dumps({
             'query': 'Missing store_id'
         }), content_type='application/json')
         

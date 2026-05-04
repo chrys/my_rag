@@ -102,7 +102,7 @@ pytest Testing/unit/projects/test_models.py::TestProjectModel -v
 pytest Testing/unit/projects/test_models.py::TestProjectModel::test_create_project_local -v
 
 # Run with coverage
-pytest Testing/unit/projects/ --cov=apps.projects --cov-report=html
+pytest Testing/unit/projects/ --cov=src.apps.projects --cov-report=html
 ```
 
 ## Configuration

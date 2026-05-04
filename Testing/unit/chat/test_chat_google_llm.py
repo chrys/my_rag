@@ -6,7 +6,7 @@ from django.test import Client
 # Add src to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../src')))
 
-from apps.projects.models import Project
+from src.apps.projects.models import Project
 from prompt_storage import get_prompt_storage
 
 @pytest.mark.django_db
@@ -23,7 +23,7 @@ class TestChatGoogleLLM:
         )
         
         client = Client()
-        response = client.post('/submit/', {
+        response = client.post('/rag/submit/', {
             'store_id': project.project_id,
             'query': 'What is the main topic of the uploaded document?'
         })
@@ -56,7 +56,7 @@ class TestChatGoogleLLM:
         )
         
         client = Client()
-        response = client.post('/submit/', {
+        response = client.post('/rag/submit/', {
             'store_id': project.project_id,
             'query': 'How do I bake a cake?'
         })

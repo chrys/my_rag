@@ -7,8 +7,8 @@ the API endpoint expected the Django database primary key (integer id), but the 
 was sending either project_id (for local projects) or external_store_id (for Google projects).
 
 The error manifested as:
-- GET /api/projects/fileSearchStores%2Ftest-google-99oic6yk10ke/prompt -> 404
-- POST /api/projects/fileSearchStores%2Ftest-google-99oic6yk10ke/prompt -> 404
+- GET /rag/api/projects/fileSearchStores%2Ftest-google-99oic6yk10ke/prompt -> 404
+- POST /rag/api/projects/fileSearchStores%2Ftest-google-99oic6yk10ke/prompt -> 404
 
 ROOT CAUSE:
 1. The ProjectViewSet default lookup was by primary key only
@@ -29,7 +29,7 @@ FIXED: 2026-02-27
 import pytest
 from rest_framework.test import APIClient
 from django.contrib.auth.models import User
-from apps.projects.models import Project, SystemPrompt
+from src.apps.projects.models import Project, SystemPrompt
 
 
 @pytest.fixture
@@ -68,7 +68,7 @@ class TestCustomPromptSavingRegression:
         
         # Save a prompt using project_id in URL
         response = self.client.post(
-            f'/api/projects/local_20260227_120000_test/prompt/',
+            f'/rag/api/projects/local_20260227_120000_test/prompt/',
             data={'content': 'You are a helpful assistant for local projects.'},
             format='json'
         )
@@ -98,7 +98,7 @@ class TestCustomPromptSavingRegression:
         
         # Save a prompt using project_id in URL (not external_store_id to avoid slash issues)
         response = self.client.post(
-            f'/api/projects/google_20260227_120000_test/prompt/',
+            f'/rag/api/projects/google_20260227_120000_test/prompt/',
             data={'content': 'You are a helpful assistant for Google projects.'},
             format='json'
         )
@@ -130,7 +130,7 @@ class TestCustomPromptSavingRegression:
         )
         
         # Retrieve the prompt
-        response = self.client.get(f'/api/projects/local_retrieve_test/prompt/')
+        response = self.client.get(f'/rag/api/projects/local_retrieve_test/prompt/')
         
         # Verify the response
         assert response.status_code == 200
@@ -155,7 +155,7 @@ class TestCustomPromptSavingRegression:
         )
         
         # Retrieve the prompt using project_id (not external_store_id)
-        response = self.client.get(f'/api/projects/google_retrieve_test/prompt/')
+        response = self.client.get(f'/rag/api/projects/google_retrieve_test/prompt/')
         
         # Verify the response
         assert response.status_code == 200
@@ -175,7 +175,7 @@ class TestCustomPromptSavingRegression:
         )
         
         # Retrieve the prompt
-        response = self.client.get(f'/api/projects/no_prompt_test/prompt/')
+        response = self.client.get(f'/rag/api/projects/no_prompt_test/prompt/')
         
         # Verify the response
         assert response.status_code == 200
@@ -200,7 +200,7 @@ class TestCustomPromptSavingRegression:
         
         # Update the prompt
         response = self.client.post(
-            f'/api/projects/update_prompt_test/prompt/',
+            f'/rag/api/projects/update_prompt_test/prompt/',
             data={'content': 'Updated prompt content'},
             format='json'
         )
@@ -229,7 +229,7 @@ class TestCustomPromptSavingRegression:
         
         # Save prompt using primary key
         response = self.client.post(
-            f'/api/projects/{project.pk}/prompt/',
+            f'/rag/api/projects/{project.pk}/prompt/',
             data={'content': 'Prompt via PK'},
             format='json'
         )
@@ -243,7 +243,7 @@ class TestCustomPromptSavingRegression:
         """
         Test that the documents endpoint also works with custom lookup
         """
-        from apps.documents.models import Document
+        from src.apps.documents.models import Document
         
         # Create project
         project = Project.objects.create(
@@ -262,7 +262,7 @@ class TestCustomPromptSavingRegression:
         )
         
         # Access documents via project_id
-        response = self.client.get(f'/api/projects/docs_test/documents/')
+        response = self.client.get(f'/rag/api/projects/docs_test/documents/')
         
         # Verify the response
         assert response.status_code == 200
@@ -274,7 +274,7 @@ class TestCustomPromptSavingRegression:
         """
         Test that documents endpoint works for Google projects using project_id
         """
-        from apps.documents.models import Document
+        from src.apps.documents.models import Document
         
         # Create Google project
         project = Project.objects.create(
@@ -294,7 +294,7 @@ class TestCustomPromptSavingRegression:
         )
         
         # Access documents via project_id
-        response = self.client.get(f'/api/projects/google_docs_test/documents/')
+        response = self.client.get(f'/rag/api/projects/google_docs_test/documents/')
         
         # Verify the response
         assert response.status_code == 200
@@ -307,7 +307,7 @@ class TestCustomPromptSavingRegression:
         Test that accessing a non-existent project returns 404
         """
         # Try to get prompt for non-existent project
-        response = self.client.get('/api/projects/nonexistent_project/prompt/')
+        response = self.client.get('/rag/api/projects/nonexistent_project/prompt/')
         
         # Verify 404 response
         assert response.status_code == 404
@@ -341,7 +341,7 @@ class TestPromptResponseFormat:
             content='Test content'
         )
         
-        response = self.client.get(f'/api/projects/format_test/prompt/')
+        response = self.client.get(f'/rag/api/projects/format_test/prompt/')
         
         # Verify response has correct format
         assert response.status_code == 200
@@ -364,7 +364,7 @@ class TestPromptResponseFormat:
         )
         
         response = self.client.post(
-            '/api/projects/post_format_test/prompt/',
+            '/rag/api/projects/post_format_test/prompt/',
             data={'content': 'New prompt'},
             format='json'
         )
@@ -414,14 +414,14 @@ class TestPromptFrontendFormDataRegression:
 
         # POST with the key the frontend actually uses
         response = self.client.post(
-            '/api/projects/formdata_persist_test/prompt/',
+            '/rag/api/projects/formdata_persist_test/prompt/',
             data={'prompt': 'My custom prompt text'},
         )
         assert response.status_code == 200
         assert response.json()['prompt'] == 'My custom prompt text'
 
         # GET must return the same value — this was the failing assertion before the fix
-        get_response = self.client.get('/api/projects/formdata_persist_test/prompt/')
+        get_response = self.client.get('/rag/api/projects/formdata_persist_test/prompt/')
         assert get_response.status_code == 200
         assert get_response.json()['prompt'] == 'My custom prompt text'
 
@@ -437,14 +437,14 @@ class TestPromptFrontendFormDataRegression:
         )
 
         response = self.client.post(
-            '/api/projects/json_content_persist_test/prompt/',
+            '/rag/api/projects/json_content_persist_test/prompt/',
             data={'content': 'API prompt text'},
             format='json'
         )
         assert response.status_code == 200
         assert response.json()['prompt'] == 'API prompt text'
 
-        get_response = self.client.get('/api/projects/json_content_persist_test/prompt/')
+        get_response = self.client.get('/rag/api/projects/json_content_persist_test/prompt/')
         assert get_response.status_code == 200
         assert get_response.json()['prompt'] == 'API prompt text'
 
@@ -454,32 +454,6 @@ class TestPromptFrontendFormDataRegression:
         switch to project B, switch back to project A — prompt must still be there.
         """
         project_a = Project.objects.create(
-            project_id='project_a',
-            display_name='Project A',
-            storage_type='local'
-        )
-        project_b = Project.objects.create(
-            project_id='project_b',
-            display_name='Project B',
-            storage_type='local'
-        )
-        client = Client()
-
-        # Save prompt for project A (using frontend FormData key)
-        client.post('/api/projects/project_a/prompt/', data={'prompt': 'Prompt for A'})
-
-        # Switch to project B (loads its prompt — empty)
-        resp_b = client.get('/api/projects/project_b/prompt/')
-        assert resp_b.json()['prompt'] == ''
-
-        # Switch back to project A — prompt must still be 'Prompt for A'
-        resp_a = client.get('/api/projects/project_a/prompt/')
-    def test_switch_projects_and_back_retains_prompt(self):
-        """
-        Simulate the exact user scenario: save prompt for project A,
-        switch to project B, switch back to project A — prompt must still be there.
-        """
-        project_a = Project.objects.create(
             user=self.user,
             project_id='project_a',
             display_name='Project A',
@@ -493,12 +467,12 @@ class TestPromptFrontendFormDataRegression:
         )
 
         # Save prompt for project A (using frontend FormData key)
-        self.client.post('/api/projects/project_a/prompt/', data={'prompt': 'Prompt for A'})
+        self.client.post('/rag/api/projects/project_a/prompt/', data={'prompt': 'Prompt for A'})
 
         # Switch to project B (loads its prompt — empty)
-        resp_b = self.client.get('/api/projects/project_b/prompt/')
+        resp_b = self.client.get('/rag/api/projects/project_b/prompt/')
         assert resp_b.status_code == 200
         assert resp_b.json()['prompt'] == ''
 
         # Switch back to project A — prompt must still be 'Prompt for A'
-        resp_a = self.client.get('/api/projects/project_a/prompt/')
+        resp_a = self.client.get('/rag/api/projects/project_a/prompt/')

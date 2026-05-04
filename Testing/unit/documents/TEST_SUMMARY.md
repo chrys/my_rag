@@ -98,7 +98,7 @@ pytest Testing/unit/documents/test_models.py::TestDocumentModel -v
 pytest Testing/unit/documents/test_models.py::TestDocumentModel::test_create_document_minimal -v
 
 # Run with coverage
-pytest Testing/unit/documents/ --cov=apps.documents --cov-report=html
+pytest Testing/unit/documents/ --cov=src.apps.documents --cov-report=html
 ```
 
 ## Test Coverage

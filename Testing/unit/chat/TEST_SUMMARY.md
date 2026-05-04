@@ -90,7 +90,7 @@ pytest Testing/unit/chat/test_models.py::TestChatMessageModel -v
 pytest Testing/unit/chat/test_models.py::TestChatMessageModel::test_create_user_message -v
 
 # Run with coverage
-pytest Testing/unit/chat/ --cov=apps.chat --cov-report=html
+pytest Testing/unit/chat/ --cov=src.apps.chat --cov-report=html
 ```
 
 ## Test Coverage

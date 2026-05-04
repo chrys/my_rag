@@ -1,9 +1,9 @@
 import pytest
 from django.test import RequestFactory
 from django.contrib.auth.models import User
-from apps.projects.models import Project, SystemPrompt
-from apps.projects.views import manage_prompt
-from apps.chat.views import chat_submit
+from src.apps.projects.models import Project, SystemPrompt
+from src.apps.projects.views import manage_prompt
+from src.apps.chat.views import chat_submit
 
 @pytest.mark.django_db
 class TestAdminPromptViews:
@@ -50,7 +50,7 @@ class TestAdminPromptViews:
             storage_type='google'
         )
         mock_storage = mocker.Mock()
-        mock_get_storage = mocker.patch('apps.projects.views.get_prompt_storage', return_value=mock_storage)
+        mock_get_storage = mocker.patch('src.apps.projects.views.get_prompt_storage', return_value=mock_storage)
         
         factory = RequestFactory()
         request = factory.post('/fake-url/', {'content': 'You are a helpful assistant.'})
@@ -70,7 +70,7 @@ class TestAdminPromptViews:
         SystemPrompt.objects.create(project=project, content='Old Prompt')
         
         mock_storage = mocker.Mock()
-        mock_get_storage = mocker.patch('apps.projects.views.get_prompt_storage', return_value=mock_storage)
+        mock_get_storage = mocker.patch('src.apps.projects.views.get_prompt_storage', return_value=mock_storage)
         
         factory = RequestFactory()
         request = factory.post('/fake-url/', {'content': 'Updated New Prompt'})
@@ -91,10 +91,10 @@ class TestAdminPromptViews:
         # Mock prompt storage to return a specific prompt
         mock_storage = mocker.Mock()
         mock_storage.get_prompt.return_value = "System Prompt: Only talk about cats."
-        mocker.patch('apps.chat.views.get_prompt_storage', return_value=mock_storage)
+        mocker.patch('src.apps.chat.views.get_prompt_storage', return_value=mock_storage)
         
         # Mock Google File Search backend
-        mock_ask = mocker.patch('apps.chat.views.gfs.ask_store_question', return_value="Meow.")
+        mock_ask = mocker.patch('src.apps.chat.views.gfs.ask_store_question', return_value="Meow.", create=True)
         
         factory = RequestFactory()
         request = factory.post('/fake-url/', {

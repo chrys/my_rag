@@ -1,9 +1,9 @@
 import pytest
 from django.test import RequestFactory
 from django.core.files.uploadedfile import SimpleUploadedFile
-from apps.projects.models import Project
-from apps.documents.models import Document
-from apps.documents.views import _sanitize_uploaded_filename, upload_document, delete_document, list_documents
+from src.apps.projects.models import Project
+from src.apps.documents.models import Document
+from src.apps.documents.views import _sanitize_uploaded_filename, upload_document, delete_document, list_documents
 
 @pytest.mark.django_db
 class TestAdminDocumentViews:
@@ -17,7 +17,7 @@ class TestAdminDocumentViews:
             storage_type='google',
             external_store_id='ext_list_123'
         )
-        mock_list = mocker.patch('apps.documents.views.gfs.list_documents_in_store', return_value=[
+        mock_list = mocker.patch('src.apps.documents.views.gfs.list_documents_in_store', return_value=[
             {'name': 'doc1', 'display_name': 'Doc 1', 'mime_type': 'text/plain', 'indexed_at': None, 'state': mocker.Mock(name='INDEXED')}
         ])
         
@@ -54,7 +54,7 @@ class TestAdminDocumentViews:
             'display_name': 'Local Project',
             'documents': {'doc_local.txt': {'indexed_at': '2026-03-01'}}
         }]
-        mocker.patch('apps.documents.views.get_local_project_storage', return_value=mock_storage)
+        mocker.patch('src.apps.documents.views.get_local_project_storage', return_value=mock_storage)
         
         factory = RequestFactory()
         request = factory.get('/fake-url/')
@@ -67,11 +67,11 @@ class TestAdminDocumentViews:
     def test_upload_document_local(self, mocker):
         mock_storage = mocker.Mock()
         mock_storage.list_projects.return_value = []
-        mocker.patch('apps.documents.views.get_local_project_storage', return_value=mock_storage)
+        mocker.patch('src.apps.documents.views.get_local_project_storage', return_value=mock_storage)
         
         mock_engine = mocker.Mock()
         mock_engine.index_document.return_value = True
-        mocker.patch('apps.documents.views.get_rag_engine', return_value=mock_engine)
+        mocker.patch('src.apps.documents.views.get_rag_engine', return_value=mock_engine)
         
         file_content = b"local content"
         uploaded_file = SimpleUploadedFile("local_doc.txt", file_content, content_type="text/plain")
@@ -87,11 +87,11 @@ class TestAdminDocumentViews:
 
     def test_delete_document_local(self, mocker):
         mock_storage = mocker.Mock()
-        mocker.patch('apps.documents.views.get_local_project_storage', return_value=mock_storage)
+        mocker.patch('src.apps.documents.views.get_local_project_storage', return_value=mock_storage)
         
         mock_engine = mocker.Mock()
         mock_engine.delete_document.return_value = True
-        mocker.patch('apps.documents.views.get_rag_engine', return_value=mock_engine)
+        mocker.patch('src.apps.documents.views.get_rag_engine', return_value=mock_engine)
         
         factory = RequestFactory()
         request = factory.delete('/fake-url/?store_id=local_456')
@@ -109,8 +109,8 @@ class TestAdminDocumentViews:
             storage_type='google',
             external_store_id='ext_google_123'
         )
-        mock_add = mocker.patch('apps.documents.views.gfs.add_document_to_store')
-        mocker.patch('apps.documents.views.gfs.list_documents_in_store', return_value=[])
+        mock_add = mocker.patch('src.apps.documents.views.gfs.add_document_to_store')
+        mocker.patch('src.apps.documents.views.gfs.list_documents_in_store', return_value=[])
         
         file_content = b"test document content"
         uploaded_file = SimpleUploadedFile("test_doc.txt", file_content, content_type="text/plain")
@@ -178,7 +178,8 @@ class TestAdminDocumentViews:
             display_name='Test Upload Postgres',
             storage_type='postgres'
         )
-        mock_index = mocker.patch('postgres_rag.PostgresRAGEngine.index_document', return_value=True)
+        mock_pipeline = mocker.Mock()
+        mock_pipeline_class = mocker.patch('src.apps.documents.services.LlamaIndexIngestionPipeline', return_value=mock_pipeline)
         
         file_content = b"test postgres content"
         uploaded_file = SimpleUploadedFile("test_pg_doc.txt", file_content, content_type="text/plain")
@@ -189,7 +190,7 @@ class TestAdminDocumentViews:
         response = upload_document(request, 'postgres_test_id')
         
         assert response.status_code == 200
-        mock_index.assert_called_once()
+        mock_pipeline.index_document.assert_called_once()
         
         doc = Document.objects.get(project=project, document_name="test_pg_doc.txt")
         assert doc.state == 'INDEXED'
@@ -202,10 +203,9 @@ class TestAdminDocumentViews:
             display_name='Test Failed Upload Postgres',
             storage_type='postgres'
         )
-        mocker.patch(
-            'postgres_rag.PostgresRAGEngine.index_document',
-            side_effect=ValueError('Postgres configuration missing')
-        )
+        mock_pipeline = mocker.Mock()
+        mock_pipeline.index_document.side_effect = ValueError('Postgres configuration missing')
+        mocker.patch('src.apps.documents.services.LlamaIndexIngestionPipeline', return_value=mock_pipeline)
 
         file_content = b"test postgres failure"
         uploaded_file = SimpleUploadedFile("failed_pg_doc.txt", file_content, content_type="text/plain")
@@ -256,7 +256,8 @@ class TestAdminDocumentViews:
             display_name='Test Unsupported Upload Postgres',
             storage_type='postgres'
         )
-        mock_index = mocker.patch('postgres_rag.PostgresRAGEngine.index_document', return_value=True)
+        mock_pipeline = mocker.Mock()
+        mock_pipeline_class = mocker.patch('src.apps.documents.services.LlamaIndexIngestionPipeline', return_value=mock_pipeline)
 
         file_content = b"binary data"
         uploaded_file = SimpleUploadedFile("malware.exe", file_content, content_type="application/octet-stream")
@@ -268,7 +269,7 @@ class TestAdminDocumentViews:
 
         assert response.status_code == 400
         assert b'Unsupported file type' in response.content
-        mock_index.assert_not_called()
+        mock_pipeline.index_document.assert_not_called()
         assert not Document.objects.filter(project=project, document_name="malware.exe").exists()
 
     def test_delete_document_google(self, mocker):
@@ -278,7 +279,7 @@ class TestAdminDocumentViews:
             storage_type='google',
             external_store_id='ext_google_456'
         )
-        mock_delete = mocker.patch('apps.documents.views.gfs.delete_document_from_store')
+        mock_delete = mocker.patch('src.apps.documents.views.gfs.delete_document_from_store')
         
         factory = RequestFactory()
         # The document_id is passed in the URL, and store_id in the query params
@@ -297,7 +298,7 @@ class TestAdminDocumentViews:
         )
         mock_engine = mocker.Mock()
         mock_engine.delete_document.return_value = True
-        mocker.patch('postgres_rag.PostgresRAGEngine', return_value=mock_engine)
+        mocker.patch('src.postgres_rag.PostgresRAGEngine', return_value=mock_engine)
         doc = Document.objects.create(
             project=project,
             document_name='test_to_delete.txt',
@@ -311,4 +312,5 @@ class TestAdminDocumentViews:
         
         assert response.status_code == 200
         mock_engine.delete_document.assert_called_once_with('test_to_delete.txt')
+        assert not Document.objects.filter(id=doc.id).exists()
         assert not Document.objects.filter(id=doc.id).exists()
