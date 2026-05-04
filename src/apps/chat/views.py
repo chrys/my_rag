@@ -100,10 +100,10 @@ def chat_submit(request):
             from llama_index.core import VectorStoreIndex
             from llama_index.vector_stores.postgres import PGVectorStore
             from llama_index.embeddings.google import GeminiEmbedding
+            from llama_index.llms.google import Gemini
             from django.conf import settings
             import os
             
-            # Using table_name consistent with services.py
             vector_store = PGVectorStore.from_params(
                 database=settings.DATABASES['default'].get('NAME', 'postgres'),
                 host=settings.DATABASES['default'].get('HOST', 'localhost'),
@@ -113,8 +113,12 @@ def chat_submit(request):
                 model_name="models/embedding-001",
                 api_key=os.getenv("GOOGLE_API_KEY")
             )
+            llm = Gemini(
+                model_name="models/gemini-1.5-flash",
+                api_key=os.getenv("GOOGLE_API_KEY")
+            )
             index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
-            query_engine = index.as_query_engine()
+            query_engine = index.as_query_engine(llm=llm)
             
             prompt = system_prompt or "You are a helpful assistant."
             response = query_engine.query(f"System Context: {prompt}\n\nQuery: {query}")
@@ -231,10 +235,10 @@ def chat(request):
             from llama_index.core import VectorStoreIndex
             from llama_index.vector_stores.postgres import PGVectorStore
             from llama_index.embeddings.google import GeminiEmbedding
+            from llama_index.llms.google import Gemini
             from django.conf import settings
             import os
             
-            # Using table_name consistent with services.py
             vector_store = PGVectorStore.from_params(
                 database=settings.DATABASES['default'].get('NAME', 'postgres'),
                 host=settings.DATABASES['default'].get('HOST', 'localhost'),
@@ -244,8 +248,12 @@ def chat(request):
                 model_name="models/embedding-001",
                 api_key=os.getenv("GOOGLE_API_KEY")
             )
+            llm = Gemini(
+                model_name="models/gemini-1.5-flash",
+                api_key=os.getenv("GOOGLE_API_KEY")
+            )
             index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
-            query_engine = index.as_query_engine()
+            query_engine = index.as_query_engine(llm=llm)
             
             prompt = system_prompt or "You are a helpful assistant."
             response = query_engine.query(f"System Context: {prompt}\n\nQuery: {query}")
