@@ -12,7 +12,16 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
+# Robustly find the project root by locating manage.py
+current_dir = Path(__file__).resolve().parent
+while not (current_dir / 'manage.py').exists() and current_dir.parent != current_dir:
+    current_dir = current_dir.parent
+
+if (current_dir / 'manage.py').exists():
+    BASE_DIR = current_dir
+else:
+    # Fallback to the original logic
+    BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
 
 # Add apps directory to Python path for imports
 APPS_DIR = BASE_DIR / 'src' / 'apps'
