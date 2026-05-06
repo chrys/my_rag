@@ -114,7 +114,7 @@ def chat_submit(request):
                 api_key=os.getenv("GOOGLE_API_KEY")
             )
             llm = Gemini(
-                model_name="models/gemini-1.5-flash",
+                model_name="models/gemini-2.5-flash-lite",
                 api_key=os.getenv("GOOGLE_API_KEY")
             )
             index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
@@ -249,7 +249,7 @@ def chat(request):
                 api_key=os.getenv("GOOGLE_API_KEY")
             )
             llm = Gemini(
-                model_name="models/gemini-1.5-flash",
+                model_name="models/gemini-2.5-flash-lite",
                 api_key=os.getenv("GOOGLE_API_KEY")
             )
             index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
