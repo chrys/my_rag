@@ -99,7 +99,7 @@ def chat_submit(request):
         elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
             from llama_index.core import VectorStoreIndex
             from llama_index.vector_stores.postgres import PGVectorStore
-            from llama_index.embeddings.google import GeminiEmbedding
+            from llama_index.embeddings.gemini import GeminiEmbedding
             from llama_index.llms.gemini import Gemini
             from django.conf import settings
             import os
@@ -234,7 +234,7 @@ def chat(request):
         elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
             from llama_index.core import VectorStoreIndex
             from llama_index.vector_stores.postgres import PGVectorStore
-            from llama_index.embeddings.google import GeminiEmbedding
+            from llama_index.embeddings.gemini import GeminiEmbedding
             from llama_index.llms.gemini import Gemini
             from django.conf import settings
             import os
