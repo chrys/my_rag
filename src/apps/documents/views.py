@@ -209,7 +209,7 @@ def upload_document(request, store_id):
                     return JsonResponse({'error': 'Failed to index document in RAG project'}, status=500)
             else:
                 # Google store - look up the project to get the external_store_id
-                from google_file_search import GoogleFileSearchPermissionError
+                from src.google_file_search import GoogleFileSearchPermissionError
 
                 project = Project.objects.filter(project_id=store_id).first()
                 if project and project.external_store_id:
