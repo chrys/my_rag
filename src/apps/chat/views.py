@@ -110,7 +110,7 @@ def chat_submit(request):
                 table_name=f"rag_project_{store_id}"
             )
             embed_model = GeminiEmbedding(
-                model_name="models/embedding-001",
+                model_name="models/text-embedding-004",
                 api_key=os.getenv("GOOGLE_API_KEY")
             )
             llm = Gemini(
@@ -245,7 +245,7 @@ def chat(request):
                 table_name=f"rag_project_{store_id}"
             )
             embed_model = GeminiEmbedding(
-                model_name="models/embedding-001",
+                model_name="models/text-embedding-004",
                 api_key=os.getenv("GOOGLE_API_KEY")
             )
             llm = Gemini(
