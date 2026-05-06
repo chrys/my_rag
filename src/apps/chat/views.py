@@ -100,7 +100,7 @@ def chat_submit(request):
             from llama_index.core import VectorStoreIndex
             from llama_index.vector_stores.postgres import PGVectorStore
             from llama_index.embeddings.google import GeminiEmbedding
-            from llama_index.llms.google import Gemini
+            from llama_index.llms.gemini import Gemini
             from django.conf import settings
             import os
             
@@ -235,7 +235,7 @@ def chat(request):
             from llama_index.core import VectorStoreIndex
             from llama_index.vector_stores.postgres import PGVectorStore
             from llama_index.embeddings.google import GeminiEmbedding
-            from llama_index.llms.google import Gemini
+            from llama_index.llms.gemini import Gemini
             from django.conf import settings
             import os
             
