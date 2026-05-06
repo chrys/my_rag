@@ -1,6 +1,6 @@
 # Postgres RAG Projects
 
-This document describes the shipped Apr2 behavior for Postgres RAG projects.
+This document describes the current behavior for Postgres RAG projects.
 
 ## Overview
 
@@ -10,7 +10,7 @@ The product supports three project types:
 - Google File Search projects
 - Postgres RAG projects
 
-Postgres RAG projects provide project-scoped document indexing and retrieval backed by file-based numpy embedding storage, Gemini embedding API search (gemini-embedding-001), and Gemini answer generation (gemini-2.5-flash-lite).
+Postgres RAG projects provide project-scoped document indexing and retrieval backed by PostgreSQL (PGVector), LlamaIndex, Gemini embeddings (`models/text-embedding-004`), and Gemini LLM answer generation (`models/gemini-2.5-flash-lite`).
 
 ## Current Postgres RAG Behavior
 
@@ -31,7 +31,7 @@ Implemented behavior:
 Implemented behavior:
 
 - Postgres RAG prompt reads and writes use the Django `SystemPrompt` model.
-- Prompt lookup is keyed by the owning `Project` record rather than the legacy JSON prompt helper.
+- Prompt lookup is keyed by the owning `Project` record.
 - When a chat request does not pass an explicit system prompt, the saved project prompt is loaded automatically.
 - Empty prompt behavior falls back to an empty string.
 - Prompt access is blocked for non-owners when the project has an owner.
@@ -40,8 +40,8 @@ Implemented behavior:
 
 Implemented behavior:
 
-- The upload flow detects Postgres RAG projects from `project_id` values beginning with `postgres_`.
-- Supported file types for Apr2 are `.pdf`, `.txt`, and `.md`.
+- The upload flow detects Postgres RAG projects from `project_id` values beginning with `postgres_` (or `rag_`).
+- Supported file types are `.pdf`, `.txt`, and `.md`.
 - Unsupported file types are rejected in the request layer with an explicit `400` response before indexing begins.
 - Successful indexing creates or updates the Django `Document` record with:
 	- `document_name`
@@ -49,47 +49,36 @@ Implemented behavior:
 	- `state='INDEXED'`
 	- `indexed_at`
 	- cleared `error_message`
-- Failed indexing creates or updates the Django `Document` record with:
-	- `state='FAILED'`
-	- `indexed_at=None`
-	- a useful `error_message`
+- Failed indexing creates or updates the Django `Document` record with `state='FAILED'` and the error.
 
 Readiness and storage behavior:
 
-- Postgres RAG indexing requires `google-genai` and `numpy` (both in `requirements.txt` and `requirements-prod.txt`). No optional `requirements-ai.txt` dependencies are needed.
-- Postgres RAG indexing does **not** require PostgreSQL configuration — embeddings and content are stored as files.
-- Each project's index is stored under `rag_data/indices/<project_id>/` as two files:
-  - `embeddings.npy` — float32 numpy array of shape `(N, 768)`
-  - `content.json` — list of `{"id": document_name, "text": ...}` records
-- Retrieval uses cosine similarity (numpy) with no FAISS or ANN dependency.
-- Indexed content uses stable `document_name` ids so later cleanup can target the correct records.
+- Postgres RAG indexing utilizes `llama-index-core`, `llama-index-vector-stores-postgres`, `llama-index-embeddings-gemini`, and `llama-index-llms-gemini` specified in `requirements-ai.txt`.
+- Embeddings are computed via `GeminiEmbedding` (`models/text-embedding-004`) and stored in a PostgreSQL database using `PGVectorStore`.
+- The database table for a project's vector store is dynamically named based on the `store_id` (e.g., `rag_project_<store_id>`).
 
 ### 4. Chat behavior
 
 Implemented behavior:
 
-- The chat flow detects Postgres RAG projects from `project_id` values beginning with `postgres_`.
+- The chat flow detects Postgres RAG projects from `project_id` values beginning with `postgres_` (or `rag_`).
 - Chat access is blocked for non-owners when the project has an owner.
-- Chat uses the project-scoped numpy embedding index for retrieval (cosine similarity, top-k=3).
+- Chat uses LlamaIndex's `VectorStoreIndex` connected to the `PGVectorStore` to retrieve relevant documents.
 - Chat uses the saved `SystemPrompt` content when no explicit prompt is passed.
-- Gemini answer generation uses the `google-genai` client with `gemini-2.5-flash-lite`.
-- When no indexed documents are available, the engine returns a clear no-documents response.
-- User-facing Postgres RAG responses expose document-name-only attribution for retrieved sources.
+- Gemini answer generation uses the `Gemini` LLM class from LlamaIndex with `models/gemini-2.5-flash-lite`.
 
 Response shape:
 
-- The JSON chat response includes `source_documents`, a deduplicated list of document names.
+- The JSON chat response includes `source_documents`, extracted from the metadata of LlamaIndex's source nodes.
 - The HTMX chat response renders a `Sources` block containing the same document names.
-- Score, snippet, and richer citation metadata are intentionally not rendered in Apr2.
 
 ### 5. Cleanup behavior
 
 Implemented behavior:
 
-- Deleting a Postgres RAG document removes the matching entry from `embeddings.npy` and `content.json` by `document_name` and re-saves both files.
-- Deleting a Postgres RAG project removes the entire `rag_data/indices/<project_id>/` directory (pure filesystem, no API call needed).
+- Deleting a Postgres RAG document removes the matching entry from the Postgres vector store and the Django database.
+- Deleting a Postgres RAG project drops the associated vector table from the Postgres database.
 - Cleanup is scoped by `project_id` and the project's own `Document` records.
-- Delete-only cleanup paths do not require Gemini client initialization.
 
 ## Current End-To-End Flow
 
@@ -97,38 +86,17 @@ Implemented behavior:
 2. The backend creates a Django `Project` record using a stable `postgres_*` project id.
 3. The user optionally saves a custom project prompt.
 4. The user uploads a supported document.
-5. The upload flow validates the file type, embeds the content via `gemini-embedding-001` (`RETRIEVAL_DOCUMENT` task type), and updates the `Document` record state.
-6. The per-project index (`embeddings.npy` + `content.json`) is persisted under `rag_data/indices/<project_id>/`.
-7. The user opens chat for the same project.
-8. The chat flow loads the same project prompt and the same project numpy index.
-9. Matching content is sent to Gemini to generate the answer.
-10. The response includes document-name-only source attribution.
-11. If the user deletes a document or the whole project, the indexed Postgres RAG artifacts are cleaned up for that scope.
+5. The upload flow validates the file type, passes the file to `LlamaIndexIngestionPipeline`, embeds the content via `GeminiEmbedding`, stores vectors in PGVector, and updates the Django `Document` record state.
+6. The user opens chat for the same project.
+7. The chat flow loads the `VectorStoreIndex` from the project's Postgres table and queries it with the `Gemini` LLM.
+8. Matching content is sent to the LLM to generate the answer.
+9. The response includes document source attribution.
+10. If the user deletes a document or the whole project, the Postgres vector entries and Django database records are cleaned up for that scope.
 
 ## Operational Notes
 
-- Postgres RAG features require `google-genai` and `numpy` — both listed in `requirements.txt` and `requirements-prod.txt`. `requirements-ai.txt` has no remaining entries.
+- Postgres RAG features require the specific LlamaIndex dependencies defined in `requirements-ai.txt`.
 - The full query path (indexing + chat) requires `GOOGLE_API_KEY`.
-- Cleanup (document and project deletion) is pure filesystem — no API key needed.
-- Supported upload formats are PDF, plain text, and Markdown files.
-- Embedding model: `gemini-embedding-001`, output dimension 768, task type `RETRIEVAL_DOCUMENT` for indexing and `RETRIEVAL_QUERY` for chat.
-- Indexes created under the old txtai format are incompatible. Documents must be re-uploaded to regenerate indexes in the current `.npy` + `.json` format.
-- To uninstall the no-longer-needed AI packages on the VPS:
-  ```bash
-  pip uninstall -y txtai torch torchvision torchaudio transformers sentence-transformers \
-    faiss-cpu huggingface-hub tokenizers safetensors accelerate
-  ```
-  This frees approximately 2–3 GB of disk space and eliminates the OOM risk at startup.
-
-## Summary
-
-Apr2 (updated Apr 29) ships Postgres RAG as a project-scoped flow with:
-
-- Django-model-backed prompt persistence
-- ownership checks for prompt and chat access
-- explicit readiness failures for missing dependencies and configuration
-- file-based embedding storage (numpy `.npy` + JSON) with Gemini embedding API
-- cosine similarity retrieval — no FAISS or ANN dependency
-- explicit document success and failure state tracking
-- cleanup for document and project deletion (pure filesystem, no API needed)
-- document-name-only source attribution in chat responses
+- LlamaIndex uses `models/text-embedding-004` for vector embeddings.
+- LlamaIndex uses `models/gemini-2.5-flash-lite` for LLM generation.
+- The system must be connected to a valid PostgreSQL database (`default` database in Django settings) with PGVector enabled.
