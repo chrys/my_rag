@@ -39,8 +39,8 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
         
     def validate_storage_type(self, value):
         """Validate storage type"""
-        if value not in ['local', 'google']:
-            raise serializers.ValidationError("Storage type must be 'local' or 'google'")
+        if value not in ['local', 'google', 'postgres']:
+            raise serializers.ValidationError("Storage type must be 'local', 'google', or 'postgres'")
         return value
 
 
