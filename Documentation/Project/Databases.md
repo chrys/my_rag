@@ -50,25 +50,31 @@ The location and engine used to store embeddings depend entirely on the project'
 The **Postgres RAG** storage type uses `LlamaIndexIngestionPipeline` (from `src/apps/documents/services.py`) to manage vector ingestion. Under the hood, LlamaIndex uses a **`PGVectorStore`** instance.
 
 #### Local Development Behavior
-When running the development server locally, the vector store configuration dynamically reads parameters from `settings.DATABASES['default']` (which is configured for SQLite) and uses fallback values for missing keys:
+When running the development server locally, project metadata continues to be saved in the local SQLite database (`db.sqlite3`). However, the document vector embeddings are stored directly in the **remote VPS PostgreSQL database**.
+
+This is accomplished by:
+1. **Settings Dictionary**: A dedicated settings configuration `REMOTE_POSTGRES_CONFIG` inside `src/apps/my_rag_project/settings/base.py` loads remote database credentials from the `#remote postgres` section of the `.env` file.
+2. **SSH Tunneling**: An SSH tunnel is opened (e.g. automatically managed via the `./run.sh` wrapper script) that forwards local port `5432` to port `5432` on the VPS PostgreSQL instance at `127.0.0.1`.
+3. **Pre-flight Connectivity Gating**: Both project creation and document uploads test the SSH tunnel connection first using `test_postgres_connection()` from `src/apps/projects/db_utils.py`. If the connection is offline, it blocks the operation with a clean error banner (via HTMX OOB swap) or sets the document state to `FAILED` in SQLite.
+4. **Embedding Dimensions**: Vectors are embedded using the modern `GeminiEmbedding` (`models/gemini-embedding-001`) from `llama-index-embeddings-google` and stored in `PGVectorStore` with an embedding dimension of `3072`.
 
 ```python
 vector_store = PGVectorStore.from_params(
-    database=settings.DATABASES['default'].get('NAME', 'postgres'), # Resolves to SQLite path e.g. "db.sqlite3"
-    host=settings.DATABASES['default'].get('HOST', 'localhost'),     # Falls back to "localhost"
-    port=settings.DATABASES['default'].get('PORT', '5432'),          # Falls back to "5432"
-    user=settings.DATABASES['default'].get('USER', 'postgres'),      # Falls back to "postgres"
-    password=settings.DATABASES['default'].get('PASSWORD', ''),      # Falls back to ""
+    database=config.get("NAME", "postgres"),  # e.g., "rag_dashboard"
+    host=config.get("HOST", "localhost"),     # e.g., "localhost" (via SSH Tunnel)
+    port=config.get("PORT", "5432"),          # e.g., "5432"
+    user=config.get("USER", "postgres"),      # e.g., "rag_user2"
+    password=config.get("PASSWORD", ""),      # e.g., "ThinkRAG2026!"
     table_name=f"rag_project_{self.project_id}",
-    embed_dim=768
+    embed_dim=3072                            # Aligned with gemini-embedding-001
 )
 ```
 
-> [!WARNING]
-> **Local Development Gotcha:** Because it dynamically retrieves the SQLite database filename (e.g., `db.sqlite3`) as the `database` name parameter, `PGVectorStore` will try to connect to a **PostgreSQL** server on `localhost:5432` with a database named `db.sqlite3` (or the absolute path). Unless that specific PostgreSQL database is running and configured locally, uploading documents under this storage type locally will fail with a database connection error.
+> [!NOTE]
+> **Active SSH Tunneling Required:** For local RAG operations to succeed, the SSH tunnel to the VPS must be active. Running `./run.sh` automatically establishes the tunnel, runs the development server, and tears down the tunnel cleanly upon stop.
 
 #### Production Behavior
-In the production environment, the `DATABASES['default']` dictionary is populated with the correct PostgreSQL configuration (`DB_NAME`, `DB_USER`, etc.). Therefore, `PGVectorStore` connects seamlessly to the actual production PostgreSQL instance and stores embeddings in the database table `rag_project_<project_id>`.
+In the production environment, the Django application database itself is PostgreSQL (`DATABASES['default']` is populated with `DB_NAME`, `DB_USER`, etc.). The RAG pipelines connect directly to the same local or secure remote PostgreSQL instance without requiring an SSH tunnel, storing tables named `rag_project_<project_id>`.
 
 ---
 
@@ -86,19 +92,19 @@ All files are stored in the project's local directory path:
 
 ## 3. Document Ingestion / Upload Walkthrough (Local)
 
-When a document upload request is made locally (`POST /rag/upload/<store_id>/`):
+When a document upload request is made locally (`POST /rag/documents/<store_id>/upload/`):
 
 ```mermaid
 graph TD
     A[Upload Request] --> B{Storage Type?}
-    B -- Postgres RAG --> C[Initialize LlamaIndex Pipeline]
-    C --> D[Connect via PGVectorStore]
-    D --> E{Local PostgreSQL Running & db.sqlite3 Database Configured?}
-    E -- No --> F[Upload Fails with Connection Error]
-    F --> G[Update Django Document status to FAILED in db.sqlite3]
-    F --> H[Return HTTP 500 Response]
-    E -- Yes --> I[Store embeddings in PostgreSQL]
-    I --> J[Update Django Document status to INDEXED in db.sqlite3]
+    B -- Postgres RAG --> C[Pre-flight Connection Check]
+    C --> D{SSH Tunnel Active / VPS PostgreSQL Online?}
+    D -- No --> E[Set Document state to FAILED in SQLite]
+    E --> F[Return HTTP 500 JSON Error Response]
+    D -- Yes --> G[Initialize LlamaIndex Pipeline]
+    G --> H[Embed Content via Gemini gemini-embedding-001]
+    H --> I[Store 3072-dim Vectors in VPS PGVectorStore]
+    I --> J[Set Document state to INDEXED in SQLite]
 
     B -- Local RAG --> K[Initialize LocalRAGEngine]
     K --> L{Local Ollama Running & embeddinggemma Pulled?}
