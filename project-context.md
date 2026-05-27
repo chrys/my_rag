@@ -1,5 +1,34 @@
 # Project Context
 
+## Project Goal 
+A RAG-based dashboard using Django and LlamaIndex. 
+
+## Tech Stack 
+- Django 
+- LlamaIndex 
+- PostgreSQL
+- HTMX 
+- Bootstrap 
+- Google GenAI
+
+# Project Structure 
+- `my_rag_project/`: Django project configuration, settings package, root URL routing.
+- `apps/chat/`: chat UI, chat APIs, chat data models.
+- `apps/projects/`: project creation, listing, deletion, and project-scoped settings.
+- `apps/documents/`: document upload, listing, deletion, and indexing state.
+- `apps/evaluate/`: evaluation UI and APIs.
+- `apps/api/`: DRF routing and API views across the product.
+- `src/`: shared backend integration code for local RAG, PostgreSQL RAG, Google File Search, and prompt/local project storage.
+- `templates/`: shared Django templates and partials used by the dashboard.
+- `Testing/unit/`: primary pytest unit test suite.
+- `Testing/regression/`: regression coverage for previously fixed bugs.
+
+## Code Style 
+- Use f-strings instead of % formatting
+- Use double quotes instead of single quotes
+- Use type hints and docstrings for non-trivial Python code
+- Follow PEP 8 
+
 ## What This Repository Is
 - It serves two main surfaces:
   - HTML dashboard and auth flows under `/rag/`
@@ -60,3 +89,38 @@
 - `apps/projects/views.py`: project identifier usage and storage backend branching.
 - `apps/documents/views.py`: document upload/delete flows across local, Google, and PostgreSQL backends.
 - `Testing/regression/README.md`: historical bugs that should not be reintroduced.
+
+## Development 
+
+### Virtual Environment 
+- Always activate the virtual environment: `source .venv/bin/activate` 
+
+## Development 
+- Always create a unit test for new features. Unit tests should go under   `Testing/unit/`  
+- Always create a regression test for bug fixes. Regression tests should go under `Testing/regression/` 
+
+## Git commands
+- DO NOT run git commands. I will commit and push code when needed. 
+
+## Implementation Guardrails
+
+### Dos
+- Follow existing code patterns and naming conventions
+- Use HTMX for dynamic UI updates over custom JavaScript
+- Secure by default: `{% csrf_token %}`, permission mixins, input validation
+- Test your code before committing
+- Move complex logic to services or model methods
+- Update documentation with changes
+- Include comments next to modified lines
+- Handle errors gracefully with try/except and logging
+
+### Don'ts
+- Don't hardcode URLs; use `{% url ... %}` and `reverse()`
+- Don't introduce new JavaScript frameworks (stick to vanilla JS + HTMX)
+- Don't ignore permissions in views
+- Don't commit secrets (use `.env`)
+- Don't break existing tests
+- Don't use raw SQL (use Django ORM)
+- Don't create N+1 query problems
+- Don't start work without clean git status
+- Don't run git commands
