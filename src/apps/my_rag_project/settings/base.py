@@ -5,6 +5,12 @@ Common settings shared across all environments.
 
 import os
 import sys
+
+# Force pure-Python implementation of Protobuf to bypass Python 3.14 C-extension incompatibility
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+sys.modules["google._upb._message"] = None
+sys.modules["google._upb"] = None
+
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -166,3 +172,13 @@ JSON_SORT_KEYS = False
 # Auth routes for the dashboard live under /rag/.
 LOGIN_URL = '/rag/accounts/login/'
 LOGIN_REDIRECT_URL = '/rag/'
+
+# Remote PostgreSQL configuration for local RAG projects (VPS)
+REMOTE_POSTGRES_CONFIG = {
+    'NAME': os.getenv('postgres_name', 'rag_dashboard'),
+    'USER': os.getenv('postgres_user', 'rag_user2'),
+    'PASSWORD': os.getenv('postgres_password', 'ThinkRAG2026!'),
+    'HOST': os.getenv('postgres_host', 'localhost'),
+    'PORT': os.getenv('postgres_port', '5432'),
+}
+

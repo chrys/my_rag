@@ -9,7 +9,7 @@ class LlamaIndexIngestionPipeline:
         self.project_id = project_id
         # Configure gemini-embedding-001
         self.embed_model = GeminiEmbedding(
-            model_name="models/embedding-001",
+            model_name="models/gemini-embedding-001",
             api_key=os.getenv("GOOGLE_API_KEY")
         )
         
@@ -17,15 +17,17 @@ class LlamaIndexIngestionPipeline:
         # Read the document
         documents = SimpleDirectoryReader(input_files=[file_path]).load_data()
         
+        config = getattr(settings, "REMOTE_POSTGRES_CONFIG", {})
+        
         # Configure Vector Store
         vector_store = PGVectorStore.from_params(
-            database=settings.DATABASES['default'].get('NAME', 'postgres'),
-            host=settings.DATABASES['default'].get('HOST', 'localhost'),
-            port=settings.DATABASES['default'].get('PORT', '5432'),
-            user=settings.DATABASES['default'].get('USER', 'postgres'),
-            password=settings.DATABASES['default'].get('PASSWORD', ''),
+            database=config.get("NAME", "postgres"),
+            host=config.get("HOST", "localhost"),
+            port=config.get("PORT", "5432"),
+            user=config.get("USER", "postgres"),
+            password=config.get("PASSWORD", ""),
             table_name=f"rag_project_{self.project_id}",
-            embed_dim=768 # Standard for gemini-embedding-001
+            embed_dim=3072 # Standard for gemini-embedding-001
         )
         
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
@@ -39,8 +41,14 @@ class LlamaIndexIngestionPipeline:
         return index
 
 def get_vector_store(project_id):
+    config = getattr(settings, "REMOTE_POSTGRES_CONFIG", {})
     return PGVectorStore.from_params(
-        database=settings.DATABASES['default'].get('NAME', 'postgres'),
-        host=settings.DATABASES['default'].get('HOST', 'localhost'),
-        table_name=f"rag_project_{project_id}"
+        database=config.get("NAME", "postgres"),
+        host=config.get("HOST", "localhost"),
+        port=config.get("PORT", "5432"),
+        user=config.get("USER", "postgres"),
+        password=config.get("PASSWORD", ""),
+        table_name=f"rag_project_{project_id}",
+        embed_dim=3072
     )
+

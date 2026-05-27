@@ -28,6 +28,8 @@ class TestChatRagLLM:
         mocker.patch('llama_index.core.VectorStoreIndex.from_vector_store', return_value=mock_index)
         mocker.patch('llama_index.vector_stores.postgres.PGVectorStore.from_params', return_value=mocker.Mock())
         mocker.patch('llama_index.embeddings.google.GeminiEmbedding', return_value=mocker.Mock())
+        mocker.patch('llama_index.llms.gemini.Gemini', return_value=mocker.Mock())
+        mocker.patch('llama_index.llms.google_genai.GoogleGenAI', return_value=mocker.Mock())
 
         client = Client()
         response = client.post('/rag/api/messages/', {
@@ -69,6 +71,8 @@ class TestChatRagLLM:
         mocker.patch('llama_index.core.VectorStoreIndex.from_vector_store', return_value=mock_index)
         mocker.patch('llama_index.vector_stores.postgres.PGVectorStore.from_params', return_value=mocker.Mock())
         mocker.patch('llama_index.embeddings.google.GeminiEmbedding', return_value=mocker.Mock())
+        mocker.patch('llama_index.llms.gemini.Gemini', return_value=mocker.Mock())
+        mocker.patch('llama_index.llms.google_genai.GoogleGenAI', return_value=mocker.Mock())
 
         client = Client()
         # Using the HTML submission endpoint which actually triggers the LLM query

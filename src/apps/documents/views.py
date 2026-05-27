@@ -19,6 +19,10 @@ from urllib.parse import unquote
 
 from .models import Document
 from src.apps.projects.models import Project
+from src.apps.projects.db_utils import test_postgres_connection
+from src.postgres_rag import EmbeddingRateLimitError
+
+
 
 
 SUPPORTED_TEXT_FILE_EXTENSIONS = {'.pdf', '.txt', '.md'}
@@ -157,10 +161,28 @@ def upload_document(request, store_id):
                     os.unlink(filepath)
                     return JsonResponse({'error': 'Failed to index document'}, status=500)
             elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
+                project = Project.objects.filter(project_id=store_id).first()
+
+                if store_id.startswith('postgres_'):
+                    conn_success, conn_error = test_postgres_connection()
+                    if not conn_success:
+                        error_msg = f"PostgreSQL VPS Connection failed: {conn_error}"
+                        if project:
+                            Document.objects.update_or_create(
+                                project=project,
+                                document_name=filename,
+                                defaults={
+                                    'display_name': filename,
+                                    'state': 'FAILED',
+                                    'error_message': error_msg,
+                                    'indexed_at': None,
+                                }
+                            )
+                        return JsonResponse({'error': f'Upload failed: {error_msg}'}, status=500)
+
                 # RAG project indexing
                 from src.apps.documents.services import LlamaIndexIngestionPipeline
                 from django.utils import timezone
-                project = Project.objects.filter(project_id=store_id).first()
 
                 try:
                     pipeline = LlamaIndexIngestionPipeline(project_id=store_id)

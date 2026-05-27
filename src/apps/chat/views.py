@@ -97,26 +97,28 @@ def chat_submit(request):
             if isinstance(bot_response, dict):
                 bot_response = bot_response.get('response', 'Error generating response.')
         elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
-            from llama_index.core import VectorStoreIndex
-            from llama_index.vector_stores.postgres import PGVectorStore
-            from llama_index.embeddings.gemini import GeminiEmbedding
-            from llama_index.llms.gemini import Gemini
-            from django.conf import settings
+            from llama_index.core import VectorStoreIndex, Settings
+            from llama_index.embeddings.google import GeminiEmbedding
+            from llama_index.llms.google_genai import GoogleGenAI
+            from src.apps.documents.services import get_vector_store
             import os
             
-            vector_store = PGVectorStore.from_params(
-                database=settings.DATABASES['default'].get('NAME', 'postgres'),
-                host=settings.DATABASES['default'].get('HOST', 'localhost'),
-                table_name=f"rag_project_{store_id}"
-            )
+            vector_store = get_vector_store(store_id)
             embed_model = GeminiEmbedding(
-                model_name="models/text-embedding-004",
+                model_name="models/gemini-embedding-001",
                 api_key=os.getenv("GOOGLE_API_KEY")
             )
-            llm = Gemini(
-                model_name="models/gemini-2.5-flash-lite",
+            llm = GoogleGenAI(
+                model="gemini-2.5-flash-lite",
                 api_key=os.getenv("GOOGLE_API_KEY")
             )
+            from llama_index.core.embeddings import BaseEmbedding
+            from llama_index.core.llms import LLM
+            if isinstance(embed_model, BaseEmbedding):
+                Settings.embed_model = embed_model
+            if isinstance(llm, LLM):
+                Settings.llm = llm
+            
             index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
             query_engine = index.as_query_engine(llm=llm)
             
@@ -232,26 +234,28 @@ def chat(request):
             if isinstance(bot_response, dict):
                 bot_response = bot_response.get('response', 'Error generating response.')
         elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
-            from llama_index.core import VectorStoreIndex
-            from llama_index.vector_stores.postgres import PGVectorStore
-            from llama_index.embeddings.gemini import GeminiEmbedding
-            from llama_index.llms.gemini import Gemini
-            from django.conf import settings
+            from llama_index.core import VectorStoreIndex, Settings
+            from llama_index.embeddings.google import GeminiEmbedding
+            from llama_index.llms.google_genai import GoogleGenAI
+            from src.apps.documents.services import get_vector_store
             import os
             
-            vector_store = PGVectorStore.from_params(
-                database=settings.DATABASES['default'].get('NAME', 'postgres'),
-                host=settings.DATABASES['default'].get('HOST', 'localhost'),
-                table_name=f"rag_project_{store_id}"
-            )
+            vector_store = get_vector_store(store_id)
             embed_model = GeminiEmbedding(
-                model_name="models/text-embedding-004",
+                model_name="models/gemini-embedding-001",
                 api_key=os.getenv("GOOGLE_API_KEY")
             )
-            llm = Gemini(
-                model_name="models/gemini-2.5-flash-lite",
+            llm = GoogleGenAI(
+                model="gemini-2.5-flash-lite",
                 api_key=os.getenv("GOOGLE_API_KEY")
             )
+            from llama_index.core.embeddings import BaseEmbedding
+            from llama_index.core.llms import LLM
+            if isinstance(embed_model, BaseEmbedding):
+                Settings.embed_model = embed_model
+            if isinstance(llm, LLM):
+                Settings.llm = llm
+            
             index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
             query_engine = index.as_query_engine(llm=llm)
             

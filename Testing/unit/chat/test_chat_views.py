@@ -130,6 +130,8 @@ class TestChatViews:
         mock_index = mocker.Mock()
         mock_index.as_query_engine.return_value = mock_engine
         mocker.patch("llama_index.embeddings.google.GeminiEmbedding", return_value=mocker.Mock())
+        mocker.patch("llama_index.llms.gemini.Gemini", return_value=mocker.Mock())
+        mocker.patch("llama_index.llms.google_genai.GoogleGenAI", return_value=mocker.Mock())
         mocker.patch('llama_index.core.VectorStoreIndex.from_vector_store', return_value=mock_index)
         mocker.patch('llama_index.vector_stores.postgres.PGVectorStore.from_params', return_value=mocker.Mock())
         
@@ -162,6 +164,8 @@ class TestChatViews:
         mock_index = mocker.Mock()
         mock_index.as_query_engine.return_value = mock_engine
         mocker.patch("llama_index.embeddings.google.GeminiEmbedding", return_value=mocker.Mock())
+        mocker.patch("llama_index.llms.gemini.Gemini", return_value=mocker.Mock())
+        mocker.patch("llama_index.llms.google_genai.GoogleGenAI", return_value=mocker.Mock())
         mocker.patch('llama_index.core.VectorStoreIndex.from_vector_store', return_value=mock_index)
         mocker.patch('llama_index.vector_stores.postgres.PGVectorStore.from_params', return_value=mocker.Mock())
 
@@ -198,6 +202,8 @@ class TestChatViews:
         mock_index = mocker.Mock()
         mock_index.as_query_engine.return_value = mock_engine
         mocker.patch("llama_index.embeddings.google.GeminiEmbedding", return_value=mocker.Mock())
+        mocker.patch("llama_index.llms.gemini.Gemini", return_value=mocker.Mock())
+        mocker.patch("llama_index.llms.google_genai.GoogleGenAI", return_value=mocker.Mock())
         mocker.patch('llama_index.core.VectorStoreIndex.from_vector_store', return_value=mock_index)
         mocker.patch('llama_index.vector_stores.postgres.PGVectorStore.from_params', return_value=mocker.Mock())
 
@@ -229,6 +235,8 @@ class TestChatViews:
         mock_index = mocker.Mock()
         mock_index.as_query_engine.return_value = mock_engine
         mocker.patch("llama_index.embeddings.google.GeminiEmbedding", return_value=mocker.Mock())
+        mocker.patch("llama_index.llms.gemini.Gemini", return_value=mocker.Mock())
+        mocker.patch("llama_index.llms.google_genai.GoogleGenAI", return_value=mocker.Mock())
         mocker.patch('llama_index.core.VectorStoreIndex.from_vector_store', return_value=mock_index)
         mocker.patch('llama_index.vector_stores.postgres.PGVectorStore.from_params', return_value=mocker.Mock())
 
@@ -262,6 +270,8 @@ class TestChatViews:
         mock_index = mocker.Mock()
         mock_index.as_query_engine.return_value = mock_engine
         mocker.patch("llama_index.embeddings.google.GeminiEmbedding", return_value=mocker.Mock())
+        mocker.patch("llama_index.llms.gemini.Gemini", return_value=mocker.Mock())
+        mocker.patch("llama_index.llms.google_genai.GoogleGenAI", return_value=mocker.Mock())
         mocker.patch('llama_index.core.VectorStoreIndex.from_vector_store', return_value=mock_index)
         mocker.patch('llama_index.vector_stores.postgres.PGVectorStore.from_params', return_value=mocker.Mock())
 

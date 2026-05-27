@@ -21,6 +21,8 @@ from src.prompt_storage import get_prompt_storage
 
 from .models import Project, SystemPrompt
 from .serializers import ProjectSerializer, SystemPromptSerializer
+from .db_utils import test_postgres_connection
+
 
 
 gfs = LazyModuleProxy(
@@ -95,6 +97,16 @@ def create_project(request):
                 user=user
             )
         elif storage_type == 'postgres':
+            success, error_message = test_postgres_connection()
+            if not success:
+                error_html = (
+                    f'<div id="project-error-container" hx-swap-oob="true" '
+                    f'class="mb-4 p-3 bg-red-50 text-red-700 rounded-md border border-red-200 text-sm">'
+                    f'<strong>Connection failed:</strong> {error_message}'
+                    f'</div>'
+                )
+                return HttpResponse(error_html)
+
             from datetime import datetime
             import time
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -132,7 +144,14 @@ def create_project(request):
                 )
     
     stores = get_combined_stores(request)
-    return render(request, 'partials/project_list.html', {'stores': stores})
+    response_content = (
+        '<div id="project-error-container" hx-swap-oob="true"></div>\n'
+        + render(request, "partials/project_list.html", {"stores": stores}).content.decode("utf-8")
+    )
+    response = HttpResponse(response_content)
+    response["HX-Trigger"] = "projectCreated"
+    return response
+
 
 
 @require_http_methods(["DELETE"])

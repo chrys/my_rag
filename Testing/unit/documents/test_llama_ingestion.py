@@ -31,4 +31,4 @@ def test_embedding_model_instantiation():
 
         from unittest.mock import ANY
         # Verify model was instantiated with correct params
-        MockEmbedding.assert_called_with(model_name="models/embedding-001", api_key=ANY)
+        MockEmbedding.assert_called_with(model_name="models/gemini-embedding-001", api_key=ANY)
