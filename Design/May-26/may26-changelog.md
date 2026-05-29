@@ -48,3 +48,17 @@ A comprehensive log of architectural and integration changes made to the "My RAG
   * **Chat RAG LLM Tests**: `test_chat_rag_llm.py` — **2/2 PASSED**
   * **LlamaIndex Ingestion Tests**: `test_llama_ingestion.py` — **2/2 PASSED**
   * **PostgreSQL Connectivity Tests**: `test_postgres_connectivity.py` — **5/5 PASSED**
+
+---
+
+## 6. Programmatic REST API & Ingestion Improvements (May 27, 2026)
+* **Postgres Project Creation via API**: Updated `ProjectCreateSerializer` inside `src/apps/projects/serializers.py` to support `postgres` as a valid `storage_type` choice, enabling programmatic creation of remote RAG projects.
+* **Basic Authentication Fallback in Chat API**: Implemented a programmatic Basic Auth fallback in the plain Django view `/rag/api/chat/` (`src/apps/chat/views.py`) to parse, validate, and log in requests using incoming `Authorization` headers, eliminating `403 Forbidden` blocks for programmatic curl requests.
+* **Alphanumeric Project Filtering**: Enhanced the `by_project` action in `DocumentViewSet` (`src/apps/documents/api_views.py`) to safely filter by either numeric database IDs or alphanumeric unique project string identifiers (e.g., `postgres_local_test_rag`), eliminating ORM type coercion `ValueError` crashes.
+* **Original Filename Preservation in Citations**: Modified `LlamaIndexIngestionPipeline` (`src/apps/documents/services.py` and `views.py`) to accept the original file name and map it directly to LlamaIndex `Document` metadata keys (`file_name` and `file_path`). This resolved temp path filenames (e.g. `tmpz5g9h2y4.txt`) from displaying in chat UI citation boxes.
+* **Metadata Key Matching**: Extended the RAG citation extractor (`_extract_source_documents` in `views.py`) to look up LlamaIndex's native `"file_name"` metadata key, enabling correct source citations in the chat interface.
+* **Unit Test Additions**: Created and verified multiple integration tests across the test suites:
+  * `test_chat_api_basic_auth_fallback` (Basic Auth fallback validation).
+  * `test_by_project_action_with_string_id` (String-based document listing).
+  * `test_llama_ingestion_pipeline_original_filename` (Metadata key mapping verification).
+

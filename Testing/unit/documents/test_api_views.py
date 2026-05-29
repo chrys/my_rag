@@ -168,6 +168,22 @@ class TestDocumentViewSet:
         docs = response.data if isinstance(response.data, list) else response.data.get('results', [])
         project_docs = [d for d in docs if d.get('id') == doc1.id]
         assert len(project_docs) == 1
+        
+    def test_by_project_action_with_string_id(self, api_factory, project):
+        """Test by_project custom action with string project_id"""
+        doc1 = Document.objects.create(
+            project=project,
+            document_name='in_project_string.pdf'
+        )
+        
+        request = api_factory.get(f'/api/documents/by_project/?project_id={project.project_id}')
+        view = DocumentViewSet.as_view({'get': 'by_project'})
+        response = view(request)
+        
+        assert response.status_code == status.HTTP_200_OK
+        docs = response.data if isinstance(response.data, list) else response.data.get('results', [])
+        project_docs = [d for d in docs if d.get('id') == doc1.id]
+        assert len(project_docs) == 1
     
     def test_by_project_missing_param(self, api_factory):
         """Test by_project requires project_id parameter"""

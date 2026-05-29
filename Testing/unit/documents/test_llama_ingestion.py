@@ -32,3 +32,22 @@ def test_embedding_model_instantiation():
         from unittest.mock import ANY
         # Verify model was instantiated with correct params
         MockEmbedding.assert_called_with(model_name="models/gemini-embedding-001", api_key=ANY)
+
+@pytest.mark.django_db
+def test_llama_ingestion_pipeline_original_filename():
+    project = Project.objects.create(display_name="RAG Test Project", project_id="test_id", storage_type="postgres")
+    
+    with patch("src.apps.documents.services.VectorStoreIndex") as MockIndex, \
+         patch("src.apps.documents.services.SimpleDirectoryReader") as MockReader:
+        
+        mock_doc = MagicMock()
+        mock_doc.metadata = {}
+        MockReader.return_value.load_data.return_value = [mock_doc]
+        
+        pipeline = LlamaIndexIngestionPipeline(project_id="test_id")
+        pipeline.index_document(file_path="tests/test_file.txt", original_filename="my_essay.txt")
+        
+        assert mock_doc.metadata['file_name'] == "my_essay.txt"
+        assert mock_doc.metadata['file_path'] == "my_essay.txt"
+        MockIndex.from_documents.assert_called_once()
+

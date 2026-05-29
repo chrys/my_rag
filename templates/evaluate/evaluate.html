@@ -116,7 +116,7 @@
     }
 
     function loadEvaluateFiles(storeId) {
-        fetch('{{ url_prefix }}/api/projects/' + encodeURIComponent(storeId) + '/documents?type=evaluate')
+        fetch('{{ url_prefix }}/documents/' + encodeURIComponent(storeId) + '/?type=evaluate')
             .then(response => response.text())
             .then(html => {
                 const fileListDiv = document.getElementById('evaluate-file-list');

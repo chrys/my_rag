@@ -186,7 +186,7 @@ def upload_document(request, store_id):
 
                 try:
                     pipeline = LlamaIndexIngestionPipeline(project_id=store_id)
-                    index = pipeline.index_document(filepath)
+                    index = pipeline.index_document(filepath, original_filename=filename)
                     success = index is not None
                 except Exception as exc:
                     if project:

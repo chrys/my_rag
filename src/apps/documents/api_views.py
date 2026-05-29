@@ -99,7 +99,12 @@ class DocumentViewSet(viewsets.ModelViewSet):
         if not project_id:
             return Response({'error': 'project_id required'}, status=status.HTTP_400_BAD_REQUEST)
         
-        queryset = self.get_queryset().filter(project_id=project_id)
+        from django.db.models import Q
+        if str(project_id).isdigit():
+            queryset = self.get_queryset().filter(Q(project_id=int(project_id)) | Q(project__project_id=project_id))
+        else:
+            queryset = self.get_queryset().filter(project__project_id=project_id)
+            
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
     

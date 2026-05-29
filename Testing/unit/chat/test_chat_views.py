@@ -115,6 +115,40 @@ class TestChatViews:
         # Use project=project since the view should handle the lookup or we fix the view if it's broken
         assert ChatMessage.objects.filter(user=user, message_type='user').exists()
 
+    def test_chat_api_basic_auth_fallback(self, mocker):
+        user = User.objects.create_user(username='apiuser_basic', password='password')
+        project = Project.objects.create(
+            project_id='local_api_basic_auth_id',
+            display_name='API Basic Auth Project',
+            storage_type='local',
+            user_id=user.id
+        )
+        
+        mock_engine = mocker.Mock()
+        mock_engine.query.return_value = "API Basic Auth response."
+        mocker.patch('src.apps.chat.views.get_rag_engine', return_value=mock_engine)
+        
+        import base64
+        credentials = base64.b64encode(b'apiuser_basic:password').decode('utf-8')
+        
+        client = Client()
+        response = client.post(
+            '/rag/api/chat/',
+            data=json.dumps({
+                'store_id': 'local_api_basic_auth_id',
+                'query': 'API basic auth query'
+            }),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=f'Basic {credentials}'
+        )
+        
+        assert response.status_code == 200
+        data = response.json()
+        assert data['bot_response'] == "API Basic Auth response."
+        
+        from src.apps.chat.models import ChatMessage
+        assert ChatMessage.objects.filter(user=user, message_type='user').exists()
+
     def test_chat_submit_rag(self, mocker):
         project = Project.objects.create(
             project_id='postgres_test_submit',

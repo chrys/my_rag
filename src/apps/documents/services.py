@@ -13,9 +13,14 @@ class LlamaIndexIngestionPipeline:
             api_key=os.getenv("GOOGLE_API_KEY")
         )
         
-    def index_document(self, file_path):
+    def index_document(self, file_path, original_filename: str = None):
         # Read the document
         documents = SimpleDirectoryReader(input_files=[file_path]).load_data()
+        
+        if original_filename:
+            for doc in documents:
+                doc.metadata['file_name'] = original_filename
+                doc.metadata['file_path'] = original_filename
         
         config = getattr(settings, "REMOTE_POSTGRES_CONFIG", {})
         

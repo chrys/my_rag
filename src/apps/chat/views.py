@@ -57,7 +57,12 @@ def _extract_source_documents(source_nodes) -> list[str]:
 
     for source in source_nodes or []:
         if isinstance(source, dict):
-            document_name = source.get('document') or source.get('name') or source.get('id')
+            document_name = (
+                source.get('document') 
+                or source.get('name') 
+                or source.get('id') 
+                or source.get('file_name')
+            )
         else:
             document_name = str(source) if source else ''
 
@@ -207,6 +212,22 @@ def chat_submit(request):
 @csrf_exempt
 def chat(request):
     """Handle chat messages and generate responses"""
+    # Programmatic fallback for Basic Authentication
+    if not getattr(request.user, 'is_authenticated', False) and 'HTTP_AUTHORIZATION' in request.META:
+        import base64
+        from django.contrib.auth import authenticate
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        if auth_header.startswith('Basic '):
+            try:
+                encoded_credentials = auth_header.split(' ', 1)[1]
+                decoded_credentials = base64.b64decode(encoded_credentials).decode('utf-8')
+                username, password = decoded_credentials.split(':', 1)
+                user = authenticate(username=username, password=password)
+                if user is not None:
+                    request.user = user
+            except Exception:
+                pass
+
     try:
         data = json.loads(request.body)
         store_id = data.get('store_id')
