@@ -72,140 +72,7 @@ def _extract_source_documents(source_nodes) -> list[str]:
     return document_names
 
 
-@require_http_methods(["POST"])
-@csrf_exempt
-def chat_submit(request):
-    """Handle chat submission and return HTML message for htmx"""
-    try:
-        store_id = request.POST.get('store_id', '')
-        query = request.POST.get('query', '')
-        system_prompt = request.POST.get('system_prompt', '')
-        
-        if not store_id or not query:
-            return JsonResponse({'error': 'Missing store_id or query'}, status=400)
 
-        # Look up project for storage type
-        project = Project.objects.filter(project_id=store_id).first()
-
-        if not _user_can_access_project(project, request.user):
-            return JsonResponse({'error': 'Forbidden'}, status=403)
-        
-        # Get or create prompt if not provided
-        if not system_prompt:
-            system_prompt = _get_project_system_prompt(project, store_id)
-        
-        # Query the appropriate backend
-        if store_id.startswith('local_'):
-            rag_engine = get_rag_engine(store_id)
-            bot_response = rag_engine.query(query, system_prompt=system_prompt)
-            source_documents = _extract_source_documents(bot_response.get('source_nodes', [])) if isinstance(bot_response, dict) else []
-            if isinstance(bot_response, dict):
-                bot_response = bot_response.get('response', 'Error generating response.')
-        elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
-            from llama_index.core import VectorStoreIndex, Settings
-            from llama_index.embeddings.google import GeminiEmbedding
-            from llama_index.llms.google_genai import GoogleGenAI
-            from src.apps.documents.services import get_vector_store
-            import os
-            
-            vector_store = get_vector_store(store_id)
-            embed_model = GeminiEmbedding(
-                model_name="models/gemini-embedding-001",
-                api_key=os.getenv("GOOGLE_API_KEY")
-            )
-            llm = GoogleGenAI(
-                model="gemini-2.5-flash-lite",
-                api_key=os.getenv("GOOGLE_API_KEY")
-            )
-            from llama_index.core.embeddings import BaseEmbedding
-            from llama_index.core.llms import LLM
-            if isinstance(embed_model, BaseEmbedding):
-                Settings.embed_model = embed_model
-            if isinstance(llm, LLM):
-                Settings.llm = llm
-            
-            index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
-            query_engine = index.as_query_engine(llm=llm)
-            
-            prompt = system_prompt or "You are a helpful assistant."
-            response = query_engine.query(f"System Context: {prompt}\n\nQuery: {query}")
-            bot_response = str(response)
-            source_documents = []
-            if hasattr(response, 'source_nodes'):
-                source_documents = _extract_source_documents([node.node.metadata for node in response.source_nodes])
-        else:
-            # Google store - look up the external_store_id
-            if project and project.external_store_id:
-                google_store_id = project.external_store_id
-            else:
-                google_store_id = store_id
-            
-            bot_response = gfs.ask_store_question(
-                google_store_id,
-                query,
-                system_prompt=system_prompt
-            )
-            source_documents = []
-        
-        # Convert markdown to HTML
-        bot_response_html = markdown.markdown(bot_response)
-        
-        # Store in database
-        user_msg = ChatMessage.objects.create(
-            project_id=project.id if project else 1,  # TODO: ensure project exists
-            user=request.user if request.user.is_authenticated else None,
-            message_type='user',
-            content=query
-        )
-        bot_msg = ChatMessage.objects.create(
-            project_id=project.id if project else 1,
-            user=request.user if request.user.is_authenticated else None,
-            message_type='assistant',
-            content=bot_response,
-            response_html=bot_response_html
-        )
-        
-        # Build HTML directly instead of using templates
-        user_html = f'''
-<div class="flex justify-end mb-4">
-    <div class="max-w-[80%] rounded-2xl bg-blue-600 text-white p-4 rounded-br-none">
-        <p class="text-sm">{query}</p>
-    </div>
-</div>
-'''
-        
-        sources_html = ''
-        if source_documents:
-            source_items = ''.join(
-                f'<li class="text-xs text-gray-600">{escape(document_name)}</li>'
-                for document_name in source_documents
-            )
-            sources_html = f'''
-        <div class="mt-3 border-t border-gray-200 pt-3">
-            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Sources</p>
-            <ul class="mt-1 space-y-1">{source_items}</ul>
-        </div>
-'''
-
-        bot_html = f'''
-<div class="flex justify-start mb-4">
-    <div class="max-w-[80%] rounded-2xl bg-gray-100 text-gray-800 p-4 rounded-bl-none">
-        <div class="prose prose-sm text-gray-800">
-            {bot_response_html}
-        </div>
-        {sources_html}
-    </div>
-</div>
-'''
-        
-        # Return both messages as raw HTML
-        from django.http import HttpResponse
-        return HttpResponse(user_html + bot_html)
-    
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return JsonResponse({'error': str(e)}, status=500)
 
 
 @require_http_methods(["POST"])
@@ -324,3 +191,132 @@ def chat(request):
         import traceback
         traceback.print_exc()
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def chat_submit(request):
+    """
+    Handle HTMX/form chat submissions and return rendered HTML partials.
+    Supports local, postgres, and google-backed projects.
+    """
+    # Standard POST or JSON extraction
+    if request.content_type == "application/json":
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            data = {}
+    else:
+        data = request.POST
+
+    store_id = data.get("store_id")
+    query = data.get("query")
+    system_prompt = data.get("system_prompt", "")
+
+    if not store_id or not query:
+        from django.http import HttpResponse
+        return HttpResponse("Missing store_id or query", status=400)
+
+    # Look up project
+    project = Project.objects.filter(project_id=store_id).first()
+
+    if not _user_can_access_project(project, request.user):
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden("Forbidden")
+
+    # Get prompt if not provided
+    if not system_prompt:
+        system_prompt = _get_project_system_prompt(project, store_id)
+
+    # Query the appropriate backend
+    try:
+        if store_id.startswith("local_"):
+            rag_engine = get_rag_engine(store_id)
+            bot_response = rag_engine.query(query, system_prompt=system_prompt)
+            source_documents = _extract_source_documents(bot_response.get("source_nodes", [])) if isinstance(bot_response, dict) else []
+            if isinstance(bot_response, dict):
+                bot_response = bot_response.get("response", "Error generating response.")
+        elif store_id.startswith("rag_") or store_id.startswith("postgres_"):
+            from llama_index.core import VectorStoreIndex, Settings
+            from llama_index.embeddings.google import GeminiEmbedding
+            from llama_index.llms.google_genai import GoogleGenAI
+            from src.apps.documents.services import get_vector_store
+            import os
+            
+            vector_store = get_vector_store(store_id)
+            embed_model = GeminiEmbedding(
+                model_name="models/gemini-embedding-001",
+                api_key=os.getenv("GOOGLE_API_KEY")
+            )
+            llm = GoogleGenAI(
+                model="gemini-2.5-flash-lite",
+                api_key=os.getenv("GOOGLE_API_KEY")
+            )
+            from llama_index.core.embeddings import BaseEmbedding
+            from llama_index.core.llms import LLM
+            if isinstance(embed_model, BaseEmbedding):
+                Settings.embed_model = embed_model
+            if isinstance(llm, LLM):
+                Settings.llm = llm
+            
+            index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
+            query_engine = index.as_query_engine(llm=llm)
+            
+            prompt = system_prompt or "You are a helpful assistant."
+            response = query_engine.query(f"System Context: {prompt}\n\nQuery: {query}")
+            bot_response = str(response)
+            source_documents = []
+            if hasattr(response, "source_nodes"):
+                source_documents = _extract_source_documents([node.node.metadata for node in response.source_nodes])
+        else:
+            bot_response = gfs.ask_store_question(
+                store_id,
+                query,
+                system_prompt=system_prompt
+            )
+            source_documents = []
+
+        # Convert markdown to HTML
+        bot_response_html = markdown.markdown(bot_response)
+
+        # Append source attribution if we have sources
+        if source_documents:
+            sources_html = f'<div class="mt-2 text-xs text-gray-500"><strong>Sources:</strong> {", ".join(source_documents)}</div>'
+            bot_response_html += sources_html
+
+        # Store in database if user is authenticated
+        if request.user.is_authenticated:
+            ChatMessage.objects.create(
+                project=project,
+                user=request.user,
+                message_type="user",
+                content=query
+            )
+            ChatMessage.objects.create(
+                project=project,
+                user=request.user,
+                message_type="assistant",
+                content=bot_response,
+                response_html=bot_response_html
+            )
+
+        from django.http import HttpResponse
+        
+        user_html = render_to_string("partials/chat_message.html", {
+            "sender": "user",
+            "message": escape(query),
+        })
+        
+        bot_html = render_to_string("partials/chat_message.html", {
+            "sender": "bot",
+            "message": bot_response_html,
+        })
+
+        return HttpResponse(user_html + bot_html)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        from django.http import HttpResponse
+        return HttpResponse(f"Error: {str(e)}", status=500)
+

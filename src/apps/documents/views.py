@@ -57,6 +57,7 @@ def _doc_adapter(doc):
         'mime_type': doc.mime_type,
         'indexed_at': doc.indexed_at,
         'state': type('State', (), {'name': doc.state})(),
+        'error_message': getattr(doc, 'error_message', ''),
     }
 
 
@@ -178,7 +179,13 @@ def upload_document(request, store_id):
                                     'indexed_at': None,
                                 }
                             )
-                        return JsonResponse({'error': f'Upload failed: {error_msg}'}, status=500)
+                        docs_qs = Document.objects.filter(project=project)
+                        documents = [_doc_adapter(d) for d in docs_qs]
+                        return render(request, 'partials/document_items.html', {
+                            'documents': documents,
+                            'store_id': store_id,
+                            'url_prefix': '/rag',
+                        })
 
                 # RAG project indexing
                 from src.apps.documents.services import LlamaIndexIngestionPipeline
@@ -200,9 +207,13 @@ def upload_document(request, store_id):
                                 'indexed_at': None,
                             }
                         )
-                    if isinstance(exc, EmbeddingRateLimitError):
-                        return JsonResponse({'error': str(exc)}, status=503)
-                    return JsonResponse({'error': f'Upload failed: {str(exc)}'}, status=500)
+                    docs_qs = Document.objects.filter(project=project)
+                    documents = [_doc_adapter(d) for d in docs_qs]
+                    return render(request, 'partials/document_items.html', {
+                        'documents': documents,
+                        'store_id': store_id,
+                        'url_prefix': '/rag',
+                    })
                 
                 if success:
                     if project:
@@ -228,7 +239,13 @@ def upload_document(request, store_id):
                                 'indexed_at': None,
                             }
                         )
-                    return JsonResponse({'error': 'Failed to index document in RAG project'}, status=500)
+                    docs_qs = Document.objects.filter(project=project)
+                    documents = [_doc_adapter(d) for d in docs_qs]
+                    return render(request, 'partials/document_items.html', {
+                        'documents': documents,
+                        'store_id': store_id,
+                        'url_prefix': '/rag',
+                    })
             else:
                 # Google store - look up the project to get the external_store_id
                 from src.google_file_search import GoogleFileSearchPermissionError

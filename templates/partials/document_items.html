@@ -11,6 +11,9 @@
         <div>
             <h4 class="font-medium text-gray-800">{{ doc.display_name }}</h4>
             <p class="text-xs text-gray-500">{{ doc.name }}</p>
+            {% if doc.state.name == 'FAILED' and doc.error_message %}
+            <p class="text-xs text-red-500 mt-1 font-mono">⚠️ {{ doc.error_message }}</p>
+            {% endif %}
         </div>
     </div>
     <div class="flex items-center gap-4">

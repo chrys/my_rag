@@ -65,6 +65,47 @@ class Project(models.Model):
         default=True,
         help_text="Whether this project is active"
     )
+
+    # Parameter Placeholders (to be defined later)
+    synthesizer = models.BooleanField(
+        default=False,
+        help_text="Enable or disable the synthesizer"
+    )
+    document_parsing = models.CharField(
+        max_length=50,
+        choices=[
+            ("pymupdf", "PyMUPDF"),
+            ("markitdown", "markitdown"),
+        ],
+        default="pymupdf",
+        help_text="Document parsing backend"
+    )
+    chunking = models.CharField(
+        max_length=50,
+        choices=[
+            ("fixed-size", "Fixed-size"),
+            ("sentence-paragraph", "Sentence/paragraph"),
+            ("recursive", "Recursive"),
+            ("document-structure", "Document-structure"),
+            ("semantic", "Semantic"),
+        ],
+        default="fixed-size",
+        help_text="Text chunking strategy"
+    )
+    embedding_model = models.CharField(
+        max_length=50,
+        choices=[
+            ("gemini-1", "Gemini embedding 1"),
+            ("google-2", "Google embedding 2"),
+            ("gemma", "fkEmbeddingGemma"),
+        ],
+        default="gemini-1",
+        help_text="Embedding model to use"
+    )
+    custom_prompt = models.BooleanField(
+        default=False,
+        help_text="Whether to use a custom prompt"
+    )
     
     # Statistics (denormalized for performance)
     document_count = models.IntegerField(
@@ -84,6 +125,26 @@ class Project(models.Model):
             models.Index(fields=['-created_at']),
         ]
     
+    def save(self, *args, **kwargs):
+        """
+        Overridden to automatically generate a unique, backend-compliant project_id
+        if it is left blank or empty (e.g., when created via the Django Admin).
+        """
+        if not self.project_id:
+            from datetime import datetime
+            import time
+            import uuid
+            
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            microseconds = int(time.time() * 1000000) % 1000000
+            safe_name = (self.display_name or "project").lower().replace(' ', '_')[:30]
+            rand_suffix = uuid.uuid4().hex[:6]
+            
+            prefix = self.storage_type or "local"
+            self.project_id = f"{prefix}_{timestamp}_{microseconds}_{safe_name}_{rand_suffix}"
+            
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.display_name} ({self.storage_type})"
 

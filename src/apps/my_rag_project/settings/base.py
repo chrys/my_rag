@@ -12,6 +12,7 @@ sys.modules["google._upb._message"] = None
 sys.modules["google._upb"] = None
 
 from pathlib import Path
+from django.urls import reverse_lazy
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -38,6 +39,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-dev-key-change-in-producti
 
 # Application definition
 INSTALLED_APPS = [
+    'unfold',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -181,4 +183,37 @@ REMOTE_POSTGRES_CONFIG = {
     'HOST': os.getenv('postgres_host', 'localhost'),
     'PORT': os.getenv('postgres_port', '5432'),
 }
+
+# django-unfold administration configuration
+UNFOLD = {
+    "SITE_TITLE": "RAG Dashboard",
+    "SITE_HEADER": "RAG Administration",
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": True,
+        "navigation": [
+            {
+                "title": "Navigation",
+                "items": [
+                    {
+                        "title": "Projects",
+                        "icon": "folder",
+                        "link": reverse_lazy("custom_admin:projects_project_changelist"),
+                    },
+                    {
+                        "title": "Chat Workflow",
+                        "icon": "chat",
+                        "link": reverse_lazy("custom_admin:chat-workflow"),
+                    },
+                    {
+                        "title": "Evaluation Workflow",
+                        "icon": "star",
+                        "link": reverse_lazy("custom_admin:evaluation-workflow"),
+                    },
+                ],
+            },
+        ],
+    },
+}
+
 

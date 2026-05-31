@@ -1,0 +1,288 @@
+{% extends 'admin/base.html' %}
+
+{% block content %}
+<div class="container-fluid px-6 py-6">
+    <!-- Header with vibrant gradient -->
+    <div class="mb-8 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white shadow-lg">
+        <h1 class="text-3xl font-extrabold tracking-tight">RAG Chat Workspace</h1>
+        <p class="mt-2 text-blue-100 max-w-2xl text-sm">
+            Engage in context-aware conversations with your indexed documents across multiple storage backends. Select your project to begin.
+        </p>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- Sidebar: Project & Parameter Details -->
+        <div class="lg:col-span-4 flex flex-col gap-6">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Project Configuration</h2>
+                
+                <div class="mb-4">
+                    <label for="project-select" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Select Active Project</label>
+                    <select id="project-select" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+                        <option value="" disabled selected>-- Choose a Project --</option>
+                        {% for p in projects %}
+                        <option value="{{ p.project_id }}" 
+                                data-storage="{{ p.storage_type }}"
+                                data-synthesizer="{{ p.synthesizer|yesno:'Enabled,Disabled' }}"
+                                data-parsing="{{ p.get_document_parsing_display }}"
+                                data-chunking="{{ p.get_chunking_display }}"
+                                data-embed="{{ p.get_embedding_model_display }}"
+                                data-custom-prompt="{{ p.custom_prompt|yesno:'Active,Inactive' }}">
+                            {{ p.display_name }} ({{ p.storage_type }})
+                        </option>
+                        {% empty %}
+                        <option value="" disabled>No active projects found</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="border-t border-gray-100 dark:border-gray-700 pt-4 space-y-4">
+                    <div>
+                        <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 block uppercase">Storage Engine</span>
+                        <span id="meta-storage" class="text-sm font-semibold text-gray-800 dark:text-gray-200">-</span>
+                    </div>
+                    <div>
+                        <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 block uppercase">Synthesizer Status</span>
+                        <span id="meta-synthesizer" class="text-sm font-semibold text-gray-800 dark:text-gray-200">-</span>
+                    </div>
+                    <div>
+                        <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 block uppercase">Document Parsing</span>
+                        <span id="meta-parsing" class="text-sm font-semibold text-gray-800 dark:text-gray-200">-</span>
+                    </div>
+                    <div>
+                        <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 block uppercase">Chunking Strategy</span>
+                        <span id="meta-chunking" class="text-sm font-semibold text-gray-800 dark:text-gray-200">-</span>
+                    </div>
+                    <div>
+                        <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 block uppercase">Embedding Model</span>
+                        <span id="meta-embed" class="text-sm font-semibold text-gray-800 dark:text-gray-200">-</span>
+                    </div>
+                    <div>
+                        <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 block uppercase">Custom Prompt</span>
+                        <span id="meta-custom-prompt" class="text-sm font-semibold text-gray-800 dark:text-gray-200">-</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+                <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-2">Instructions</h3>
+                <p class="text-xs text-gray-500 leading-relaxed">
+                    1. Choose an active project to load its custom parsing, chunking, and embedding parameters.<br/>
+                    2. Type your question in the chat bar. The system will retrieve context nodes to formulate an answer.<br/>
+                    3. Footnote citations are generated automatically when context retrieval is successful.
+                </p>
+            </div>
+        </div>
+
+        <!-- Chat Workspace -->
+        <div class="lg:col-span-8 flex flex-col bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm min-h-[550px] overflow-hidden">
+            <!-- Active Project Banner -->
+            <div class="bg-gray-50 dark:bg-gray-700/50 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <span class="w-3 h-3 rounded-full bg-gray-300 dark:bg-gray-600" id="status-indicator"></span>
+                    <span id="active-project-name" class="font-semibold text-gray-700 dark:text-gray-200">No active session</span>
+                </div>
+                <button id="clear-chat-btn" class="text-xs font-semibold text-gray-500 hover:text-red-500 transition-colors">
+                    Clear Conversation
+                </button>
+            </div>
+
+            <!-- Messages Window -->
+            <div id="messages-container" class="flex-1 p-6 overflow-y-auto max-h-[400px] min-h-[350px] space-y-4 bg-gray-50/50 dark:bg-gray-900/10">
+                <!-- System Greeting -->
+                <div class="flex gap-4 max-w-[85%]">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm">AI</div>
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl rounded-tl-none border border-gray-100 dark:border-gray-700 shadow-sm">
+                        <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                            Hello! I am your RAG auditor. Please select a project on the left panel, and then type your compliance or search query to get started!
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Bar -->
+            <div class="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                <form id="chat-form" class="flex gap-4">
+                    {% csrf_token %}
+                    <input type="text" id="chat-query" placeholder="Select a project first to start chatting..." disabled
+                           class="flex-1 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-3 shadow-inner disabled:opacity-60 disabled:cursor-not-allowed"/>
+                    <button type="submit" id="send-btn" disabled
+                            class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm px-6 py-3 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed">
+                        Send Question
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const projectSelect = document.getElementById("project-select");
+    const chatQuery = document.getElementById("chat-query");
+    const sendBtn = document.getElementById("send-btn");
+    const messagesContainer = document.getElementById("messages-container");
+    const activeProjectName = document.getElementById("active-project-name");
+    const statusIndicator = document.getElementById("status-indicator");
+    const clearChatBtn = document.getElementById("clear-chat-btn");
+    const chatForm = document.getElementById("chat-form");
+
+    // Meta displays
+    const metaStorage = document.getElementById("meta-storage");
+    const metaSynthesizer = document.getElementById("meta-synthesizer");
+    const metaParsing = document.getElementById("meta-parsing");
+    const metaChunking = document.getElementById("meta-chunking");
+    const metaEmbed = document.getElementById("meta-embed");
+    const metaCustomPrompt = document.getElementById("meta-custom-prompt");
+
+    projectSelect.addEventListener("change", function() {
+        const selected = projectSelect.options[projectSelect.selectedIndex];
+        if (!selected || selected.value === "") return;
+
+        // Enable inputs
+        chatQuery.disabled = false;
+        chatQuery.placeholder = "Ask a question about " + selected.text + "...";
+        sendBtn.disabled = false;
+
+        // Update Meta Display
+        metaStorage.textContent = selected.dataset.storage || "-";
+        metaSynthesizer.textContent = selected.dataset.synthesizer || "-";
+        metaParsing.textContent = selected.dataset.parsing || "-";
+        metaChunking.textContent = selected.dataset.chunking || "-";
+        metaEmbed.textContent = selected.dataset.embed || "-";
+        metaCustomPrompt.textContent = selected.dataset.customPrompt || "-";
+
+        // Update Banner Status
+        activeProjectName.textContent = "Chatting with " + selected.text;
+        statusIndicator.className = "w-3 h-3 rounded-full bg-green-500 shadow-md animate-pulse";
+    });
+
+    clearChatBtn.addEventListener("click", function() {
+        // Keep the greeting, delete other messages
+        const greeting = messagesContainer.firstElementChild;
+        messagesContainer.innerHTML = "";
+        if (greeting) {
+            messagesContainer.appendChild(greeting);
+        }
+    });
+
+    chatForm.addEventListener("submit", function(e) {
+        e.preventDefault();
+        const storeId = projectSelect.value;
+        const query = chatQuery.value.trim();
+
+        if (!storeId || !query) return;
+
+        // Append user query bubble
+        const userBubble = document.createElement("div");
+        userBubble.className = "flex justify-end gap-4 max-w-[85%] ml-auto";
+        userBubble.innerHTML = `
+            <div class="bg-blue-600 text-white p-4 rounded-2xl rounded-tr-none shadow-sm text-sm">
+                <p class="leading-relaxed">${escapeHtml(query)}</p>
+            </div>
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-700 text-white flex items-center justify-center font-bold text-sm shadow-sm">U</div>
+        `;
+        messagesContainer.appendChild(userBubble);
+        chatQuery.value = "";
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        // Append pending assistant bubble
+        const pendingId = "pending-" + Date.now();
+        const pendingBubble = document.createElement("div");
+        pendingBubble.id = pendingId;
+        pendingBubble.className = "flex gap-4 max-w-[85%]";
+        pendingBubble.innerHTML = `
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm">AI</div>
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl rounded-tl-none border border-gray-100 dark:border-gray-700 shadow-sm">
+                <p class="text-sm text-gray-400 italic leading-relaxed flex items-center gap-2">
+                    <span class="animate-bounce">●</span>
+                    <span class="animate-bounce" style="animation-delay: 0.2s">●</span>
+                    <span class="animate-bounce" style="animation-delay: 0.4s">●</span>
+                    Retrieving data & thinking...
+                </p>
+            </div>
+        `;
+        messagesContainer.appendChild(pendingBubble);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        // CSRF Token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        // Fetch to local endpoint
+        fetch("/rag/api/chat/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken
+            },
+            body: JSON.stringify({
+                store_id: storeId,
+                query: query,
+                system_prompt: ""
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("HTTP error " + response.status);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const pending = document.getElementById(pendingId);
+            if (pending) pending.remove();
+
+            const botBubble = document.createElement("div");
+            botBubble.className = "flex gap-4 max-w-[85%]";
+            
+            // Build source list if available
+            let sourcesHtml = "";
+            if (data.source_documents && data.source_documents.length > 0) {
+                let sourceItems = data.source_documents.map(doc => `<li class="text-xs text-gray-500 dark:text-gray-400 font-mono">• ${escapeHtml(doc)}</li>`).join("");
+                sourcesHtml = `
+                    <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                        <span class="text-xs font-bold text-gray-400 dark:text-gray-500 block uppercase tracking-wider mb-1">Source Nodes</span>
+                        <ul class="space-y-1">${sourceItems}</ul>
+                    </div>
+                `;
+            }
+
+            botBubble.innerHTML = `
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm">AI</div>
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl rounded-tl-none border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <div class="prose prose-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                        ${data.bot_response_html || escapeHtml(data.bot_response)}
+                    </div>
+                    ${sourcesHtml}
+                </div>
+            `;
+            messagesContainer.appendChild(botBubble);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        })
+        .catch(err => {
+            console.error(err);
+            const pending = document.getElementById(pendingId);
+            if (pending) {
+                pending.innerHTML = `
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-sm shadow-sm">!</div>
+                    <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-2xl rounded-tl-none border border-red-100 dark:border-red-900/30 shadow-sm text-red-700 dark:text-red-300 text-sm">
+                        Sorry, an error occurred while executing the search query. Please ensure your RAG keys are configured.
+                    </div>
+                `;
+            }
+        });
+    });
+
+    function escapeHtml(str) {
+        return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+});
+</script>
+{% endblock %}

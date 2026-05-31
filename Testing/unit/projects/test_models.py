@@ -201,6 +201,35 @@ class TestProjectModel:
         assert active.count() == 1
         assert active.first().display_name == 'Active Project'
 
+    def test_project_parameter_placeholders_defaults(self):
+        """Test that the new parameter placeholders default values are correct."""
+        project = Project.objects.create(
+            project_id='params_defaults',
+            display_name='Params Defaults'
+        )
+        assert project.synthesizer is False
+        assert project.document_parsing == 'pymupdf'
+        assert project.chunking == 'fixed-size'
+        assert project.embedding_model == 'gemini-1'
+        assert project.custom_prompt is False
+
+    def test_project_parameter_placeholders_custom(self):
+        """Test that the new parameter placeholders accept custom values."""
+        project = Project.objects.create(
+            project_id='params_custom',
+            display_name='Params Custom',
+            synthesizer=True,
+            document_parsing='markitdown',
+            chunking='semantic',
+            embedding_model='gemma',
+            custom_prompt=True
+        )
+        assert project.synthesizer is True
+        assert project.document_parsing == 'markitdown'
+        assert project.chunking == 'semantic'
+        assert project.embedding_model == 'gemma'
+        assert project.custom_prompt is True
+
 
 @pytest.mark.django_db
 class TestSystemPromptModel:
