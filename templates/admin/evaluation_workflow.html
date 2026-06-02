@@ -1,274 +1,198 @@
 {% extends 'admin/base.html' %}
 
 {% block content %}
-<div class="container-fluid px-6 py-6">
+<style>
+    .vibrant-header {
+        background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%) !important;
+        color: #ffffff !important;
+        padding: 1.5rem !important;
+        border-radius: 1rem !important;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    .text-white-forced {
+        color: #ffffff !important;
+        display: block !important;
+    }
+
+    .text-subtitle-forced {
+        color: #e0e7ff !important;
+        display: block !important;
+    }
+
+    .btn-dashboard-back {
+        background-color: rgba(255, 255, 255, 0.2) !important;
+        border: 1px solid rgba(255, 255, 255, 0.4) !important;
+        color: #ffffff !important;
+        padding: 0.5rem 1rem !important;
+        border-radius: 0.5rem !important;
+        font-size: 0.75rem !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease-in-out !important;
+        text-decoration: none !important;
+        display: inline-block !important;
+    }
+
+    .btn-dashboard-back:hover {
+        background-color: rgba(255, 255, 255, 0.35) !important;
+        color: #ffffff !important;
+        text-decoration: none !important;
+    }
+
+    .btn-primary-forced {
+        background-color: #7c3aed !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        font-size: 0.75rem !important;
+        padding: 0.625rem 1.25rem !important;
+        border-radius: 0.75rem !important;
+        transition: all 0.2s ease-in-out !important;
+        box-shadow: 0 4px 6px -1px rgba(124, 58, 237, 0.2) !important;
+        border: none !important;
+        cursor: pointer !important;
+        display: inline-block !important;
+        text-align: center !important;
+    }
+
+    .btn-primary-forced:hover {
+        background-color: #6d28d9 !important;
+        color: #ffffff !important;
+    }
+
+    .btn-secondary-forced {
+        background-color: #f3f4f6 !important;
+        color: #7c3aed !important;
+        font-weight: 700 !important;
+        font-size: 0.75rem !important;
+        padding: 0.625rem 1.25rem !important;
+        border-radius: 0.75rem !important;
+        transition: all 0.2s ease-in-out !important;
+        border: 1px solid #e5e7eb !important;
+        cursor: pointer !important;
+        display: inline-block !important;
+        text-align: center !important;
+    }
+
+    .btn-secondary-forced:hover {
+        background-color: #e5e7eb !important;
+        color: #6d28d9 !important;
+    }
+</style>
+
+<div class="container-fluid px-6 py-6" id="evaluation-workspace">
     <!-- Header with vibrant gradient -->
-    <div class="mb-8 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 p-6 text-white shadow-lg">
-        <h1 class="text-3xl font-extrabold tracking-tight">RAG Evaluation Workspace</h1>
-        <p class="mt-2 text-purple-100 max-w-2xl text-sm">
-            Assess the quality, latency, and correctness of your RAG ingestion and generation workflows. Select a project below.
-        </p>
+    <div class="mb-8 vibrant-header">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold tracking-tight text-white-forced">RAG Evaluation Workspace</h1>
+                <p class="mt-2 text-subtitle-forced max-w-2xl text-sm">
+                    Assess the context recall, precision, and faithfulness of your active PostgreSQL RAG projects using real Ragas benchmarks.
+                </p>
+            </div>
+            <a href="{% url 'custom_admin:chat-workflow' %}" class="btn-dashboard-back">
+                ← Go to Chat
+            </a>
+        </div>
     </div>
 
     <!-- Main Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        <!-- Controls Sidebar -->
+        <!-- Left Panel: Controls Sidebar -->
         <div class="lg:col-span-4 flex flex-col gap-6">
             <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
                 <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Evaluation Config</h2>
                 
-                <div class="mb-4">
+                <!-- Project Dropdown -->
+                <div class="mb-6">
                     <label for="eval-project-select" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Target Project</label>
-                    <select id="eval-project-select" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-purple-500 dark:focus:border-purple-500">
+                    <select id="eval-project-select" onchange="handleProjectChange(this.value)"
+                        class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-purple-500 dark:focus:border-purple-500">
                         <option value="" disabled selected>-- Select a Project --</option>
                         {% for p in projects %}
-                        <option value="{{ p.project_id }}">{{ p.display_name }}</option>
+                        <option value="{{ p.project_id }}" data-qa-count="{{ p.dataset_items.count }}">
+                            {{ p.display_name }} ({{ p.dataset_items.count }} QA items)
+                        </option>
                         {% empty %}
                         <option value="" disabled>No active projects found</option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <div class="mb-6">
-                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Evaluation Workflow</label>
-                    <div class="space-y-3">
-                        <label class="flex items-center p-3 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all">
-                            <input type="radio" name="eval_type" value="retrieval" checked class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 focus:ring-purple-500 focus:ring-2 dark:bg-gray-750 dark:border-gray-600"/>
-                            <div class="ml-3">
-                                <span class="block text-sm font-semibold text-gray-800 dark:text-gray-200">Retrieval Accuracy</span>
-                                <span class="block text-xs text-gray-400">Recall, Precision, MRR, NDCG</span>
-                            </div>
-                        </label>
-                        <label class="flex items-center p-3 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all">
-                            <input type="radio" name="eval_type" value="generation" class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 focus:ring-purple-500 focus:ring-2 dark:bg-gray-750 dark:border-gray-600"/>
-                            <div class="ml-3">
-                                <span class="block text-sm font-semibold text-gray-800 dark:text-gray-200">Generation Quality</span>
-                                <span class="block text-xs text-gray-400">Faithfulness, Answer Relevance</span>
-                            </div>
-                        </label>
-                        <label class="flex items-center p-3 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all">
-                            <input type="radio" name="eval_type" value="ingestion" class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 focus:ring-purple-500 focus:ring-2 dark:bg-gray-750 dark:border-gray-600"/>
-                            <div class="ml-3">
-                                <span class="block text-sm font-semibold text-gray-800 dark:text-gray-200">Ingestion Latency</span>
-                                <span class="block text-xs text-gray-400">Parsing speed, token efficiency</span>
-                            </div>
-                        </label>
-                    </div>
+                <!-- Info Box -->
+                <div id="project-info-box" class="mb-6 p-4 bg-gray-50 dark:bg-gray-750 border border-gray-250 dark:border-gray-650 rounded-xl hidden text-xs leading-relaxed text-gray-600 dark:text-gray-350">
+                    <span class="font-bold text-gray-700 dark:text-gray-200 block mb-1">Dataset Status</span>
+                    <span id="project-info-text">Select a project to view metrics.</span>
                 </div>
 
-                <button id="run-eval-btn" disabled
-                        class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm py-3 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed">
-                    Run Evaluation Job
-                </button>
+                <!-- Action Buttons -->
+                <div class="flex flex-col gap-3">
+                    <a id="configure-qa-btn" href="#" class="btn-secondary-forced w-full opacity-50 pointer-events-none">
+                        Configure QA Dataset
+                    </a>
+                    
+                    <button id="run-eval-btn" disabled
+                            hx-post="" 
+                            hx-target="#evaluation-content-pane" 
+                            class="btn-primary-forced w-full disabled:opacity-60 disabled:cursor-not-allowed">
+                        Run Benchmark Evaluation
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- Evaluation Results Workspace -->
-        <div class="lg:col-span-8 flex flex-col bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 min-h-[500px]">
-            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Evaluation Dashboard</h2>
+        <!-- Right Panel: Evaluation Results Workspace -->
+        <div class="lg:col-span-8 flex flex-col bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden min-h-[500px]" id="evaluation-content-pane">
+            <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/50">
+                <div class="space-y-1">
+                    <h2 class="text-lg font-bold text-gray-850 dark:text-gray-150">Benchmark Results</h2>
+                    <p class="text-xs text-gray-500">Live Ragas scorecard and context citations analysis logs.</p>
+                </div>
+            </div>
 
             <!-- Placeholder State -->
             <div id="eval-placeholder" class="flex-1 flex flex-col items-center justify-center text-center p-8">
-                <div class="w-16 h-16 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-2xl mb-4 font-bold">✓</div>
+                <div class="w-16 h-16 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center text-2xl mb-4 font-bold">✓</div>
                 <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Ready to Evaluate</h3>
                 <p class="text-gray-400 max-w-sm text-sm">
-                    Select a target project and the evaluation type, then click 'Run Evaluation Job' to run metrics against your RAG system.
+                    Select a target project in the configuration sidebar to load its QA dataset and trigger a live Ragas metrics benchmark run.
                 </p>
             </div>
-
-            <!-- Loading State -->
-            <div id="eval-loading" class="hidden flex-1 flex flex-col items-center justify-center p-8">
-                <div class="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mb-4"></div>
-                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Analyzing System Nodes</h3>
-                <p class="text-gray-400 max-w-sm text-sm text-center mb-6">
-                    Running automated test queries, extracting retrieved contexts, and computing LLM-assisted evaluation scores...
-                </p>
-                <div class="w-full max-w-md bg-gray-100 rounded-full h-2.5 dark:bg-gray-750">
-                    <div id="eval-progress" class="bg-purple-600 h-2.5 rounded-full transition-all duration-300" style="width: 5%"></div>
-                </div>
-            </div>
-
-            <!-- Dashboard Results State -->
-            <div id="eval-results" class="hidden space-y-6">
-                <!-- Metrics Summary Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-purple-50/50 dark:bg-purple-900/10 p-4 rounded-xl border border-purple-100 dark:border-purple-900/30 text-center">
-                        <span class="text-xs font-bold text-purple-500 uppercase tracking-wider block mb-1">Retrieval Recall</span>
-                        <span class="text-3xl font-extrabold text-purple-700 dark:text-purple-300" id="recall-score">0.00</span>
-                    </div>
-                    <div class="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 text-center">
-                        <span class="text-xs font-bold text-blue-500 uppercase tracking-wider block mb-1">Generation Quality</span>
-                        <span class="text-3xl font-extrabold text-blue-700 dark:text-blue-300" id="generation-score">0.00</span>
-                    </div>
-                    <div class="bg-green-50/50 dark:bg-green-900/10 p-4 rounded-xl border border-green-100 dark:border-green-900/30 text-center">
-                        <span class="text-xs font-bold text-green-500 uppercase tracking-wider block mb-1">Faithfulness</span>
-                        <span class="text-3xl font-extrabold text-green-700 dark:text-green-300" id="faithfulness-score">0.00</span>
-                    </div>
-                </div>
-
-                <!-- Deep Dive Detail Area -->
-                <div class="border border-gray-100 dark:border-gray-700 rounded-xl p-5 space-y-4">
-                    <h3 class="text-md font-bold text-gray-800 dark:text-gray-200">Quality Breakdown</h3>
-                    
-                    <div class="space-y-3">
-                        <div>
-                            <div class="flex justify-between text-sm mb-1">
-                                <span class="text-gray-500 dark:text-gray-400">Context Correctness</span>
-                                <span class="font-bold text-gray-800 dark:text-gray-200" id="correctness-pct">0%</span>
-                            </div>
-                            <div class="w-full bg-gray-150 rounded-full h-2 dark:bg-gray-700">
-                                <div id="correctness-bar" class="bg-indigo-600 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <div class="flex justify-between text-sm mb-1">
-                                <span class="text-gray-500 dark:text-gray-400">Answer Completeness</span>
-                                <span class="font-bold text-gray-800 dark:text-gray-200" id="completeness-pct">0%</span>
-                            </div>
-                            <div class="w-full bg-gray-150 rounded-full h-2 dark:bg-gray-700">
-                                <div id="completeness-bar" class="bg-indigo-600 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <div class="flex justify-between text-sm mb-1">
-                                <span class="text-gray-500 dark:text-gray-400">Noise Filter Ratio</span>
-                                <span class="font-bold text-gray-800 dark:text-gray-200" id="noise-pct">0%</span>
-                            </div>
-                            <div class="w-full bg-gray-150 rounded-full h-2 dark:bg-gray-700">
-                                <div id="noise-bar" class="bg-indigo-600 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Recommendation box -->
-                <div class="bg-yellow-50/50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-950 p-4 rounded-xl flex gap-3">
-                    <span class="text-lg">💡</span>
-                    <div class="text-xs text-yellow-800 dark:text-yellow-200 leading-relaxed">
-                        <span class="font-bold block mb-1">Optimization Insight</span>
-                        <span id="insight-text">System performance is within operational parameters. Try adjusting the Chunking strategy or embedding dimension to further optimize retrieval completeness.</span>
-                    </div>
-                </div>
-            </div>
-
         </div>
     </div>
 </div>
 
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-    const projectSelect = document.getElementById("eval-project-select");
-    const runEvalBtn = document.getElementById("run-eval-btn");
-    const placeholder = document.getElementById("eval-placeholder");
-    const loading = document.getElementById("eval-loading");
-    const results = document.getElementById("eval-results");
-    const progressBar = document.getElementById("eval-progress");
+    const runEvalBaseUrl = "{% url 'evaluate:run_evaluation' 'PLACEHOLDER' %}";
+    const qaSetupBaseUrl = "{% url 'custom_admin:qa-setup-workflow' 'PLACEHOLDER' %}";
 
-    // Metrics displays
-    const recallScore = document.getElementById("recall-score");
-    const generationScore = document.getElementById("generation-score");
-    const faithfulnessScore = document.getElementById("faithfulness-score");
+    function handleProjectChange(projectId) {
+        const selectEl = document.getElementById("eval-project-select");
+        const selectedOpt = selectEl.options[selectEl.selectedIndex];
+        const qaCount = parseInt(selectedOpt.getAttribute("data-qa-count") || "0");
 
-    const correctnessPct = document.getElementById("correctness-pct");
-    const correctnessBar = document.getElementById("correctness-bar");
-    const completenessPct = document.getElementById("completeness-pct");
-    const completenessBar = document.getElementById("completeness-bar");
-    const noisePct = document.getElementById("noise-pct");
-    const noiseBar = document.getElementById("noise-bar");
-    const insightText = document.getElementById("insight-text");
+        const infoBox = document.getElementById("project-info-box");
+        const infoText = document.getElementById("project-info-text");
+        const configBtn = document.getElementById("configure-qa-btn");
+        const runBtn = document.getElementById("run-eval-btn");
 
-    projectSelect.addEventListener("change", function() {
-        if (projectSelect.value !== "") {
-            runEvalBtn.disabled = false;
+        // Update info box
+        infoBox.classList.remove("hidden");
+        if (qaCount > 0) {
+            infoText.innerHTML = `✓ This project has **${qaCount} QA items** configured in its dataset, ready for benchmark runs.`;
+            runBtn.disabled = false;
+        } else {
+            infoText.innerHTML = `⚠️ This project's dataset is empty. You must configure at least 1 QA item before benchmarking.`;
+            runBtn.disabled = true;
         }
-    });
 
-    runEvalBtn.addEventListener("click", function() {
-        const checkedRadio = document.querySelector('input[name="eval_type"]:checked');
-        const evalType = checkedRadio ? checkedRadio.value : "retrieval";
+        // Configure dynamic URLs
+        configBtn.href = qaSetupBaseUrl.replace("PLACEHOLDER", projectId);
+        configBtn.classList.remove("opacity-50", "pointer-events-none");
 
-        // Toggle state displays
-        placeholder.classList.add("hidden");
-        results.classList.add("hidden");
-        loading.classList.remove("hidden");
-
-        // Progress simulation
-        let progress = 5;
-        progressBar.style.width = progress + "%";
-        
-        const interval = setInterval(function() {
-            progress += Math.floor(Math.random() * 15) + 5;
-            if (progress >= 95) {
-                progress = 95;
-                clearInterval(interval);
-            }
-            progressBar.style.width = progress + "%";
-        }, 150);
-
-        // Mock calculation delay to give premium feel
-        setTimeout(function() {
-            clearInterval(interval);
-            progressBar.style.width = "100%";
-            
-            // Random high-fidelity metrics based on eval type
-            let scores = {};
-            if (evalType === "retrieval") {
-                scores = {
-                    recall: 0.94,
-                    generation: 0.88,
-                    faithfulness: 0.96,
-                    correctness: 92,
-                    completeness: 86,
-                    noise: 78,
-                    insight: "Excellent retrieval recall. Google search blocks are returning highly pertinent documents. Chunk overlap of 200 tokens recommended for even higher coherence."
-                };
-            } else if (evalType === "generation") {
-                scores = {
-                    recall: 0.89,
-                    generation: 0.95,
-                    faithfulness: 0.99,
-                    correctness: 97,
-                    completeness: 94,
-                    noise: 85,
-                    insight: "Generation coherence and truthfulness are outstanding. No hallucinations detected across 50 test iterations. The current local Gemma model configuration is well tuned."
-                };
-            } else {
-                scores = {
-                    recall: 0.91,
-                    generation: 0.87,
-                    faithfulness: 0.92,
-                    correctness: 88,
-                    completeness: 90,
-                    noise: 94,
-                    insight: "Ingestion parsing latency is minimal (average 12ms per token). PyMUPDF speed remains optimized. Consider enabling chunk metadata filters to save memory during query resolution."
-                };
-            }
-
-            // Update UI scores
-            recallScore.textContent = scores.recall.toFixed(2);
-            generationScore.textContent = scores.generation.toFixed(2);
-            faithfulnessScore.textContent = scores.faithfulness.toFixed(2);
-
-            correctnessPct.textContent = scores.correctness + "%";
-            correctnessBar.style.width = scores.correctness + "%";
-
-            completenessPct.textContent = scores.completeness + "%";
-            completenessBar.style.width = scores.completeness + "%";
-
-            noisePct.textContent = scores.noise + "%";
-            noiseBar.style.width = scores.noise + "%";
-
-            insightText.textContent = scores.insight;
-
-            // Show results
-            loading.classList.add("hidden");
-            results.classList.remove("hidden");
-
-        }, 2200);
-    });
-});
+        // Re-bind HTMX to dynamic POST URL
+        runBtn.setAttribute("hx-post", runEvalBaseUrl.replace("PLACEHOLDER", projectId));
+        htmx.process(runBtn);
+    }
 </script>
 {% endblock %}

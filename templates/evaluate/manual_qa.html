@@ -1,0 +1,272 @@
+{% extends 'admin/base.html' %}
+
+{% block content %}
+<style>
+    .vibrant-header {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
+        color: #ffffff !important;
+        padding: 1.5rem !important;
+        border-radius: 1rem !important;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    .text-white-forced {
+        color: #ffffff !important;
+        display: block !important;
+    }
+
+    .text-subtitle-forced {
+        color: #e0e7ff !important;
+        display: block !important;
+    }
+
+    .btn-dashboard-back {
+        background-color: rgba(255, 255, 255, 0.2) !important;
+        border: 1px solid rgba(255, 255, 255, 0.4) !important;
+        color: #ffffff !important;
+        padding: 0.5rem 1rem !important;
+        border-radius: 0.5rem !important;
+        font-size: 0.75rem !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease-in-out !important;
+        text-decoration: none !important;
+        display: inline-block !important;
+    }
+
+    .btn-dashboard-back:hover {
+        background-color: rgba(255, 255, 255, 0.35) !important;
+        color: #ffffff !important;
+        text-decoration: none !important;
+    }
+
+    .btn-primary-forced {
+        background-color: #4f46e5 !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        font-size: 0.75rem !important;
+        padding: 0.625rem 1.25rem !important;
+        border-radius: 0.75rem !important;
+        transition: all 0.2s ease-in-out !important;
+        box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2) !important;
+        border: none !important;
+        cursor: pointer !important;
+        display: inline-block !important;
+    }
+
+    .btn-primary-forced:hover {
+        background-color: #4338ca !important;
+        color: #ffffff !important;
+    }
+
+    .btn-secondary-forced {
+        background-color: #f3f4f6 !important;
+        color: #4f46e5 !important;
+        font-weight: 700 !important;
+        font-size: 0.75rem !important;
+        padding: 0.5rem 1rem !important;
+        border-radius: 0.5rem !important;
+        transition: all 0.2s ease-in-out !important;
+        border: 1px solid #e5e7eb !important;
+        cursor: pointer !important;
+        display: inline-block !important;
+    }
+
+    .btn-secondary-forced:hover {
+        background-color: #e5e7eb !important;
+        color: #4338ca !important;
+    }
+</style>
+
+<div class="container-fluid px-6 py-6" id="qa-setup-workspace">
+    <!-- Header with vibrant gradient -->
+    <div class="mb-8 vibrant-header">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold tracking-tight text-white-forced">Dataset Configuration</h1>
+                <p class="mt-2 text-subtitle-forced max-w-2xl text-sm">
+                    Configure questions and gold-standard answers for project: <strong class="underline decoration-indigo-300 font-bold">{{ project.display_name }}</strong>
+                </p>
+            </div>
+            <a href="{% url 'custom_admin:evaluation-workflow' %}" class="self-start md:self-auto btn-dashboard-back">
+                ← Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Toggle Selector card -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6 space-y-6">
+        <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Acquisition Method</label>
+            <select id="acquisition-method-select" onchange="toggleAcquisitionMethod(this.value)" 
+                    class="w-full md:w-80 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 font-medium text-slate-700 transition-all">
+                <option value="manual">Write Own QAs (Manual Form)</option>
+                <option value="csv">Upload own QAs (CSV File)</option>
+                <option value="generate">Generate QAs automatically (Gemini)</option>
+            </select>
+        </div>
+
+        <!-- Section A: Manual Form -->
+        <div id="method-manual" class="space-y-4">
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs text-slate-500 flex items-center gap-2">
+                <span>💡 Type reference questions and gold-standard answers. These are saved at the project level.</span>
+            </div>
+            <form hx-post="{% url 'custom_admin:qa-setup-workflow' project.project_id %}" hx-target="#form-message" class="space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="input_method" value="manual">
+                
+                <div id="manual-rows" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-200 relative">
+                        <div class="space-y-1">
+                            <label class="block text-[10px] uppercase font-bold text-slate-400">Question</label>
+                            <textarea name="question[]" rows="2" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="e.g. What is the return policy?"></textarea>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="block text-[10px] uppercase font-bold text-slate-400">Ground Truth Answer</label>
+                            <textarea name="answer[]" rows="2" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="e.g. Products can be returned within 30 days."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-2">
+                    <button type="button" onclick="addManualRow()" class="btn-secondary-forced">
+                        + Add Another Row
+                    </button>
+                    <button type="submit" class="btn-primary-forced">
+                        Save QA Pairs
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Section B: CSV Upload -->
+        <div id="method-csv" class="hidden space-y-4">
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs text-slate-500 space-y-1">
+                <p>💡 Upload a standard <code>.csv</code> file containing reference QA pairs.</p>
+                <p class="font-bold text-slate-600">Expected CSV Headers: <code>Question</code>, <code>Answer</code></p>
+            </div>
+            <form hx-post="{% url 'custom_admin:qa-setup-workflow' project.project_id %}" hx-encoding="multipart/form-data" hx-target="#form-message" class="space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="input_method" value="csv">
+                
+                <div class="border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-2xl p-8 text-center bg-slate-50/50 transition-colors">
+                    <input type="file" name="csv_file" accept=".csv" required class="mx-auto block text-slate-500 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                </div>
+
+                <div class="flex justify-end">
+                    <button type="submit" class="btn-primary-forced">
+                        Upload CSV
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Section C: Auto-Generate (Gemini) -->
+        <div id="method-generate" class="hidden space-y-4">
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs text-slate-500">
+                <span>🤖 Automatically synthesize reference questions and ideal answers from your project's vector chunks using <strong>gemini-2.5-flash-lite</strong>.</span>
+            </div>
+            <form hx-post="{% url 'custom_admin:qa-setup-workflow' project.project_id %}" hx-target="#form-message" class="space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="input_method" value="generate">
+                
+                <div class="w-48 space-y-1">
+                    <label class="block text-xs font-semibold text-slate-600">Quantity of QAs</label>
+                    <input type="number" name="num_questions" value="5" min="1" max="50" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                </div>
+
+                <div class="flex justify-end">
+                    <button type="submit" class="btn-primary-forced">
+                        Synthesize Dataset
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Status Message Target -->
+        <div id="form-message"></div>
+    </div>
+
+    <!-- Existing Dataset Items List -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" id="qa-dataset-list-pane">
+        <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+            <h2 class="text-lg font-bold text-slate-800">Current QA Dataset Items</h2>
+            <span class="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-full border border-slate-200" id="dataset-items-count">
+                {{ dataset_items.count }} items
+            </span>
+        </div>
+
+        <div class="p-6">
+            {% block qa_list %}
+            <div class="space-y-4 max-h-[450px] overflow-y-auto pr-2" id="dataset-items-container">
+                {% for item in dataset_items %}
+                <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="px-2 py-0.5 bg-slate-200/70 text-slate-600 text-[10px] font-bold rounded uppercase tracking-wider">
+                            {{ item.source }}
+                        </span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] text-slate-400 font-medium mr-2">
+                                Added {{ item.created_at|date:"M d, Y" }}
+                            </span>
+                            <button type="button" 
+                                    class="text-red-500 hover:text-red-700 font-semibold text-xs transition-colors cursor-pointer"
+                                    hx-delete="{% url 'evaluate:delete_qa_item' item.id %}"
+                                    hx-confirm="Are you sure you want to delete this QA item?"
+                                    hx-target="#form-message">
+                                ✕ Delete
+                            </button>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <span class="block text-[10px] uppercase font-bold text-slate-400">Question</span>
+                        <p class="text-sm font-semibold text-slate-800">{{ item.question }}</p>
+                    </div>
+                    <div class="space-y-1">
+                        <span class="block text-[10px] uppercase font-bold text-slate-400">Ground Truth Answer</span>
+                        <p class="text-xs text-slate-600 leading-relaxed">{{ item.ground_truth }}</p>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="py-12 text-center text-slate-400 space-y-2">
+                    <p class="font-medium text-slate-500">No dataset items configured yet.</p>
+                    <p class="text-xs">Use one of the acquisition options above to load validation pairs.</p>
+                </div>
+                {% endfor %}
+            </div>
+            {% endblock %}
+        </div>
+    </div>
+</div>
+
+<!-- Inline HTML templates for manual additions -->
+<script>
+    function toggleAcquisitionMethod(val) {
+        document.getElementById('method-manual').classList.add('hidden');
+        document.getElementById('method-csv').classList.add('hidden');
+        document.getElementById('method-generate').classList.add('hidden');
+
+        document.getElementById('method-' + val).classList.remove('hidden');
+        document.getElementById('form-message').innerHTML = '';
+    }
+
+    function addManualRow() {
+        const container = document.getElementById('manual-rows');
+        const newRow = document.createElement('div');
+        newRow.className = 'grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-200 relative mt-4';
+        newRow.innerHTML = `
+            <div class="space-y-1">
+                <label class="block text-[10px] uppercase font-bold text-slate-400">Question</label>
+                <textarea name="question[]" rows="2" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="e.g. Question?"></textarea>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-[10px] uppercase font-bold text-slate-400">Ground Truth Answer</label>
+                <textarea name="answer[]" rows="2" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="e.g. Ground truth..."></textarea>
+            </div>
+            <button type="button" onclick="this.parentNode.remove()" class="absolute top-2 right-2 text-slate-400 hover:text-red-500 text-xs">
+                ✕ Remove
+            </button>
+        `;
+        container.appendChild(newRow);
+    }
+</script>
+{% endblock %}

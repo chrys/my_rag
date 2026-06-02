@@ -25,7 +25,7 @@ Build in thin vertical slices — implement one piece, test it, verify it, then 
 │                                      │
 │   Implement ──→ Test ──→ Verify ──┐  │
 │       ▲                           │  │
-│       └───── Commit ◄─────────────┘  │
+│       └───────────────────────────┘  │
 │              │                       │
 │              ▼                       │
 │          Next slice                  │
@@ -35,11 +35,12 @@ Build in thin vertical slices — implement one piece, test it, verify it, then 
 
 For each slice:
 
-1. **Implement** the smallest complete piece of functionality
-2. **Test** — run the test suite (or write a test if none exists)
-3. **Verify** — confirm the slice works as expected (tests pass, build succeeds, manual check)
-4. **Commit** -- save your progress with a descriptive message (see `git-workflow-and-versioning` for atomic commit guidance)
-5. **Move to the next slice** — carry forward, don't restart
+1. **Implement** the smallest complete piece of functionality.
+2. **Test** — run the test suite (or write a test if none exists).
+3. **Verify** — confirm the slice works as expected (tests pass, build succeeds, type hints validate, manual check).
+4. **Move to the next slice** — carry forward, don't restart.
+
+---
 
 ## Slicing Strategies
 
@@ -48,16 +49,16 @@ For each slice:
 Build one complete path through the stack:
 
 ```
-Slice 1: Create a task (DB + API + basic UI)
+Slice 1: Create a task (DB + view + basic UI)
     → Tests pass, user can create a task via the UI
 
-Slice 2: List tasks (query + API + UI)
+Slice 2: List tasks (query + view + UI)
     → Tests pass, user can see their tasks
 
-Slice 3: Edit a task (update + API + UI)
+Slice 3: Edit a task (update + view + UI)
     → Tests pass, user can modify tasks
 
-Slice 4: Delete a task (delete + API + UI + confirmation)
+Slice 4: Delete a task (delete + view + UI + confirmation)
     → Tests pass, full CRUD complete
 ```
 
@@ -68,9 +69,9 @@ Each slice delivers working end-to-end functionality.
 When backend and frontend need to develop in parallel:
 
 ```
-Slice 0: Define the API contract (types, interfaces, OpenAPI spec)
-Slice 1a: Implement backend against the contract + API tests
-Slice 1b: Implement frontend against mock data matching the contract
+Slice 0: Define the API / template context contract
+Slice 1a: Implement backend against the contract + view/API tests
+Slice 1b: Implement template against mock context data matching the contract
 Slice 2: Integrate and test end-to-end
 ```
 
@@ -79,12 +80,14 @@ Slice 2: Integrate and test end-to-end
 Tackle the riskiest or most uncertain piece first:
 
 ```
-Slice 1: Prove the WebSocket connection works (highest risk)
-Slice 2: Build real-time task updates on the proven connection
-Slice 3: Add offline support and reconnection
+Slice 1: Prove the custom search vector similarity works (highest risk)
+Slice 2: Build real-time task updates on the proven search index
+Slice 3: Add offline support and error recovery
 ```
 
 If Slice 1 fails, you discover it before investing in Slices 2 and 3.
+
+---
 
 ## Implementation Rules
 
@@ -107,7 +110,7 @@ SIMPLICITY CHECK:
 ✓ Two straightforward components with shared utilities
 
 ✗ Config-driven form builder for three forms
-✓ Three form components
+✓ Three form views
 ```
 
 Three similar lines of code is better than a premature abstraction. Implement the naive, obviously-correct version first. Optimize only after correctness is proven with tests.
@@ -127,58 +130,58 @@ If you notice something worth improving outside your task scope, note it — don
 
 ```
 NOTICED BUT NOT TOUCHING:
-- src/utils/format.ts has an unused import (unrelated to this task)
+- src/utils/format.py has an unused import (unrelated to this task)
 - The auth middleware could use better error messages (separate task)
 → Want me to create tasks for these?
 ```
 
 ### Rule 1: One Thing at a Time
 
-Each increment changes one logical thing. Don't mix concerns:
-
-**Bad:** One commit that adds a new component, refactors an existing one, and updates the build config.
-
-**Good:** Three separate commits — one for each change.
+Each increment changes one logical thing. Don't mix concerns.
+Implement each part step-by-step rather than piling everything into a single massive structural change.
 
 ### Rule 2: Keep It Compilable
 
-After each increment, the project must build and existing tests must pass. Don't leave the codebase in a broken state between slices.
+After each increment, the project must build/check and existing tests must pass. Don't leave the codebase in a broken state between slices.
 
 ### Rule 3: Feature Flags for Incomplete Features
 
 If a feature isn't ready for users but you need to merge increments:
 
-```typescript
-// Feature flag for work-in-progress
-const ENABLE_TASK_SHARING = process.env.FEATURE_TASK_SHARING === 'true';
+```python
+# Feature flag for work-in-progress (e.g. inside settings or views)
+import os
 
-if (ENABLE_TASK_SHARING) {
-  // New sharing UI
-}
+ENABLE_TASK_SHARING = os.getenv("FEATURE_TASK_SHARING") == "true"
+
+if ENABLE_TASK_SHARING:
+    # New sharing flow
+    pass
 ```
 
-This lets you merge small increments to the main branch without exposing incomplete work.
+This lets you integrate small increments to the main branch without exposing incomplete work.
 
 ### Rule 4: Safe Defaults
 
 New code should default to safe, conservative behavior:
 
-```typescript
-// Safe: disabled by default, opt-in
-export function createTask(data: TaskInput, options?: { notify?: boolean }) {
-  const shouldNotify = options?.notify ?? false;
-  // ...
-}
+```python
+# Safe: disabled by default, opt-in
+def create_task(data: TaskInput, notify: bool = False) -> Task:
+    # ...
+    pass
 ```
 
 ### Rule 5: Rollback-Friendly
 
 Each increment should be independently revertable:
 
-- Additive changes (new files, new functions) are easy to revert
-- Modifications to existing code should be minimal and focused
-- Database migrations should have corresponding rollback migrations
-- Avoid deleting something in one commit and replacing it in the same commit — separate them
+- Additive changes (new files, new functions) are easy to revert.
+- Modifications to existing code should be minimal and focused.
+- Database migrations should have corresponding rollback migrations.
+- Avoid deleting something and replacing it in the same change step — separate them.
+
+---
 
 ## Working with Agents
 
@@ -187,26 +190,28 @@ When directing an agent to implement incrementally:
 ```
 "Let's implement Task 3 from the plan.
 
-Start with just the database schema change and the API endpoint.
-Don't touch the UI yet — we'll do that in the next increment.
+Start with just the database schema change and the view endpoint.
+Don't touch the template UI yet — we'll do that in the next increment.
 
-After implementing, run `npm test` and `npm run build` to verify
-nothing is broken."
+After implementing, run `pytest` to verify nothing is broken."
 ```
 
 Be explicit about what's in scope and what's NOT in scope for each increment.
+
+---
 
 ## Increment Checklist
 
 After each increment, verify:
 
 - [ ] The change does one thing and does it completely
-- [ ] All existing tests still pass (`npm test`)
-- [ ] The build succeeds (`npm run build`)
-- [ ] Type checking passes (`npx tsc --noEmit`)
-- [ ] Linting passes (`npm run lint`)
+- [ ] All existing tests still pass (e.g. `DJANGO_ENV=testing .venv/bin/pytest`)
+- [ ] The Django system build check succeeds (`python manage.py check`)
+- [ ] Type hints validate cleanly (standard PEP 8 / type checking validation)
+- [ ] Python linting/styling passes (standard Django/Python code standards)
 - [ ] The new functionality works as expected
-- [ ] The change is committed with a descriptive message
+
+---
 
 ## Common Rationalizations
 
@@ -214,9 +219,11 @@ After each increment, verify:
 |---|---|
 | "I'll test it all at the end" | Bugs compound. A bug in Slice 1 makes Slices 2-5 wrong. Test each slice. |
 | "It's faster to do it all at once" | It *feels* faster until something breaks and you can't find which of 500 changed lines caused it. |
-| "These changes are too small to commit separately" | Small commits are free. Large commits hide bugs and make rollbacks painful. |
+| "These changes are too small to split" | Small steps are free. Large changes hide bugs and make rollbacks painful. |
 | "I'll add the feature flag later" | If the feature isn't complete, it shouldn't be user-visible. Add the flag now. |
 | "This refactor is small enough to include" | Refactors mixed with features make both harder to review and debug. Separate them. |
+
+---
 
 ## Red Flags
 
@@ -225,17 +232,18 @@ After each increment, verify:
 - "Let me just quickly add this too" scope expansion
 - Skipping the test/verify step to move faster
 - Build or tests broken between increments
-- Large uncommitted changes accumulating
+- Large untested changes accumulating
 - Building abstractions before the third use case demands it
 - Touching files outside the task scope "while I'm here"
 - Creating new utility files for one-time operations
+
+---
 
 ## Verification
 
 After completing all increments for a task:
 
-- [ ] Each increment was individually tested and committed
-- [ ] The full test suite passes
-- [ ] The build is clean
+- [ ] Every individual increment was fully tested
+- [ ] The full test suite passes (`pytest`)
+- [ ] The Django system checks are completely clean
 - [ ] The feature works end-to-end as specified
-- [ ] No uncommitted changes remain

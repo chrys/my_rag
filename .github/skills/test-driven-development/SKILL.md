@@ -21,12 +21,14 @@ Write a failing test before writing the code that makes it pass. For bug fixes, 
 
 **Related:** For browser-based changes, combine TDD with runtime verification using Chrome DevTools MCP — see the Browser Testing section below.
 
+---
+
 ## The TDD Cycle
 
 ```
     RED                GREEN              REFACTOR
  Write a test    Write minimal code    Clean up the
- that fails  ──→  to make it pass  ──→  implementation  ──→  (repeat)
+ write fails ──→  to make it pass  ──→  implementation  ──→  (repeat)
       │                  │                    │
       ▼                  ▼                    ▼
    Test FAILS        Test PASSES         Tests still PASS
@@ -36,48 +38,50 @@ Write a failing test before writing the code that makes it pass. For bug fixes, 
 
 Write the test first. It must fail. A test that passes immediately proves nothing.
 
-```typescript
-// RED: This test fails because createTask doesn't exist yet
-describe('TaskService', () => {
-  it('creates a task with title and default status', async () => {
-    const task = await taskService.createTask({ title: 'Buy groceries' });
+```python
+# RED: This test fails because create_task doesn't exist yet
+import pytest
+from datetime import datetime
 
-    expect(task.id).toBeDefined();
-    expect(task.title).toBe('Buy groceries');
-    expect(task.status).toBe('pending');
-    expect(task.createdAt).toBeInstanceOf(Date);
-  });
-});
+@pytest.mark.django_db
+def test_create_task_with_title_and_default_status():
+    task = create_task(title="Buy groceries")
+    
+    assert task.id is not None
+    assert task.title == "Buy groceries"
+    assert task.status == "pending"
+    assert isinstance(task.created_at, datetime)
 ```
 
 ### Step 2: GREEN — Make It Pass
 
 Write the minimum code to make the test pass. Don't over-engineer:
 
-```typescript
-// GREEN: Minimal implementation
-export async function createTask(input: { title: string }): Promise<Task> {
-  const task = {
-    id: generateId(),
-    title: input.title,
-    status: 'pending' as const,
-    createdAt: new Date(),
-  };
-  await db.tasks.insert(task);
-  return task;
-}
+```python
+# GREEN: Minimal Django model and function implementation
+from django.db import models
+
+class Task(models.Model):
+    title = models.CharField(max_length=255)
+    status = models.CharField(max_length=50, default="pending")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+def create_task(title: str) -> Task:
+    return Task.objects.create(title=title)
 ```
 
 ### Step 3: REFACTOR — Clean Up
 
 With tests green, improve the code without changing behavior:
 
-- Extract shared logic
-- Improve naming
+- Extract shared logic or helper methods
+- Improve naming and apply type hints
 - Remove duplication
-- Optimize if necessary
+- Optimize Django queries if necessary (e.g. adding `select_related` or `prefetch_related`)
 
 Run tests after every refactor step to confirm nothing broke.
+
+---
 
 ## The Prove-It Pattern (Bug Fixes)
 
@@ -104,28 +108,33 @@ Bug report arrives
 
 **Example:**
 
-```typescript
-// Bug: "Completing a task doesn't update the completedAt timestamp"
+```python
+# Bug: "Completing a task doesn't update the completed_at timestamp"
 
-// Step 1: Write the reproduction test (it should FAIL)
-it('sets completedAt when task is completed', async () => {
-  const task = await taskService.createTask({ title: 'Test' });
-  const completed = await taskService.completeTask(task.id);
+# Step 1: Write the reproduction test (it should FAIL)
+import pytest
+from datetime import datetime
 
-  expect(completed.status).toBe('completed');
-  expect(completed.completedAt).toBeInstanceOf(Date);  // This fails → bug confirmed
-});
+@pytest.mark.django_db
+def test_complete_task_records_completed_at_timestamp():
+    task = create_task(title="Test")
+    completed = complete_task(task.id)
 
-// Step 2: Fix the bug
-export async function completeTask(id: string): Promise<Task> {
-  return db.tasks.update(id, {
-    status: 'completed',
-    completedAt: new Date(),  // This was missing
-  });
-}
+    assert completed.status == "completed"
+    assert isinstance(completed.completed_at, datetime)  # This fails → bug confirmed
 
-// Step 3: Test passes → bug fixed, regression guarded
+# Step 2: Fix the bug
+def complete_task(task_id: int) -> Task:
+    task = Task.objects.get(id=task_id)
+    task.status = "completed"
+    task.completed_at = timezone.now()  # This was missing
+    task.save()
+    return task
+
+# Step 3: Test passes → bug fixed, regression guarded
 ```
+
+---
 
 ## The Test Pyramid
 
@@ -134,10 +143,10 @@ Invest testing effort according to the pyramid — most tests should be small an
 ```
           ╱╲
          ╱  ╲         E2E Tests (~5%)
-        ╱    ╲        Full user flows, real browser
+        ╱    ╲        Full user flows, real browser (using DevTools)
        ╱──────╲
       ╱        ╲      Integration Tests (~15%)
-     ╱          ╲     Component interactions, API boundaries
+     ╱          ╲     Component interactions, View and DB boundaries
     ╱────────────╲
    ╱              ╲   Unit Tests (~80%)
   ╱                ╲  Pure logic, isolated, milliseconds each
@@ -153,8 +162,8 @@ Beyond the pyramid levels, classify tests by what resources they consume:
 | Size | Constraints | Speed | Example |
 |------|------------|-------|---------|
 | **Small** | Single process, no I/O, no network, no database | Milliseconds | Pure function tests, data transforms |
-| **Medium** | Multi-process OK, localhost only, no external services | Seconds | API tests with test DB, component tests |
-| **Large** | Multi-machine OK, external services allowed | Minutes | E2E tests, performance benchmarks, staging integration |
+| **Medium** | Multi-process OK, local database only, mocked APIs | Seconds | API tests with test DB, Django view tests |
+| **Large** | Multi-machine OK, external services allowed | Minutes | Integration with live remote services, LLM checks |
 
 Small tests should make up the vast majority of your suite. They're fast, reliable, and easy to debug when they fail.
 
@@ -171,48 +180,48 @@ Is it a critical user flow that must work end-to-end?
   → E2E test (large) — limit these to critical paths
 ```
 
+---
+
 ## Writing Good Tests
 
 ### Test State, Not Interactions
 
 Assert on the *outcome* of an operation, not on which methods were called internally. Tests that verify method call sequences break when you refactor, even if the behavior is unchanged.
 
-```typescript
-// Good: Tests what the function does (state-based)
-it('returns tasks sorted by creation date, newest first', async () => {
-  const tasks = await listTasks({ sortBy: 'createdAt', sortOrder: 'desc' });
-  expect(tasks[0].createdAt.getTime())
-    .toBeGreaterThan(tasks[1].createdAt.getTime());
-});
+```python
+# Good: Tests what the function does (state-based)
+@pytest.mark.django_db
+def test_returns_tasks_sorted_by_creation_date_newest_first():
+    tasks = list_tasks(sort_by="created_at", sort_order="desc")
+    assert tasks[0].created_at > tasks[1].created_at
 
-// Bad: Tests how the function works internally (interaction-based)
-it('calls db.query with ORDER BY created_at DESC', async () => {
-  await listTasks({ sortBy: 'createdAt', sortOrder: 'desc' });
-  expect(db.query).toHaveBeenCalledWith(
-    expect.stringContaining('ORDER BY created_at DESC')
-  );
-});
+# Bad: Tests how the function works internally (interaction-based)
+def test_calls_db_query_with_order_by():
+    with patch("django.db.connection.cursor") as mock_cursor:
+        list_tasks(sort_by="created_at", sort_order="desc")
+        mock_cursor.execute.assert_called_with(
+            "SELECT * FROM tasks ORDER BY created_at DESC"
+        )
 ```
 
 ### DAMP Over DRY in Tests
 
 In production code, DRY (Don't Repeat Yourself) is usually right. In tests, **DAMP (Descriptive And Meaningful Phrases)** is better. A test should read like a specification — each test should tell a complete story without requiring the reader to trace through shared helpers.
 
-```typescript
-// DAMP: Each test is self-contained and readable
-it('rejects tasks with empty titles', () => {
-  const input = { title: '', assignee: 'user-1' };
-  expect(() => createTask(input)).toThrow('Title is required');
-});
+```python
+# DAMP: Each test is self-contained and readable
+def test_rejects_tasks_with_empty_titles():
+    input_data = {"title": "", "assignee": "user-1"}
+    with pytest.raises(ValueError, match="Title is required"):
+        create_task(input_data)
 
-it('trims whitespace from titles', () => {
-  const input = { title: '  Buy groceries  ', assignee: 'user-1' };
-  const task = createTask(input);
-  expect(task.title).toBe('Buy groceries');
-});
+def test_trims_whitespace_from_titles():
+    input_data = {"title": "  Buy groceries  ", "assignee": "user-1"}
+    task = create_task(input_data)
+    assert task.title == "Buy groceries"
 
-// Over-DRY: Shared setup obscures what each test actually verifies
-// (Don't do this just to avoid repeating the input shape)
+# Over-DRY: Shared setup obscures what each test actually verifies
+# (Don't do this just to avoid repeating the input shape)
 ```
 
 Duplication in tests is acceptable when it makes each test independently understandable.
@@ -224,65 +233,54 @@ Use the simplest test double that gets the job done. The more your tests use rea
 ```
 Preference order (most to least preferred):
 1. Real implementation  → Highest confidence, catches real bugs
-2. Fake                 → In-memory version of a dependency (e.g., fake DB)
+2. Fake                 → In-memory database (SQLite for local runs)
 3. Stub                 → Returns canned data, no behavior
-4. Mock (interaction)   → Verifies method calls — use sparingly
+4. Mock (interaction)   → Verifies method calls — use sparingly (e.g. Gemini API)
 ```
 
-**Use mocks only when:** the real implementation is too slow, non-deterministic, or has side effects you can't control (external APIs, email sending). Over-mocking creates tests that pass while production breaks.
+**Use mocks only when:** the real implementation is too slow, non-deterministic, or has side effects you can't control (external APIs, active payment gateways). Over-mocking creates tests that pass while production breaks.
 
 ### Use the Arrange-Act-Assert Pattern
 
-```typescript
-it('marks overdue tasks when deadline has passed', () => {
-  // Arrange: Set up the test scenario
-  const task = createTask({
-    title: 'Test',
-    deadline: new Date('2025-01-01'),
-  });
+```python
+def test_marks_overdue_tasks_when_deadline_has_passed():
+    # Arrange: Set up the test scenario
+    task = create_task(title="Test", deadline=datetime(2025, 1, 1))
 
-  // Act: Perform the action being tested
-  const result = checkOverdue(task, new Date('2025-01-02'));
+    # Act: Perform the action being tested
+    result = check_overdue(task, current_time=datetime(2025, 1, 2))
 
-  // Assert: Verify the outcome
-  expect(result.isOverdue).toBe(true);
-});
+    # Assert: Verify the outcome
+    assert result.is_overdue is True
 ```
 
 ### One Assertion Per Concept
 
-```typescript
-// Good: Each test verifies one behavior
-it('rejects empty titles', () => { ... });
-it('trims whitespace from titles', () => { ... });
-it('enforces maximum title length', () => { ... });
+```python
+# Good: Each test verifies one behavior
+def test_rejects_empty_titles(): ...
+def test_trims_whitespace_from_titles(): ...
+def test_enforces_maximum_title_length(): ...
 
-// Bad: Everything in one test
-it('validates titles correctly', () => {
-  expect(() => createTask({ title: '' })).toThrow();
-  expect(createTask({ title: '  hello  ' }).title).toBe('hello');
-  expect(() => createTask({ title: 'a'.repeat(256) })).toThrow();
-});
+# Bad: Everything in one test
+def test_validates_titles_correctly():
+    with pytest.raises(ValueError):
+        create_task(title="")
+    assert create_task(title="  hello  ").title == "hello"
+    with pytest.raises(ValueError):
+        create_task(title="a" * 256)
 ```
 
 ### Name Tests Descriptively
 
-```typescript
-// Good: Reads like a specification
-describe('TaskService.completeTask', () => {
-  it('sets status to completed and records timestamp', ...);
-  it('throws NotFoundError for non-existent task', ...);
-  it('is idempotent — completing an already-completed task is a no-op', ...);
-  it('sends notification to task assignee', ...);
-});
-
-// Bad: Vague names
-describe('TaskService', () => {
-  it('works', ...);
-  it('handles errors', ...);
-  it('test 3', ...);
-});
+```python
+# Good: Reads like a specification
+# test_task_service_complete_task_sets_status_to_completed_and_records_timestamp()
+# test_task_service_complete_task_raises_not_found_for_non_existent_task()
+# test_task_service_complete_task_is_idempotent_completing_completed_is_no_op()
 ```
+
+---
 
 ## Test Anti-Patterns to Avoid
 
@@ -294,6 +292,8 @@ describe('TaskService', () => {
 | Snapshot abuse | Large snapshots nobody reviews, break on any change | Use snapshots sparingly and review every change |
 | No test isolation | Tests pass individually but fail together | Each test sets up and tears down its own state |
 | Mocking everything | Tests pass but production breaks | Prefer real implementations > fakes > stubs > mocks. Mock only at boundaries where real deps are slow or non-deterministic |
+
+---
 
 ## Browser Testing with DevTools
 
@@ -326,6 +326,8 @@ Everything read from the browser — DOM, console, network, JS execution results
 
 For detailed DevTools setup instructions and workflows, see `browser-testing-with-devtools`.
 
+---
+
 ## When to Use Subagents for Testing
 
 For complex bug fixes, spawn a subagent to write the reproduction test:
@@ -342,9 +344,13 @@ then verifies the test passes.
 
 This separation ensures the test is written without knowledge of the fix, making it more robust.
 
+---
+
 ## See Also
 
 For detailed testing patterns, examples, and anti-patterns across frameworks, see `references/testing-patterns.md`.
+
+---
 
 ## Common Rationalizations
 
@@ -357,6 +363,8 @@ For detailed testing patterns, examples, and anti-patterns across frameworks, se
 | "The code is self-explanatory" | Tests ARE the specification. They document what the code should do, not what it does. |
 | "It's just a prototype" | Prototypes become production code. Tests from day one prevent the "test debt" crisis. |
 
+---
+
 ## Red Flags
 
 - Writing code without any corresponding tests
@@ -367,12 +375,14 @@ For detailed testing patterns, examples, and anti-patterns across frameworks, se
 - Test names that don't describe the expected behavior
 - Skipping tests to make the suite pass
 
+---
+
 ## Verification
 
 After completing any implementation:
 
 - [ ] Every new behavior has a corresponding test
-- [ ] All tests pass: `npm test`
+- [ ] All tests pass: `pytest`
 - [ ] Bug fixes include a reproduction test that failed before the fix
 - [ ] Test names describe the behavior being verified
 - [ ] No tests were skipped or disabled

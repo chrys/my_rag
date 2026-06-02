@@ -17,6 +17,9 @@
         </div>
     </div>
     <div class="flex items-center gap-4">
+        {% if doc.is_expired %}
+        <span class="px-2 py-1 bg-red-100 text-red-750 text-xs font-bold rounded-full select-none animate-pulse">EXPIRED</span>
+        {% endif %}
         <span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">{{ doc.state.name }}</span>
         <button hx-delete="{{ url_prefix }}/api/documents/{{ doc.name }}?store_id={{ store_id }}"
             hx-target="closest .document-item"

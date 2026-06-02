@@ -1,30 +1,24 @@
 from django.contrib import admin
-from .models import EvaluationDataset, EvaluationResult
+from .models import EvaluationDataset, EvaluationRun, EvaluationResultMetrics
 
 
 @admin.register(EvaluationDataset)
 class EvaluationDatasetAdmin(admin.ModelAdmin):
-    list_display = ('name', 'project', 'state', 'num_questions', 'created_at')
-    list_filter = ('state', 'project', 'created_at')
-    search_fields = ('name', 'description', 'project__display_name')
-    readonly_fields = ('created_at', 'generated_at')
-    fieldsets = (
-        ('Basic Info', {'fields': ('project', 'user', 'name', 'description')}),
-        ('Configuration', {'fields': ('num_questions', 'question_generation_params')}),
-        ('Status', {'fields': ('state', 'error_message')}),
-        ('Results', {'fields': ('qa_pairs',)}),
-        ('Timestamps', {'fields': ('created_at', 'generated_at')}),
-    )
+    list_display = ("question", "project", "document", "source", "created_at")
+    list_filter = ("source", "project", "created_at")
+    search_fields = ("question", "ground_truth", "project__display_name")
+    readonly_fields = ("created_at",)
 
 
-@admin.register(EvaluationResult)
-class EvaluationResultAdmin(admin.ModelAdmin):
-    list_display = ('dataset', 'evaluator_name', 'created_at')
-    list_filter = ('evaluator_name', 'dataset', 'created_at')
-    search_fields = ('evaluator_name', 'dataset__name', 'project__display_name')
-    readonly_fields = ('created_at',)
-    fieldsets = (
-        ('References', {'fields': ('dataset', 'project')}),
-        ('Evaluation', {'fields': ('evaluator_name', 'metrics', 'individual_scores')}),
-        ('Timestamps', {'fields': ('created_at',)}),
-    )
+@admin.register(EvaluationRun)
+class EvaluationRunAdmin(admin.ModelAdmin):
+    list_display = ("id", "project", "status", "started_at", "completed_at")
+    list_filter = ("status", "project", "started_at")
+    search_fields = ("id", "project__display_name")
+    readonly_fields = ("started_at",)
+
+
+@admin.register(EvaluationResultMetrics)
+class EvaluationResultMetricsAdmin(admin.ModelAdmin):
+    list_display = ("run", "dataset_item", "context_recall", "context_precision", "faithfulness", "answer_relevancy")
+    list_filter = ("run__project",)

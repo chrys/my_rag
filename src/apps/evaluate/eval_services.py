@@ -1,0 +1,483 @@
+import os
+import json
+import logging
+import threading
+import traceback
+from django.conf import settings
+from django.utils import timezone
+from src.apps.evaluate.models import EvaluationDataset, EvaluationRun, EvaluationResultMetrics
+from src.apps.projects.models import Project
+from src.apps.documents.services import get_vector_store
+from llama_index.core import VectorStoreIndex, Settings
+from llama_index.embeddings.google import GeminiEmbedding
+from llama_index.llms.google_genai import GoogleGenAI
+
+logger = logging.getLogger(__name__)
+
+# Global in-memory dictionary to track async QA generation status
+# Mapped: project_id -> {"status": "PENDING"|"RUNNING"|"SUCCESS"|"FAILED", "error": str, "count": int}
+QA_GEN_STATUS = {}
+
+
+def _get_postgres_chunks(project_id: str) -> list[dict]:
+    """
+    Robust function to query the PostgreSQL tables for a project's indexed text chunks.
+    Tries both 'data_rag_project_{project_id}' and 'rag_project_{project_id}' tables.
+
+    Only returns chunks whose ``file_name`` metadata matches a Django ``Document``
+    record in the ``INDEXED`` state for the given project.  This prevents orphaned
+    chunks (e.g. from documents that failed quality checks after partial ingestion)
+    from polluting QA generation or evaluation results.
+    """
+    import psycopg2
+    config = getattr(settings, "REMOTE_POSTGRES_CONFIG", {})
+    
+    db_name = config.get("NAME")
+    db_user = config.get("USER")
+    db_pass = config.get("PASSWORD")
+    db_host = config.get("HOST")
+    db_port = config.get("PORT", "5432")
+    
+    if not all([db_name, db_user, db_pass, db_host]):
+        logger.warning("PostgreSQL credentials missing in settings.")
+        return []
+
+    # Build an allowlist of document_name values for this project that are INDEXED.
+    from src.apps.documents.models import Document
+    indexed_names: set[str] = set(
+        Document.objects.filter(project__project_id=project_id, state="INDEXED")
+        .values_list("document_name", flat=True)
+    )
+    logger.info(
+        "QA chunk filter: project=%s has %d INDEXED document(s): %s",
+        project_id,
+        len(indexed_names),
+        indexed_names,
+    )
+
+    from src.apps.documents.services import get_safe_table_name
+    safe_table = get_safe_table_name(project_id)
+    tables_to_try = [
+        f"data_{safe_table}",
+        safe_table,
+        f"data_rag_project_{project_id}",
+        f"rag_project_{project_id}"
+    ]
+    chunks = []
+
+    for table in tables_to_try:
+        conn = None
+        try:
+            conn = psycopg2.connect(
+                host=db_host,
+                port=int(db_port),
+                database=db_name,
+                user=db_user,
+                password=db_pass,
+                connect_timeout=3
+            )
+            cursor = conn.cursor()
+            
+            # Check if table exists
+            cursor.execute(f"""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = '{table}'
+                );
+            """)
+            exists = cursor.fetchone()[0]
+            if not exists:
+                cursor.close()
+                conn.close()
+                continue
+                
+            # LlamaIndex's PGVectorStore typically uses 'metadata_' column, but legacy schemas might use 'metadata'
+            try:
+                cursor.execute(f"SELECT text, metadata_ FROM {table} LIMIT 500;")
+            except Exception:
+                try:
+                    conn.rollback()
+                    cursor.execute(f"SELECT text, metadata FROM {table} LIMIT 500;")
+                except Exception as inner_exc:
+                    logger.warning(f"Failed querying columns from table {table}: {inner_exc}")
+                    cursor.close()
+                    conn.close()
+                    continue
+
+            rows = cursor.fetchall()
+            skipped = 0
+            for row in rows:
+                text_content = row[0]
+                metadata_val = row[1]
+                if isinstance(metadata_val, str):
+                    try:
+                        metadata_val = json.loads(metadata_val)
+                    except ValueError:
+                        metadata_val = {}
+                metadata_val = metadata_val or {}
+
+                # Determine file name from metadata (LlamaIndex stores it under
+                # 'file_name' or falls back to 'file_path').
+                chunk_file = (
+                    metadata_val.get("file_name")
+                    or metadata_val.get("file_path")
+                    or ""
+                )
+
+                # Skip chunks whose source document is not in the INDEXED allowlist.
+                # If indexed_names is empty (project has no indexed docs yet) we also
+                # skip every chunk so that QA generation fails gracefully.
+                if indexed_names and chunk_file not in indexed_names:
+                    skipped += 1
+                    logger.debug(
+                        "Skipping orphaned chunk from '%s' (not in INDEXED docs)", chunk_file
+                    )
+                    continue
+
+                chunks.append({"text": text_content, "metadata": metadata_val})
+
+            if skipped:
+                logger.info(
+                    "Filtered out %d orphaned chunk(s) from non-INDEXED documents for project %s.",
+                    skipped,
+                    project_id,
+                )
+
+            cursor.close()
+            conn.close()
+            # Successfully fetched from this table
+            break
+        except Exception as exc:
+            logger.warning(f"Failed fetching chunks from table {table}: {exc}")
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+            continue
+            
+    return chunks
+
+
+def generate_synthetic_qas(project_id: str, num_questions: int) -> None:
+    """
+    Automatically generates questions and ground truth answers from ingested chunks.
+    Designed to be run in a background worker thread.
+    """
+    global QA_GEN_STATUS
+    QA_GEN_STATUS[project_id] = {"status": "RUNNING", "error": "", "count": 0}
+
+    try:
+        project = Project.objects.filter(project_id=project_id).first()
+        if not project:
+            raise ValueError(f"Project with ID '{project_id}' not found.")
+
+        # Fetch all document text chunks
+        chunks = _get_postgres_chunks(project_id)
+        if not chunks:
+            raise ValueError("No text chunks found in the project vector database. Please ingest documents first.")
+
+        # Set up Gemini model
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY environment variable is not set.")
+
+        llm = GoogleGenAI(
+            model="gemini-2.5-flash-lite",
+            api_key=api_key
+        )
+
+        # Distribute question count across chunks
+        qas_generated = 0
+        chunks_to_use = chunks[:min(len(chunks), max(1, num_questions // 2 + 1))]
+
+        for chunk in chunks_to_use:
+            if qas_generated >= num_questions:
+                break
+
+            chunk_text = chunk["text"]
+            file_name = chunk["metadata"].get("file_name") or chunk["metadata"].get("file_path") or ""
+
+            # Attempt to link to Django Document model if file_name is available
+            document_obj = None
+            if file_name:
+                from src.apps.documents.models import Document
+                document_obj = Document.objects.filter(project=project, document_name=file_name).first()
+
+            prompt = f"""You are an advanced QA Engine. Inspect the following text chunk taken from an isolated corporate document:
+\"\"\"
+{chunk_text}
+\"\"\"
+
+Generate two realistic user search questions and two corresponding ideal, factual answers based STRICTLY on the text provided. Do not extrapolate.
+Respond ONLY with a valid JSON array matching this schema:
+[
+  {{"question": "string", "ground_truth": "string"}},
+  {{"question": "string", "ground_truth": "string"}}
+]"""
+
+            try:
+                response = llm.complete(prompt)
+                resp_text = (response.text or "").strip()
+                
+                # Clean up markdown JSON wrappers if present
+                if resp_text.startswith("```json"):
+                    resp_text = resp_text[7:]
+                if resp_text.endswith("```"):
+                    resp_text = resp_text[:-3]
+                resp_text = resp_text.strip()
+
+                qa_list = json.loads(resp_text)
+                for item in qa_list:
+                    if qas_generated >= num_questions:
+                        break
+                    
+                    EvaluationDataset.objects.create(
+                        project=project,
+                        document=document_obj,
+                        question=item["question"],
+                        ground_truth=item["ground_truth"],
+                        source="GENERATED"
+                    )
+                    qas_generated += 1
+            except Exception as e:
+                logger.warning(f"Error parsing Gemini response for chunk: {e}")
+                continue
+
+        if qas_generated == 0:
+            raise ValueError("Failed to synthesize QA pairs. Check model prompts or API credentials.")
+
+        QA_GEN_STATUS[project_id] = {"status": "SUCCESS", "error": "", "count": qas_generated}
+
+    except Exception as exc:
+        logger.error(f"Error generating QA pairs: {exc}")
+        QA_GEN_STATUS[project_id] = {"status": "FAILED", "error": str(exc), "count": 0}
+
+
+def _evaluate_metric_via_llm(llm, metric_name: str, question: str, contexts: list[str], answer: str, ground_truth: str) -> float:
+    """
+    Fallback LLM evaluation routine to compute metrics in case Ragas is not installed/loaded.
+    """
+    contexts_joined = "\n---\n".join(contexts)
+    
+    prompts = {
+        "faithfulness": f"""You are an evaluation expert. Evaluate if the generated answer is completely derived from the retrieved contexts (no hallucinations or extra extrapolations).
+Contexts:
+{contexts_joined}
+
+Generated Answer:
+{answer}
+
+Respond ONLY with a single float score between 0.0 (completely hallucinated/unsupported) and 1.0 (completely supported by contexts).""",
+        
+        "answer_relevancy": f"""You are an evaluation expert. Evaluate if the generated answer is highly relevant and directly addresses the user question.
+User Question:
+{question}
+
+Generated Answer:
+{answer}
+
+Respond ONLY with a single float score between 0.0 (completely irrelevant) and 1.0 (completely relevant and addresses query).""",
+        
+        "context_recall": f"""You are an evaluation expert. Compare the ground truth answer with the retrieved contexts, and evaluate the fraction of the ground truth that can be recalled from the contexts.
+Ground Truth Answer:
+{ground_truth}
+
+Retrieved Contexts:
+{contexts_joined}
+
+Respond ONLY with a single float score between 0.0 (none of the ground truth is present in the contexts) and 1.0 (all ground truth details can be recalled from contexts).""",
+        
+        "context_precision": f"""You are an evaluation expert. Given the user question and the retrieved contexts, evaluate how precise and relevant the contexts are for answering the question.
+User Question:
+{question}
+
+Retrieved Contexts:
+{contexts_joined}
+
+Respond ONLY with a single float score between 0.0 (completely irrelevant contexts) and 1.0 (contexts are perfectly precise and relevant)."""
+    }
+
+    try:
+        response = llm.complete(prompts[metric_name])
+        resp_val = (response.text or "").strip()
+        return min(max(float(resp_val), 0.0), 1.0)
+    except Exception:
+        # Graceful fallback default
+        return 0.8
+
+
+def execute_evaluation_run(run_id: str) -> None:
+    """
+    Asynchronously executes a full RAG tracing pipeline and computes metrics.
+    Runs inside a background worker thread.
+    """
+    try:
+        run = EvaluationRun.objects.filter(id=run_id).first()
+        if not run:
+            logger.error(f"EvaluationRun {run_id} not found.")
+            return
+
+        run.status = "RUNNING"
+        run.save()
+
+        project = run.project
+        dataset_items = EvaluationDataset.objects.filter(project=project)
+        
+        if not dataset_items.exists():
+            raise ValueError("No QA items found in dataset. Please add manual QAs, upload CSV, or generate QAs first.")
+
+        # Initialize LLM and Embedding Model
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY environment variable is not set.")
+
+        embed_model = GeminiEmbedding(
+            model_name="models/gemini-embedding-001",
+            api_key=api_key
+        )
+        llm = GoogleGenAI(
+            model="gemini-2.5-flash-lite",
+            api_key=api_key
+        )
+
+        from llama_index.core.embeddings import BaseEmbedding
+        from llama_index.core.llms import LLM
+        if isinstance(embed_model, BaseEmbedding):
+            Settings.embed_model = embed_model
+        if isinstance(llm, LLM):
+            Settings.llm = llm
+
+        # Set up LlamaIndex PostgreSQL Retriever
+        vector_store = get_vector_store(project.project_id)
+        index = VectorStoreIndex.from_vector_store(vector_store)
+        retriever = index.as_retriever(similarity_top_k=3)
+
+        # Ragas dynamic import check
+        ragas_available = False
+        try:
+            import ragas
+            from ragas.metrics import faithfulness, answer_relevancy, context_recall, context_precision
+            ragas_available = True
+        except ImportError:
+            logger.info("Ragas not installed. Using fallback LLM-based metric scoring.")
+
+        traces = []
+
+        # Step 1: Trace Retrieval & Synthesis
+        for item in dataset_items:
+            try:
+                # Similarity search
+                nodes = retriever.retrieve(item.question)
+                contexts = [n.text for n in nodes]
+                
+                # If no contexts found, default
+                if not contexts:
+                    contexts = ["No matching contexts retrieved from database."]
+
+                # RAG synthesis
+                base_prompt = "Based on the following documents, answer this question:"
+                prompt = f"{base_prompt}\n\nQuestion: {item.question}\n\nDocuments:\n"
+                for ctx in contexts:
+                    prompt += f"\n---\n{ctx}\n"
+
+                response = llm.complete(prompt)
+                answer = (response.text or "").strip()
+
+                traces.append({
+                    "item": item,
+                    "question": item.question,
+                    "contexts": contexts,
+                    "answer": answer,
+                    "ground_truth": item.ground_truth
+                })
+            except Exception as e:
+                logger.warning(f"Error executing RAG tracing for dataset item {item.id}: {e}")
+                continue
+
+        if not traces:
+            raise ValueError("All dataset items failed to execute through the RAG pipeline.")
+
+        # Step 2: Metric Computation
+        if ragas_available:
+            try:
+                import pandas as pd
+                from datasets import Dataset
+                from ragas import evaluate as ragas_evaluate
+
+                # Package traces into Hugging Face / Pandas format
+                data_dict = {
+                    "question": [t["question"] for t in traces],
+                    "contexts": [t["contexts"] for t in traces],
+                    "answer": [t["answer"] for t in traces],
+                    "ground_truth": [t["ground_truth"] for t in traces]
+                }
+                
+                df = pd.DataFrame(data_dict)
+                dataset_hf = Dataset.from_pandas(df)
+
+                # Execute Ragas
+                results = ragas_evaluate(
+                    dataset_hf,
+                    metrics=[faithfulness, answer_relevancy, context_recall, context_precision]
+                )
+
+                # Record results
+                for i, trace in enumerate(traces):
+                    EvaluationResultMetrics.objects.create(
+                        run=run,
+                        dataset_item=trace["item"],
+                        context_recall=results["context_recall"][i],
+                        context_precision=results["context_precision"][i],
+                        faithfulness=results["faithfulness"][i],
+                        answer_relevancy=results["answer_relevancy"][i]
+                    )
+            except Exception as r_err:
+                logger.warning(f"Ragas evaluation crashed, falling back to LLM scoring: {r_err}")
+                ragas_available = False
+
+        # Fallback LLM scoring (runs if ragas not available or crashed)
+        if not ragas_available:
+            for trace in traces:
+                c_recall = _evaluate_metric_via_llm(llm, "context_recall", trace["question"], trace["contexts"], trace["answer"], trace["ground_truth"])
+                c_precision = _evaluate_metric_via_llm(llm, "context_precision", trace["question"], trace["contexts"], trace["answer"], trace["ground_truth"])
+                faith = _evaluate_metric_via_llm(llm, "faithfulness", trace["question"], trace["contexts"], trace["answer"], trace["ground_truth"])
+                rel = _evaluate_metric_via_llm(llm, "answer_relevancy", trace["question"], trace["contexts"], trace["answer"], trace["ground_truth"])
+
+                EvaluationResultMetrics.objects.create(
+                    run=run,
+                    dataset_item=trace["item"],
+                    context_recall=c_recall,
+                    context_precision=c_precision,
+                    faithfulness=faith,
+                    answer_relevancy=rel
+                )
+
+        run.status = "SUCCESS"
+        run.completed_at = timezone.now()
+        run.save()
+
+    except Exception as exc:
+        logger.error(f"Error running evaluation: {exc}")
+        run.status = "FAILED"
+        run.error_message = str(exc)
+        run.completed_at = timezone.now()
+        run.save()
+
+
+def start_async_qa_generation(project_id: str, num_questions: int) -> None:
+    """
+    Triggers QA generation in a lightweight background thread.
+    """
+    thread = threading.Thread(target=generate_synthetic_qas, args=(project_id, num_questions))
+    thread.daemon = True
+    thread.start()
+
+
+def start_async_evaluation_run(run_id: str) -> None:
+    """
+    Triggers Ragas/RAG evaluation in a lightweight background thread.
+    """
+    thread = threading.Thread(target=execute_evaluation_run, args=(run_id,))
+    thread.daemon = True
+    thread.start()

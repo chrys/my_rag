@@ -4,7 +4,7 @@ from src.apps.projects.api_views import ProjectViewSet, SystemPromptViewSet
 from src.apps.documents.api_views import DocumentViewSet
 from src.apps.documents.views import delete_document
 from src.apps.chat.api_views import ChatMessageViewSet
-from src.apps.evaluate.api_views import EvaluationDatasetViewSet, EvaluationResultViewSet
+from src.apps.evaluate.api_views import EvaluationDatasetViewSet, EvaluationResultMetricsViewSet, EvaluationRunViewSet
 from src.apps.api.api_views import APIKeyViewSet, APIUsageViewSet
 
 # Create router and register viewsets
@@ -16,7 +16,8 @@ router.register(r'prompts', SystemPromptViewSet, basename='prompt')
 router.register(r'documents', DocumentViewSet, basename='document')
 router.register(r'messages', ChatMessageViewSet, basename='message')
 router.register(r'datasets', EvaluationDatasetViewSet, basename='dataset')
-router.register(r'results', EvaluationResultViewSet, basename='result')
+router.register(r'results', EvaluationResultMetricsViewSet, basename='result')
+router.register(r'runs', EvaluationRunViewSet, basename='run')
 router.register(r'keys', APIKeyViewSet, basename='apikey')
 router.register(r'usage', APIUsageViewSet, basename='apiusage')
 

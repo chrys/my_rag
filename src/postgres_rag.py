@@ -206,6 +206,85 @@ class PostgresRAGEngine:
     def delete_document(self, document_name: str) -> bool:
         self._remove_entries(document_name)
         self._save()
+
+        # Delete matching chunks from PGVectorStore database tables
+        try:
+            import psycopg2
+            from django.conf import settings
+            from src.apps.documents.services import get_safe_table_name
+
+            config = getattr(settings, "REMOTE_POSTGRES_CONFIG", {})
+            db_name = config.get("NAME")
+            db_user = config.get("USER")
+            db_pass = config.get("PASSWORD")
+            db_host = config.get("HOST")
+            db_port = config.get("PORT", "5432")
+
+            if all([db_name, db_user, db_pass, db_host]):
+                safe_table = get_safe_table_name(self.project_id)
+                tables_to_try = [
+                    f"data_{safe_table}",
+                    safe_table,
+                    f"data_rag_project_{self.project_id}",
+                    f"rag_project_{self.project_id}"
+                ]
+
+                for table in tables_to_try:
+                    conn = None
+                    try:
+                        conn = psycopg2.connect(
+                            host=db_host,
+                            port=int(db_port),
+                            database=db_name,
+                            user=db_user,
+                            password=db_pass,
+                            connect_timeout=3
+                        )
+                        cursor = conn.cursor()
+
+                        # Check if table exists
+                        cursor.execute(f"""
+                            SELECT EXISTS (
+                                SELECT FROM information_schema.tables 
+                                WHERE table_name = '{table}'
+                            );
+                        """)
+                        exists = cursor.fetchone()[0]
+                        if not exists:
+                            cursor.close()
+                            conn.close()
+                            continue
+
+                        # Delete all matching chunks by checking file_name in metadata_ or metadata JSON column
+                        try:
+                            cursor.execute(
+                                f"DELETE FROM {table} WHERE metadata_->>'file_name' = %s OR metadata_->>'file_path' = %s;",
+                                (document_name, document_name)
+                            )
+                            conn.commit()
+                        except Exception:
+                            try:
+                                conn.rollback()
+                                cursor.execute(
+                                    f"DELETE FROM {table} WHERE metadata->>'file_name' = %s OR metadata->>'file_path' = %s;",
+                                    (document_name, document_name)
+                                )
+                                conn.commit()
+                            except Exception as inner_exc:
+                                print(f"Warning: Failed deleting from columns for {table}: {inner_exc}")
+
+                        cursor.close()
+                        conn.close()
+                    except Exception as table_exc:
+                        print(f"Warning: Failed connecting/deleting for table {table}: {table_exc}")
+                        if conn:
+                            try:
+                                conn.close()
+                            except Exception:
+                                pass
+        except Exception as e:
+            print(f"Warning: Failed deleting database chunks: {e}")
+
         return True
 
     def delete_project_artifacts(self, document_names: list[str]) -> bool:

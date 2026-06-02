@@ -18,6 +18,7 @@ class ProjectAdmin(ModelAdmin):
                 "fields": (
                     "project_id",
                     "display_name",
+                    "storage_type",
                     "description",
                     "is_active",
                     "synthesizer",
@@ -25,6 +26,8 @@ class ProjectAdmin(ModelAdmin):
                     "chunking",
                     "embedding_model",
                     "custom_prompt",
+                    "use_markitdown",
+                    "use_structural_grading",
                 ),
             },
         ),
@@ -33,7 +36,6 @@ class ProjectAdmin(ModelAdmin):
             {
                 "classes": ("tab",),
                 "fields": (
-                    "storage_type",
                     "external_store_id",
                     "document_count",
                     "last_indexed_at",

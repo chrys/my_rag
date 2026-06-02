@@ -101,25 +101,25 @@ class TestProjectCreateSerializer:
         data = {
             'project_id': 'create_test_001',
             'display_name': 'Created Project',
-            'storage_type': 'local',
+            'storage_type': 'postgres',
             'description': 'A created project'
         }
         
         serializer = ProjectCreateSerializer(data=data)
-        assert serializer.is_valid()
+        assert serializer.is_valid(), serializer.errors
         
         project = serializer.save()
         
         assert project.project_id == 'create_test_001'
         assert project.display_name == 'Created Project'
-        assert project.storage_type == 'local'
+        assert project.storage_type == 'postgres'
     
     def test_create_project_missing_required_field(self):
         """Test creating project without required field"""
         data = {
             'project_id': 'missing_name_001',
             # Missing display_name
-            'storage_type': 'local'
+            'storage_type': 'postgres'
         }
         
         serializer = ProjectCreateSerializer(data=data)
@@ -138,19 +138,32 @@ class TestProjectCreateSerializer:
         assert not serializer.is_valid()
         assert 'storage_type' in serializer.errors
     
-    def test_create_serializer_valid_storage_types(self):
-        """Test all valid storage types"""
+    def test_create_serializer_blocked_storage_types(self):
+        """Test that local and google storage types are rejected during validation"""
         for storage_type in ['local', 'google']:
             data = {
-                'project_id': f'valid_{storage_type}_001',
-                'display_name': f'Valid {storage_type}',
+                'project_id': f'blocked_{storage_type}_001',
+                'display_name': f'Blocked {storage_type}',
                 'storage_type': storage_type
             }
             
             serializer = ProjectCreateSerializer(data=data)
-            assert serializer.is_valid(), serializer.errors
-            project = serializer.save()
-            assert project.storage_type == storage_type
+            assert not serializer.is_valid()
+            assert 'storage_type' in serializer.errors
+            assert serializer.errors['storage_type'][0] == "This functionality has not been implemented yet."
+
+    def test_create_serializer_valid_storage_type(self):
+        """Test that postgres storage type is accepted"""
+        data = {
+            'project_id': 'valid_postgres_001',
+            'display_name': 'Valid Postgres',
+            'storage_type': 'postgres'
+        }
+        
+        serializer = ProjectCreateSerializer(data=data)
+        assert serializer.is_valid(), serializer.errors
+        project = serializer.save()
+        assert project.storage_type == 'postgres'
     
     def test_create_serializer_optional_fields(self):
         """Test that description is optional"""

@@ -1,9 +1,9 @@
 ---
-name: build
+name: build-task
 description: Implements the next pending task from a specified todo.md checklist file, tracks task state changes, and writes build or test logs on failure.
 ---
 # Build Task Skill
-When the user invokes this skill, you must take a target markdown checklist file path, parse its contents, and incrementally build the next unit of work using test-driven development.
+Invoke the incremental-implementation skill alongside test-driven-development skill. You must take a target markdown checklist file path, parse its contents, and incrementally build the next unit of work using test-driven development.
 
 ## 1. Locate and Mark the Active Task
 - Read the markdown file provided by the user. 

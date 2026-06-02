@@ -83,6 +83,17 @@ class Document(models.Model):
         help_text="Error message if indexing failed"
     )
     
+    # Expiration tracking
+    is_expired_checked = models.BooleanField(
+        default=False,
+        help_text="Whether this document has expiration tracking enabled"
+    )
+    expiration_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this document expires"
+    )
+    
     class Meta:
         ordering = ['-created_at']
         unique_together = [['project', 'document_name']]

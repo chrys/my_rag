@@ -18,6 +18,21 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+# Initialize Sentry/Bugsink
+try:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+
+    if os.getenv("DJANGO_ENV") != "testing":
+        sentry_sdk.init(
+            dsn="https://650bb7f2a68c4a1a90577694622e4545@www.fasolaki.com/bugsink/1",
+            integrations=[DjangoIntegration()],
+            traces_sample_rate=1.0,
+            profiles_sample_rate=1.0,
+        )
+except ImportError:
+    pass
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 # Robustly find the project root by locating manage.py
 current_dir = Path(__file__).resolve().parent

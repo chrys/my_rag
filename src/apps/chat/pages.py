@@ -2,7 +2,7 @@
 Page views for template rendering
 """
 
-from django.shortcuts import render
+from django.shortcuts import redirect
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 
@@ -10,30 +10,27 @@ from django.contrib.auth.decorators import login_required
 @login_required
 @require_http_methods(["GET"])
 def index(request):
-    """Home page - renders admin dashboard"""
-    context = {'url_prefix': '/rag'}
-    return render(request, 'projects/admin.html', context)
+    """Home page - redirects to unfold dashboard"""
+    return redirect('/rag/dashboard/')
 
 
 @login_required
 @require_http_methods(["GET"])
 def admin_page(request):
-    """Admin dashboard - can be loaded via HTMX or directly"""
-    context = {'url_prefix': '/rag'}
-    return render(request, 'projects/admin.html', context)
+    """Admin dashboard - redirects to unfold dashboard"""
+    return redirect('/rag/dashboard/')
 
 
 @login_required
 @require_http_methods(["GET"])
 def chat_page(request):
-    """Chat interface"""
-    context = {'url_prefix': '/rag'}
-    return render(request, 'chat/chat.html', context)
+    """Chat interface - redirects to unfold chat panel"""
+    return redirect('/rag/dashboard/chat/')
 
 
 @login_required
 @require_http_methods(["GET"])
 def evaluate_page(request):
-    """Evaluation interface"""
-    context = {'url_prefix': '/rag'}
-    return render(request, 'evaluate/evaluate.html', context)
+    """Redirect to evaluation dashboard panel"""
+    return redirect('/rag/dashboard/evaluate/')
+

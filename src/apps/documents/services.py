@@ -4,6 +4,24 @@ from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageCon
 from llama_index.vector_stores.postgres import PGVectorStore
 from llama_index.embeddings.google import GeminiEmbedding
 
+import logging
+logger = logging.getLogger(__name__)
+
+def get_safe_table_name(project_id: str) -> str:
+    """
+    Return a postgres-safe table name under 48 characters to keep "data_" + table name
+    and automatically generated index names (e.g. {table_name}_idx_1) under 63 bytes.
+    Uses MD5 hash to ensure uniqueness while preserving a readable prefix.
+    """
+    base_name = f"rag_project_{project_id}"
+    if len(base_name) > 48:
+        import hashlib
+        hash_suffix = hashlib.md5(project_id.encode('utf-8')).hexdigest()[:8]
+        max_id_len = 48 - 12 - 9  # 48 - len("rag_project_") - len("_hash")
+        truncated_id = project_id[:max_id_len]
+        return f"rag_project_{truncated_id}_{hash_suffix}"
+    return base_name
+
 class LlamaIndexIngestionPipeline:
     def __init__(self, project_id):
         self.project_id = project_id
@@ -24,6 +42,8 @@ class LlamaIndexIngestionPipeline:
         
         config = getattr(settings, "REMOTE_POSTGRES_CONFIG", {})
         
+        table_name = get_safe_table_name(self.project_id)
+        
         # Configure Vector Store
         vector_store = PGVectorStore.from_params(
             database=config.get("NAME", "postgres"),
@@ -31,7 +51,7 @@ class LlamaIndexIngestionPipeline:
             port=config.get("PORT", "5432"),
             user=config.get("USER", "postgres"),
             password=config.get("PASSWORD", ""),
-            table_name=f"rag_project_{self.project_id}",
+            table_name=table_name,
             embed_dim=3072 # Standard for gemini-embedding-001
         )
         
@@ -47,13 +67,73 @@ class LlamaIndexIngestionPipeline:
 
 def get_vector_store(project_id):
     config = getattr(settings, "REMOTE_POSTGRES_CONFIG", {})
+    table_name = get_safe_table_name(project_id)
     return PGVectorStore.from_params(
         database=config.get("NAME", "postgres"),
         host=config.get("HOST", "localhost"),
         port=config.get("PORT", "5432"),
         user=config.get("USER", "postgres"),
         password=config.get("PASSWORD", ""),
-        table_name=f"rag_project_{project_id}",
+        table_name=table_name,
         embed_dim=3072
     )
+
+
+def check_structural_quality(filepath: str) -> None:
+    """
+    Evaluate structural quality of extracted text using gemini-2.5-flash-lite.
+    Raises ValueError if score is 7 or lower.
+    """
+    from llama_index.core import SimpleDirectoryReader
+    from google import genai
+    from google.genai import types
+    import json
+
+    # Extract first 1000 characters from file
+    docs = SimpleDirectoryReader(input_files=[filepath]).load_data()
+    full_text = "\n".join([d.text for d in docs])
+    snippet = full_text[:1000]
+
+    # Call Gemini to score quality
+    api_key = os.getenv("GOOGLE_API_KEY", "")
+    client = genai.Client(api_key=api_key)
+
+    prompt = f"""You are a Data Quality Inspector. Review the following text snippet extracted from a document. 
+Determine if the text structure is intact and readable, or if the layout parser failed.
+
+Look for these failure signs:
+- Words mashed together without spaces (e.g., "TheCompanyReport2024")
+- Words that do not have any meaning 
+- Shattered sentences from misread columns (e.g., "Revenue $5M Introduction to")
+- Excessive raw font artifact codes (e.g., "CID:12 CID:44")
+
+Score the text quality from 1 (Complete Garbage) to 10 (Perfectly Readable).
+Respond ONLY with a JSON object in this format:
+{{"score": int, "reason": "string"}}
+
+Text snippet:
+\"\"\"{snippet}\"\"\""""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash-lite",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.1
+        ),
+    )
+
+    try:
+        res_data = json.loads(response.text)
+        score = int(res_data.get("score", 10))
+        reason = res_data.get("reason", "")
+        # Log to the server terminal clearly
+        logger.info(f"📊 [QUALITY GATE] Document: {filepath} | Score: {score}/10 | Reason: {reason}")
+    except Exception as parse_err:
+        # Fallback if JSON parsing fails
+        score = 10
+        reason = f"Fallback due to parsing error: {str(parse_err)}"
+
+    if score <= 7:
+        raise ValueError(f"Extraction quality too low (Score: {score}/10). Reason: {reason}")
 

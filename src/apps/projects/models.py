@@ -10,11 +10,11 @@ from django.contrib.auth.models import User
 class Project(models.Model):
     """
     Represents a project/store for document indexing and retrieval.
-    Can be backed by either Google File Search or local FAISS indexing.
+    Can be backed by either Google File Search or local indexing.
     """
     
     STORAGE_TYPES = [
-        ('local', 'Local FAISS Indexing'),
+        ('local', 'Local'),
         ('google', 'Google File Search'),
         ('postgres', 'Postgres RAG'),
     ]
@@ -43,7 +43,7 @@ class Project(models.Model):
         max_length=20,
         choices=STORAGE_TYPES,
         default='local',
-        help_text="Type of storage backend (local FAISS or Google File Search)"
+        help_text="Type of storage backend (local or Google File Search)"
     )
     external_store_id = models.CharField(
         max_length=255,
@@ -77,7 +77,7 @@ class Project(models.Model):
             ("pymupdf", "PyMUPDF"),
             ("markitdown", "markitdown"),
         ],
-        default="pymupdf",
+        default="markitdown",
         help_text="Document parsing backend"
     )
     chunking = models.CharField(
@@ -106,6 +106,14 @@ class Project(models.Model):
         default=False,
         help_text="Whether to use a custom prompt"
     )
+    use_markitdown = models.BooleanField(
+        default=False,
+        help_text="Use MarkItDown pipeline"
+    )
+    use_structural_grading = models.BooleanField(
+        default=True,
+        help_text="Use structural quality grading"
+    )
     
     # Statistics (denormalized for performance)
     document_count = models.IntegerField(
@@ -125,6 +133,17 @@ class Project(models.Model):
             models.Index(fields=['-created_at']),
         ]
     
+    def clean(self):
+        """
+        Validate model fields before saving.
+        """
+        from django.core.exceptions import ValidationError
+        super().clean()
+        if self.storage_type in ["local", "google"]:
+            raise ValidationError({
+                "storage_type": "This functionality has not been implemented yet."
+            })
+
     def save(self, *args, **kwargs):
         """
         Overridden to automatically generate a unique, backend-compliant project_id

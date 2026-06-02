@@ -1,0 +1,129 @@
+<div class="space-y-8" id="evaluation-results-workspace">
+    <!-- Header with Aggregated Score Grid -->
+    <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="space-y-1">
+            <h2 class="text-xl font-extrabold text-slate-800">Ragas Benchmark Results</h2>
+            <p class="text-xs text-slate-500">Chronological run ID: <span class="font-mono text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded text-[10px]">{{ run.id }}</span></p>
+        </div>
+        <button onclick="window.location.href='{% url 'custom_admin:evaluation-workflow' %}'"
+                class="self-start md:self-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow transition-all">
+            Return to Dashboard
+        </button>
+    </div>
+
+    <div class="p-6 space-y-8">
+        <!-- The Metrics Card Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- Faithfulness -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Faithfulness</span>
+                    <span class="w-3.5 h-3.5 rounded-full bg-{% if faithfulness_color == 'green' %}emerald-500{% elif faithfulness_color == 'yellow' %}amber-500{% else %}rose-500{% endif %}"></span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <span class="text-3xl font-extrabold text-slate-800">{{ avg_faithfulness|floatformat:3 }}</span>
+                    <span class="text-xs text-slate-400 font-medium">/ 1.0</span>
+                </div>
+                <p class="text-[10px] text-slate-500">Measures hallucination rates. High score indicates answer is fully derived from contexts.</p>
+            </div>
+
+            <!-- Answer Relevancy -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Answer Relevancy</span>
+                    <span class="w-3.5 h-3.5 rounded-full bg-{% if relevancy_color == 'green' %}emerald-500{% elif relevancy_color == 'yellow' %}amber-500{% else %}rose-500{% endif %}"></span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <span class="text-3xl font-extrabold text-slate-800">{{ avg_relevancy|floatformat:3 }}</span>
+                    <span class="text-xs text-slate-400 font-medium">/ 1.0</span>
+                </div>
+                <p class="text-[10px] text-slate-500">Measures helper value. High score indicates answer directly resolves user query.</p>
+            </div>
+
+            <!-- Context Recall -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Context Recall</span>
+                    <span class="w-3.5 h-3.5 rounded-full bg-{% if recall_color == 'green' %}emerald-500{% elif recall_color == 'yellow' %}amber-500{% else %}rose-500{% endif %}"></span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <span class="text-3xl font-extrabold text-slate-800">{{ avg_recall|floatformat:3 }}</span>
+                    <span class="text-xs text-slate-400 font-medium">/ 1.0</span>
+                </div>
+                <p class="text-[10px] text-slate-500">Measures context coverage. High score indicates target ground truth is present in search.</p>
+            </div>
+
+            <!-- Context Precision -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Context Precision</span>
+                    <span class="w-3.5 h-3.5 rounded-full bg-{% if precision_color == 'green' %}emerald-500{% elif precision_color == 'yellow' %}amber-500{% else %}rose-500{% endif %}"></span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <span class="text-3xl font-extrabold text-slate-800">{{ avg_precision|floatformat:3 }}</span>
+                    <span class="text-xs text-slate-400 font-medium">/ 1.0</span>
+                </div>
+                <p class="text-[10px] text-slate-500">Measures retrieval noise. High score indicates only relevant vectors are returned.</p>
+            </div>
+        </div>
+
+        <!-- Deep-Dive Trace Drill-Down List -->
+        <div class="space-y-4">
+            <div class="space-y-1">
+                <h3 class="text-base font-bold text-slate-800">Trace Drill-Down Diagnostics</h3>
+                <p class="text-xs text-slate-500">Click any question to view the metrics detail list and trace low compliance values.</p>
+            </div>
+
+            <div class="space-y-3" id="drill-down-accordion">
+                {% for trace in traces %}
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden hover:border-slate-300 transition-colors">
+                    <!-- Header Accordion Trigger -->
+                    <button onclick="toggleTraceAccordion('trace-{{ trace.metric.id }}')" 
+                            class="w-full text-left p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 focus:outline-none bg-white border-b border-slate-200">
+                        <div class="flex-1 space-y-1">
+                            <span class="text-[10px] uppercase font-bold text-slate-400">Question</span>
+                            <p class="text-sm font-semibold text-slate-800">{{ trace.question }}</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="px-2 py-1 text-[10px] font-bold rounded border bg-{% if trace.recall_color == 'green' %}emerald-50 text-emerald-700 border-emerald-200{% elif trace.recall_color == 'yellow' %}amber-50 text-amber-700 border-amber-200{% else %}rose-50 text-rose-700 border-rose-200{% endif %}">
+                                Recall: {{ trace.metric.context_recall|floatformat:2 }}
+                            </span>
+                            <span class="px-2 py-1 text-[10px] font-bold rounded border bg-{% if trace.precision_color == 'green' %}emerald-50 text-emerald-700 border-emerald-200{% elif trace.precision_color == 'yellow' %}amber-50 text-amber-700 border-amber-200{% else %}rose-50 text-rose-700 border-rose-200{% endif %}">
+                                Precision: {{ trace.metric.context_precision|floatformat:2 }}
+                            </span>
+                            <span class="px-2 py-1 text-[10px] font-bold rounded border bg-{% if trace.faithfulness_color == 'green' %}emerald-50 text-emerald-700 border-emerald-200{% elif trace.faithfulness_color == 'yellow' %}amber-50 text-amber-700 border-amber-200{% else %}rose-50 text-rose-700 border-rose-200{% endif %}">
+                                Faith: {{ trace.metric.faithfulness|floatformat:2 }}
+                            </span>
+                        </div>
+                    </button>
+
+                    <!-- Content Panel (Hidden by default) -->
+                    <div id="trace-{{ trace.metric.id }}" class="hidden p-6 bg-slate-50/50 border-t border-slate-200 space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-1 bg-white p-4 rounded-xl border border-slate-200">
+                                <span class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Expected Ground Truth</span>
+                                <p class="text-xs text-slate-600 leading-relaxed font-mono">{{ trace.ground_truth }}</p>
+                            </div>
+                            <div class="space-y-1 bg-white p-4 rounded-xl border border-slate-200">
+                                <span class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Context Analysis</span>
+                                <p class="text-xs text-slate-500 font-medium">Faithfulness matches the source factual recall. Low precision scores flag context crowding or chunk fragmentation issues.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleTraceAccordion(id) {
+        const el = document.getElementById(id);
+        if (el.classList.contains('hidden')) {
+            el.classList.remove('hidden');
+        } else {
+            el.classList.add('hidden');
+        }
+    }
+</script>

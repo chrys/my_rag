@@ -1,5 +1,6 @@
 google-genai
 python-dotenv
+sentry-sdk
 markdown
 pypdf
 numpy

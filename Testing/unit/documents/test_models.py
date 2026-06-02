@@ -52,6 +52,25 @@ class TestDocumentModel:
         assert document.mime_type == 'application/pdf'
         assert document.file_size == 1024000
         assert document.state == 'INDEXED'
+
+    def test_document_expiration_fields(self, project):
+        """Test document expiration tracking fields default and custom values"""
+        doc1 = Document.objects.create(
+            project=project,
+            document_name='no_expire.pdf'
+        )
+        assert doc1.is_expired_checked is False
+        assert doc1.expiration_date is None
+        
+        future_time = timezone.now() + timezone.timedelta(days=30)
+        doc2 = Document.objects.create(
+            project=project,
+            document_name='expire.pdf',
+            is_expired_checked=True,
+            expiration_date=future_time
+        )
+        assert doc2.is_expired_checked is True
+        assert doc2.expiration_date == future_time
     
     def test_document_timestamps(self, project):
         """Test document timestamps"""

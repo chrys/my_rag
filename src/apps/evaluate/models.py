@@ -1,152 +1,109 @@
-"""
-Evaluation models for managing dataset generation and testing
-"""
-
+import uuid
 from django.db import models
-from django.contrib.auth.models import User
 from src.apps.projects.models import Project
+from src.apps.documents.models import Document
 
 
 class EvaluationDataset(models.Model):
     """
-    Represents a dataset generated for evaluation purposes.
-    Uses llama-index to generate synthetic question-answer pairs.
+    Stores individual question and answer reference pairs.
+    Can be generated from document chunks, or written/uploaded manually by users.
     """
-    
-    DATASET_STATES = [
-        ('PENDING', 'Pending Generation'),
-        ('GENERATING', 'Currently Generating'),
-        ('GENERATED', 'Successfully Generated'),
-        ('FAILED', 'Generation Failed'),
+    SOURCE_CHOICES = [
+        ("GENERATED", "Generated"),
+        ("MANUAL", "Manual"),
+        ("CSV_UPLOAD", "CSV Upload"),
     ]
-    
-    # Relationships
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project = models.ForeignKey(
         Project,
         on_delete=models.CASCADE,
-        related_name='evaluation_datasets',
-        help_text="The project this dataset is for"
+        related_name="dataset_items",
+        help_text="The project this validation item belongs to"
     )
-    
-    user = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
+    document = models.ForeignKey(
+        Document,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
-        help_text="The user who created this dataset"
+        related_name="dataset_items",
+        help_text="The document this QA pair was generated from (null for manual/CSV-uploaded QAs)"
     )
-    
-    # Dataset info
-    name = models.CharField(
-        max_length=255,
-        help_text="Name of the evaluation dataset"
-    )
-    
-    description = models.TextField(
-        blank=True,
-        help_text="Description of what this dataset tests"
-    )
-    
-    # Status
-    state = models.CharField(
+    question = models.TextField(help_text="The reference question to search and evaluate")
+    ground_truth = models.TextField(help_text="The gold-standard ground-truth reference answer")
+    source = models.CharField(
         max_length=20,
-        choices=DATASET_STATES,
-        default='PENDING',
-        help_text="Current generation status"
+        choices=SOURCE_CHOICES,
+        default="MANUAL",
+        help_text="Source of the dataset pair acquisition"
     )
-    
-    # Configuration
-    num_questions = models.IntegerField(
-        default=10,
-        help_text="Number of questions to generate"
-    )
-    
-    question_generation_params = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Parameters used for question generation"
-    )
-    
-    # Dataset content
-    qa_pairs = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Generated question-answer pairs"
-    )
-    
-    # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
-    generated_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="When the dataset was generated"
-    )
-    
-    # Error tracking
-    error_message = models.TextField(
-        blank=True,
-        help_text="Error message if generation failed"
-    )
-    
+
     class Meta:
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['project', 'state']),
-            models.Index(fields=['state']),
-        ]
-    
-    def __str__(self):
-        return f"{self.name} ({self.project.display_name})"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.question[:40]}... -> {self.ground_truth[:40]}..."
 
 
-class EvaluationResult(models.Model):
+class EvaluationRun(models.Model):
     """
-    Represents results from running evaluations against a dataset.
-    Stores metrics like faithfulness, relevance, and correctness.
+    Represents an execution event of a dataset against the project configuration.
     """
-    
-    # Relationships
-    dataset = models.ForeignKey(
-        EvaluationDataset,
-        on_delete=models.CASCADE,
-        related_name='results',
-        help_text="The dataset this evaluation is for"
-    )
-    
+    STATUS_CHOICES = [
+        ("PENDING", "Pending"),
+        ("RUNNING", "Running"),
+        ("SUCCESS", "Success"),
+        ("FAILED", "Failed"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project = models.ForeignKey(
         Project,
         on_delete=models.CASCADE,
-        related_name='evaluation_results',
+        related_name="evaluation_runs",
         help_text="The project being evaluated"
     )
-    
-    # Evaluation metadata
-    evaluator_name = models.CharField(
-        max_length=255,
-        help_text="Name of the evaluator used"
+    started_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="PENDING",
+        help_text="Current state of the evaluation run"
     )
-    
-    # Results
-    metrics = models.JSONField(
-        default=dict,
-        help_text="Evaluation metrics (faithfulness, relevance, etc.)"
-    )
-    
-    individual_scores = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Per-question evaluation scores"
-    )
-    
-    # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
-    
+    error_message = models.TextField(blank=True, help_text="Error details if status is FAILED")
+
     class Meta:
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['dataset', 'evaluator_name']),
-            models.Index(fields=['project']),
-        ]
-    
-    def __str__(self):
-        return f"Evaluation: {self.evaluator_name} on {self.dataset.name}"
+        ordering = ["-started_at"]
+
+    def __str__(self) -> str:
+        return f"Run {self.id} ({self.status}) at {self.started_at}"
+
+
+class EvaluationResultMetrics(models.Model):
+    """
+    Stores Ragas scores for individual questions and their aggregated metrics during a run.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    run = models.ForeignKey(
+        EvaluationRun,
+        on_delete=models.CASCADE,
+        related_name="result_metrics",
+        help_text="The evaluation run this result belongs to"
+    )
+    dataset_item = models.ForeignKey(
+        EvaluationDataset,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="result_metrics",
+        help_text="The reference QA dataset item evaluated"
+    )
+    context_recall = models.FloatField(null=True, blank=True, help_text="Context Recall score")
+    context_precision = models.FloatField(null=True, blank=True, help_text="Context Precision score")
+    faithfulness = models.FloatField(null=True, blank=True, help_text="Faithfulness score")
+    answer_relevancy = models.FloatField(null=True, blank=True, help_text="Answer Relevancy score")
+
+    def __str__(self) -> str:
+        return f"Metrics for item {self.dataset_item_id} inside run {self.run_id}"

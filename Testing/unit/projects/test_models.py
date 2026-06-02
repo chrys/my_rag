@@ -122,6 +122,21 @@ class TestProjectModel:
             )
             assert project.storage_type == storage_type
 
+    def test_project_validation_blocked_types(self):
+        """Test that local and google storage types are blocked during full_clean validation"""
+        from django.core.exceptions import ValidationError
+        
+        for storage_type in ['local', 'google']:
+            project = Project(
+                project_id=f'blocked_{storage_type}',
+                display_name=f'Blocked {storage_type}',
+                storage_type=storage_type
+            )
+            with pytest.raises(ValidationError) as excinfo:
+                project.full_clean()
+            assert 'storage_type' in excinfo.value.message_dict
+            assert excinfo.value.message_dict['storage_type'][0] == "This functionality has not been implemented yet."
+
     def test_project_declares_postgres_storage_choice(self):
         """Test the model exposes postgres as a first-class storage choice."""
         choice_values = [value for value, _label in Project.STORAGE_TYPES]
@@ -208,7 +223,7 @@ class TestProjectModel:
             display_name='Params Defaults'
         )
         assert project.synthesizer is False
-        assert project.document_parsing == 'pymupdf'
+        assert project.document_parsing == 'markitdown'
         assert project.chunking == 'fixed-size'
         assert project.embedding_model == 'gemini-1'
         assert project.custom_prompt is False

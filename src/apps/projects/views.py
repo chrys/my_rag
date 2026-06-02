@@ -87,15 +87,14 @@ def create_project(request):
     user = request.user if request.user.is_authenticated else None
     
     if display_name:
-        if storage_type == 'local':
-            project_id = storage.create_project(display_name)
-            # Also create Django model record
-            Project.objects.create(
-                project_id=project_id,
-                display_name=display_name,
-                storage_type='local',
-                user=user
+        if storage_type in ['local', 'google']:
+            error_html = (
+                f'<div id="project-error-container" hx-swap-oob="true" '
+                f'class="mb-4 p-3 bg-red-50 text-red-700 rounded-md border border-red-200 text-sm">'
+                f'<strong>Error:</strong> This functionality has not been implemented yet.'
+                f'</div>'
             )
+            return HttpResponse(error_html)
         elif storage_type == 'postgres':
             success, error_message = test_postgres_connection()
             if not success:
@@ -119,29 +118,6 @@ def create_project(request):
                 storage_type='postgres',
                 user=user
             )
-        else:
-            # Create Google File Search store
-            try:
-                store_id = gfs.create_new_file_search_store(display_name)
-            except Exception as e:
-                print(f"Warning: could not create Google File Search store: {e}")
-                store_id = None
-            if store_id:
-                # Create Django model record with external store ID
-                from datetime import datetime
-                import time
-                # Use timestamp with microseconds and counter to ensure uniqueness
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                microseconds = int(time.time() * 1000000) % 1000000
-                safe_name = display_name.lower().replace(' ', '_')[:30]
-                project_id = f"google_{timestamp}_{microseconds}_{safe_name}"
-                Project.objects.create(
-                    project_id=project_id,
-                    display_name=display_name,
-                    storage_type='google',
-                    external_store_id=store_id,
-                    user=user
-                )
     
     stores = get_combined_stores(request)
     response_content = (

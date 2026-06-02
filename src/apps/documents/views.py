@@ -51,6 +51,11 @@ def _sanitize_uploaded_filename(filename: str) -> str:
 
 def _doc_adapter(doc):
     """Return a dict that matches the interface expected by document templates."""
+    from django.utils import timezone
+    is_expired = False
+    if doc.is_expired_checked and doc.expiration_date:
+        is_expired = timezone.now() > doc.expiration_date
+
     return {
         'name': doc.document_name,
         'display_name': doc.display_name or doc.document_name,
@@ -58,6 +63,7 @@ def _doc_adapter(doc):
         'indexed_at': doc.indexed_at,
         'state': type('State', (), {'name': doc.state})(),
         'error_message': getattr(doc, 'error_message', ''),
+        'is_expired': is_expired,
     }
 
 
@@ -133,6 +139,20 @@ def upload_document(request, store_id):
     file = request.FILES['file']
     if not file or file.name == '':
         return JsonResponse({'error': 'Invalid file'}, status=400)
+        
+    is_expired_checked = request.POST.get('is_expired') == 'on'
+    expiration_date = None
+    if is_expired_checked:
+        expiration_date_str = request.POST.get('expiration_date')
+        if expiration_date_str:
+            from django.utils.dateparse import parse_datetime
+            from django.utils import timezone
+            parsed_dt = parse_datetime(expiration_date_str)
+            if parsed_dt:
+                if timezone.is_naive(parsed_dt):
+                    expiration_date = timezone.make_aware(parsed_dt)
+                else:
+                    expiration_date = parsed_dt
     
     try:
         filename = _sanitize_uploaded_filename(file.name)
@@ -177,6 +197,8 @@ def upload_document(request, store_id):
                                     'state': 'FAILED',
                                     'error_message': error_msg,
                                     'indexed_at': None,
+                                    'is_expired_checked': is_expired_checked,
+                                    'expiration_date': expiration_date,
                                 }
                             )
                         docs_qs = Document.objects.filter(project=project)
@@ -192,6 +214,11 @@ def upload_document(request, store_id):
                 from django.utils import timezone
 
                 try:
+                    # Ingestion Quality Grading Gate
+                    if project and project.use_structural_grading:
+                        from src.apps.documents.services import check_structural_quality
+                        check_structural_quality(filepath)
+
                     pipeline = LlamaIndexIngestionPipeline(project_id=store_id)
                     index = pipeline.index_document(filepath, original_filename=filename)
                     success = index is not None
@@ -205,6 +232,8 @@ def upload_document(request, store_id):
                                 'state': 'FAILED',
                                 'error_message': str(exc),
                                 'indexed_at': None,
+                                'is_expired_checked': is_expired_checked,
+                                'expiration_date': expiration_date,
                             }
                         )
                     docs_qs = Document.objects.filter(project=project)
@@ -225,6 +254,8 @@ def upload_document(request, store_id):
                                 'state': 'INDEXED',
                                 'error_message': '',
                                 'indexed_at': timezone.now(),
+                                'is_expired_checked': is_expired_checked,
+                                'expiration_date': expiration_date,
                             }
                         )
                 else:
@@ -237,6 +268,8 @@ def upload_document(request, store_id):
                                 'state': 'FAILED',
                                 'error_message': 'Failed to index document in RAG project',
                                 'indexed_at': None,
+                                'is_expired_checked': is_expired_checked,
+                                'expiration_date': expiration_date,
                             }
                         )
                     docs_qs = Document.objects.filter(project=project)

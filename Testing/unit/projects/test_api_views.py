@@ -78,7 +78,7 @@ class TestProjectViewSet:
         data = {
             'project_id': 'create_api_001',
             'display_name': 'API Created Project',
-            'storage_type': 'local'
+            'storage_type': 'postgres'
         }
         
         request = api_factory.post('/api/projects/', data, format='json')
@@ -377,7 +377,7 @@ class TestSystemPromptViewSet:
         data = {
             'project_id': 'create_user_001',
             'display_name': 'User Project',
-            'storage_type': 'local'
+            'storage_type': 'postgres'
         }
         
         request = api_factory.post('/api/projects/', data, format='json')

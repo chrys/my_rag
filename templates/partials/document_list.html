@@ -6,11 +6,40 @@
             <p class="text-xs text-gray-500">{{ store_id }}</p>
         </div>
         <form hx-post="{{ url_prefix }}/documents/{{ store_id }}/upload/" hx-encoding="multipart/form-data"
-            hx-target="#document-list" hx-swap="innerHTML" class="flex items-center gap-2">
-            <input type="file" name="file" required
-                class="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            hx-target="#document-list" hx-swap="innerHTML" class="flex flex-wrap items-center gap-3">
+            
+            <!-- Custom Styled Choose File Button -->
+            <div class="flex items-center gap-2">
+                <label for="file-uploader-input" 
+                    class="cursor-pointer bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-md text-sm font-medium transition-all shadow-sm hover:shadow flex items-center gap-1.5 select-none active:scale-[0.98]">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V4a2 2 0 012-2h6l2 2h6a2 2 0 012 2v7m-18 10h18a2 2 0 002-2v-4a2 2 0 00-2-2H9l-2-2H3a2 2 0 00-2 2v4a2 2 0 002 2z" />
+                    </svg>
+                    <span>Choose File</span>
+                </label>
+                <input type="file" id="file-uploader-input" name="file" required class="hidden" 
+                    onchange="const nameSpan = document.getElementById('selected-file-name'); if (this.files && this.files[0]) { nameSpan.textContent = this.files[0].name; nameSpan.classList.remove('text-gray-400'); nameSpan.classList.add('text-gray-700', 'font-medium'); } else { nameSpan.textContent = 'No file chosen'; nameSpan.classList.remove('text-gray-700', 'font-medium'); nameSpan.classList.add('text-gray-400'); }">
+                <span id="selected-file-name" class="text-xs text-gray-400 max-w-[120px] sm:max-w-[180px] truncate select-none">No file chosen</span>
+            </div>
+
+            <!-- Expiration Tracking -->
+            <div class="flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-3">
+                <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600 dark:text-gray-300 font-medium select-none">
+                    <input type="checkbox" name="is_expired" id="is-expired-checkbox"
+                        class="rounded border-gray-300 dark:border-gray-700 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                        onchange="const picker = document.getElementById('expiration-date-picker-container'); if (this.checked) { picker.classList.remove('hidden'); } else { picker.classList.add('hidden'); }">
+                    <span>Track Expiration</span>
+                </label>
+            </div>
+            
+            <div id="expiration-date-picker-container" class="hidden flex items-center gap-1.5">
+                <input type="datetime-local" name="expiration_date" id="expiration-date-picker"
+                    class="border border-gray-300 dark:border-gray-700 rounded-md px-2 py-1 text-sm text-gray-750 dark:text-gray-250 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-800">
+            </div>
+
+            <!-- Upload Button -->
             <button type="submit"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1">
+                class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-md text-sm font-medium transition-all shadow-sm hover:shadow flex items-center gap-1.5 select-none active:scale-[0.98]">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
                     stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -18,7 +47,9 @@
                 </svg>
                 Upload
             </button>
-            <div class="htmx-indicator ml-2">
+
+            <!-- Loading Indicator -->
+            <div class="htmx-indicator ml-1">
                 <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none"
                     viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>

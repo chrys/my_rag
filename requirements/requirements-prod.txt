@@ -15,6 +15,7 @@ psycopg2-binary
 # Configuration
 python-dotenv
 google-genai
+sentry-sdk
 
 # Document processing
 markdown

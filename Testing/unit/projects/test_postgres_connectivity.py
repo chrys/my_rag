@@ -105,8 +105,8 @@ class TestPostgresConnectivity:
         )
 
         # Assertions
-        assert response.status_code == 500
-        assert "PostgreSQL VPS Connection failed" in response.json().get("error")
+        assert response.status_code == 200
+        assert b"FAILED" in response.content
 
         # Verify Document state in local SQLite database
         document = Document.objects.filter(project=project, document_name="test_doc.txt").first()

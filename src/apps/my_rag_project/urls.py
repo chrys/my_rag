@@ -22,4 +22,5 @@ urlpatterns = [
     path('rag/', include('src.apps.documents.urls')),
     path('rag/', include('src.apps.projects.urls')),
     path('rag/', include('src.apps.chat.urls')),
+    path('rag/', include('src.apps.evaluate.urls')),
 ]
