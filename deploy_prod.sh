@@ -11,6 +11,7 @@ APP_DIR="/srv/rag-dashboard"
 VENV_DIR="${APP_DIR}/.venv"
 PIP="${VENV_DIR}/bin/pip"
 PYTHON="${VENV_DIR}/bin/python"
+export DJANGO_SETTINGS_MODULE="src.apps.my_rag_project.settings"
 
 # Color outputs
 GREEN='\033[0;32m'
