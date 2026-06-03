@@ -7,18 +7,19 @@ from src.apps.projects.models import Project
 @pytest.mark.django_db
 class TestAdminProjectServices:
     def test_create_project_service_call(self, mocker):
-        mock_create = mocker.patch('src.apps.projects.views.gfs.create_new_file_search_store', return_value='service_store_id')
+        mock_test_conn = mocker.patch('src.apps.projects.views.test_postgres_connection', return_value=(True, ""))
         
         factory = RequestFactory()
         request = factory.post('/fake-url/', {
             'display_name': 'Service Level Project',
-            'storage_type': 'google'
+            'storage_type': 'postgres'
         })
         request.user = AnonymousUser()
         
         create_project(request)
         
-        mock_create.assert_called_once_with('Service Level Project')
+        mock_test_conn.assert_called_once()
+        assert Project.objects.filter(display_name='Service Level Project', storage_type='postgres').exists()
 
     def test_delete_project_service_call(self, mocker):
         Project.objects.create(

@@ -43,7 +43,7 @@ class CustomUnfoldAdminSite(UnfoldAdminSite):
         """
         urls = super().get_urls()
         from src.apps.chat.admin_views import ChatWorkflowView
-        from src.apps.evaluate.admin_views import EvaluationWorkflowView, QaSetupWorkflowView
+        from src.apps.evaluate.admin_views import EvaluationWorkflowView, QaSetupWorkflowView, RunEvaluationView
         from src.apps.projects.models import Project
 
         # Fetch the registered Project ModelAdmin instance from the registry
@@ -67,6 +67,11 @@ class CustomUnfoldAdminSite(UnfoldAdminSite):
                 "evaluate/qa-setup/<str:project_id>/",
                 self.admin_view(QaSetupWorkflowView.as_view(model_admin=project_admin)),
                 name="qa-setup-workflow",
+            ),
+            path(
+                "evaluate/run/",
+                self.admin_view(RunEvaluationView.as_view(model_admin=project_admin)),
+                name="run-evaluation",
             ),
         ]
         return custom_urls + urls

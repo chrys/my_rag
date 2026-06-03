@@ -4,8 +4,9 @@ Admin views for the evaluate application, integrated with django-unfold.
 
 import csv
 import io
+from django.views import View
 from django.views.generic import TemplateView
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
@@ -122,7 +123,12 @@ class QaSetupWorkflowView(UnfoldModelAdminViewMixin, TemplateView):
                     count += 1
 
             if request.headers.get("HX-Request"):
-                return HttpResponse(f'<div class="p-4 bg-green-50 text-green-700 rounded-lg">✓ Successfully saved {count} custom QA items!</div>')
+                dataset_items = EvaluationDataset.objects.filter(project=project)
+                return render(request, "evaluate/qa_list_partial.html", {
+                    "project": project,
+                    "dataset_items": dataset_items,
+                    "message": f"✓ Successfully saved {count} custom QA items!"
+                })
             return redirect(reverse("custom_admin:evaluation-workflow"))
 
         elif input_method == "csv":
@@ -162,7 +168,12 @@ class QaSetupWorkflowView(UnfoldModelAdminViewMixin, TemplateView):
                         count += 1
 
                 if request.headers.get("HX-Request"):
-                    return HttpResponse(f'<div class="p-4 bg-green-50 text-green-700 rounded-lg">✓ Imported {count} items from CSV!</div>')
+                    dataset_items = EvaluationDataset.objects.filter(project=project)
+                    return render(request, "evaluate/qa_list_partial.html", {
+                        "project": project,
+                        "dataset_items": dataset_items,
+                        "message": f"✓ Imported {count} items from CSV!"
+                    })
                 return redirect(reverse("custom_admin:evaluation-workflow"))
 
             except Exception as e:
@@ -176,12 +187,50 @@ class QaSetupWorkflowView(UnfoldModelAdminViewMixin, TemplateView):
             num_questions = int(request.POST.get("num_questions", 5))
             from src.apps.evaluate.eval_services import start_async_qa_generation
             start_async_qa_generation(project.project_id, num_questions)
-            
-            from django.shortcuts import render
             context = {
                 "project": project,
                 "status": "RUNNING",
                 "mode": "qa_generation"
             }
             return render(request, "evaluate/run_progress.html", context)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class RunEvaluationView(UnfoldModelAdminViewMixin, View):
+    """
+    POST endpoint to execute retrieval accuracy evaluations.
+    """
+    permission_required = ()
+
+    def post(self, request, *args, **kwargs):
+        project_id = request.POST.get("project_id")
+        document_id = request.POST.get("document_id")
+        eval_method = request.POST.get("eval_method")
+
+        if eval_method == "open_rag":
+            return HttpResponse('<div class="p-4 bg-yellow-50 text-yellow-700 rounded-md border border-yellow-100">Open RAG Eval is not implemented yet.</div>')
+
+        if not project_id or not document_id:
+            return HttpResponse('<div class="p-4 bg-red-50 text-red-700 rounded-md border border-red-100">Error: Missing project or document configuration.</div>')
+
+        project = get_object_or_404(Project, project_id=project_id)
+
+        from src.apps.documents.models import Document
+        try:
+            document = Document.objects.get(project=project, id=document_id)
+        except (Document.DoesNotExist, ValueError):
+            document = get_object_or_404(Document, project=project, document_name=document_id)
+
+        from src.apps.evaluate.eval_services import SyntheticQAEvaluator
+        evaluator = SyntheticQAEvaluator(project.project_id)
+        results = evaluator.evaluate_retrieval_recall(document.document_name)
+
+        context = {
+            "results": results,
+            "project": project,
+            "document": document,
+            "url_prefix": "/rag",
+        }
+        return render(request, "admin/evaluation_scorecard.html", context)
+
 

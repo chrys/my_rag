@@ -154,8 +154,9 @@ def chat(request):
             if hasattr(response, 'source_nodes'):
                 source_documents = _extract_source_documents([node.node.metadata for node in response.source_nodes])
         else:
+            google_store_id = project.external_store_id if project and project.external_store_id else store_id
             bot_response = gfs.ask_store_question(
-                store_id,
+                google_store_id,
                 query,
                 system_prompt=system_prompt
             )
@@ -269,8 +270,9 @@ def chat_submit(request):
             if hasattr(response, "source_nodes"):
                 source_documents = _extract_source_documents([node.node.metadata for node in response.source_nodes])
         else:
+            google_store_id = project.external_store_id if project and project.external_store_id else store_id
             bot_response = gfs.ask_store_question(
-                store_id,
+                google_store_id,
                 query,
                 system_prompt=system_prompt
             )

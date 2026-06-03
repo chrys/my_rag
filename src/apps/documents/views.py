@@ -222,6 +222,21 @@ def upload_document(request, store_id):
                     pipeline = LlamaIndexIngestionPipeline(project_id=store_id)
                     index = pipeline.index_document(filepath, original_filename=filename)
                     success = index is not None
+                except EmbeddingRateLimitError as exc:
+                    if project:
+                        Document.objects.update_or_create(
+                            project=project,
+                            document_name=filename,
+                            defaults={
+                                'display_name': filename,
+                                'state': 'FAILED',
+                                'error_message': str(exc),
+                                'indexed_at': None,
+                                'is_expired_checked': is_expired_checked,
+                                'expiration_date': expiration_date,
+                            }
+                        )
+                    return JsonResponse({'error': str(exc)}, status=503)
                 except Exception as exc:
                     if project:
                         Document.objects.update_or_create(

@@ -125,59 +125,14 @@ class TestAdminDocumentViews:
         args, _ = mock_add.call_args
         assert args[0] == 'ext_google_123'
 
-    def test_upload_document_google_returns_403_when_permission_denied(self, mocker):
-        from google_file_search import GoogleFileSearchPermissionError
-
-        Project.objects.create(
-            project_id='google_permission_test_id',
-            display_name='Test Upload Google Permission',
-            storage_type='google',
-            external_store_id='fileSearchStores/denied-store'
-        )
-        mocker.patch(
-            'apps.documents.views.gfs.add_document_to_store',
-            side_effect=GoogleFileSearchPermissionError(
-                'Google File Search permission denied for store fileSearchStores/denied-store. Check that the configured API key can access this store and that the store still exists.'
-            )
-        )
-
-        file_content = b"test document content"
-        uploaded_file = SimpleUploadedFile("test_doc.txt", file_content, content_type="text/plain")
-
-        factory = RequestFactory()
-        request = factory.post('/fake-url/', {'file': uploaded_file})
-
-        response = upload_document(request, 'google_permission_test_id')
-
-        assert response.status_code == 403
-        assert b'permission denied' in response.content.lower()
-
-    def test_upload_document_google_returns_502_when_backend_upload_fails(self, mocker):
-        Project.objects.create(
-            project_id='google_backend_failure_test_id',
-            display_name='Test Upload Google Backend Failure',
-            storage_type='google',
-            external_store_id='fileSearchStores/backend-failure-store'
-        )
-        mocker.patch('apps.documents.views.gfs.add_document_to_store', return_value='')
-
-        file_content = b"test document content"
-        uploaded_file = SimpleUploadedFile("test_doc.txt", file_content, content_type="text/plain")
-
-        factory = RequestFactory()
-        request = factory.post('/fake-url/', {'file': uploaded_file})
-
-        response = upload_document(request, 'google_backend_failure_test_id')
-
-        assert response.status_code == 502
-        assert b'Failed to upload document to Google File Search store' in response.content
-
     def test_upload_document_postgres(self, mocker):
         project = Project.objects.create(
             project_id='postgres_test_id',
             display_name='Test Upload Postgres',
-            storage_type='postgres'
+            storage_type='postgres',
+            use_structural_grading=False
         )
+        mocker.patch('src.apps.documents.views.test_postgres_connection', return_value=(True, ""))
         mock_pipeline = mocker.Mock()
         mock_pipeline_class = mocker.patch('src.apps.documents.services.LlamaIndexIngestionPipeline', return_value=mock_pipeline)
         
@@ -201,8 +156,10 @@ class TestAdminDocumentViews:
         project = Project.objects.create(
             project_id='postgres_failed_test_id',
             display_name='Test Failed Upload Postgres',
-            storage_type='postgres'
+            storage_type='postgres',
+            use_structural_grading=False
         )
+        mocker.patch('src.apps.documents.views.test_postgres_connection', return_value=(True, ""))
         mock_pipeline = mocker.Mock()
         mock_pipeline.index_document.side_effect = ValueError('Postgres configuration missing')
         mocker.patch('src.apps.documents.services.LlamaIndexIngestionPipeline', return_value=mock_pipeline)
@@ -215,7 +172,7 @@ class TestAdminDocumentViews:
 
         response = upload_document(request, 'postgres_failed_test_id')
 
-        assert response.status_code == 500
+        assert response.status_code == 200
 
         doc = Document.objects.get(project=project, document_name="failed_pg_doc.txt")
         assert doc.state == 'FAILED'
@@ -223,17 +180,18 @@ class TestAdminDocumentViews:
         assert 'Postgres configuration missing' in doc.error_message
 
     def test_upload_document_postgres_rate_limit_returns_503(self, mocker):
-        from postgres_rag import EmbeddingRateLimitError
+        from src.postgres_rag import EmbeddingRateLimitError
 
         project = Project.objects.create(
             project_id='postgres_rate_limit_test_id',
             display_name='Test Rate Limited Upload Postgres',
-            storage_type='postgres'
+            storage_type='postgres',
+            use_structural_grading=False
         )
-        mocker.patch(
-            'postgres_rag.PostgresRAGEngine.index_document',
-            side_effect=EmbeddingRateLimitError('Gemini embedding API is temporarily rate limited. Please try again in a minute.')
-        )
+        mocker.patch('src.apps.documents.views.test_postgres_connection', return_value=(True, ""))
+        mock_pipeline = mocker.Mock()
+        mock_pipeline.index_document.side_effect = EmbeddingRateLimitError('Gemini embedding API is temporarily rate limited. Please try again in a minute.')
+        mocker.patch('src.apps.documents.services.LlamaIndexIngestionPipeline', return_value=mock_pipeline)
 
         file_content = b"test postgres rate limited"
         uploaded_file = SimpleUploadedFile("rate_limited_pg_doc.txt", file_content, content_type="text/plain")

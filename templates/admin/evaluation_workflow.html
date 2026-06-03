@@ -103,6 +103,10 @@
             <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
                 <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Evaluation Config</h2>
                 
+                <!-- Hidden fields for Synthetic QA evaluation -->
+                <input type="hidden" name="project_id" id="hidden-project-id" value="">
+                <input type="hidden" name="eval_method" id="hidden-eval-method" value="">
+
                 <!-- Project Dropdown -->
                 <div class="mb-6">
                     <label for="eval-project-select" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Target Project</label>
@@ -111,7 +115,7 @@
                         <option value="" disabled selected>-- Select a Project --</option>
                         {% for p in projects %}
                         <option value="{{ p.project_id }}" data-qa-count="{{ p.dataset_items.count }}">
-                            {{ p.display_name }} ({{ p.dataset_items.count }} QA items)
+                            {{ p.display_name }}
                         </option>
                         {% empty %}
                         <option value="" disabled>No active projects found</option>
@@ -119,23 +123,58 @@
                     </select>
                 </div>
 
-                <!-- Info Box -->
-                <div id="project-info-box" class="mb-6 p-4 bg-gray-50 dark:bg-gray-750 border border-gray-250 dark:border-gray-650 rounded-xl hidden text-xs leading-relaxed text-gray-600 dark:text-gray-350">
-                    <span class="font-bold text-gray-700 dark:text-gray-200 block mb-1">Dataset Status</span>
-                    <span id="project-info-text">Select a project to view metrics.</span>
+                <!-- Evaluation Method Dropdown -->
+                <div class="mb-6 hidden" id="eval-method-container">
+                    <label for="eval-method-select" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Evaluation Method</label>
+                    <select id="eval-method-select" onchange="handleMethodChange(this.value)"
+                        class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-purple-500 dark:focus:border-purple-500">
+                        <option value="" disabled selected>-- Select a Method --</option>
+                        <option value="ragas">RAGAS</option>
+                        <option value="synthetic_qa">Synthetic QA</option>
+                    </select>
                 </div>
 
-                <!-- Action Buttons -->
-                <div class="flex flex-col gap-3">
-                    <a id="configure-qa-btn" href="#" class="btn-secondary-forced w-full opacity-50 pointer-events-none">
-                        Configure QA Dataset
-                    </a>
-                    
-                    <button id="run-eval-btn" disabled
-                            hx-post="" 
-                            hx-target="#evaluation-content-pane" 
-                            class="btn-primary-forced w-full disabled:opacity-60 disabled:cursor-not-allowed">
-                        Run Benchmark Evaluation
+                <!-- RAGAS Workspace Controls -->
+                <div id="ragas-controls" class="hidden space-y-6">
+                    <!-- Info Box -->
+                    <div id="project-info-box" class="p-4 bg-gray-50 dark:bg-gray-750 border border-gray-250 dark:border-gray-650 rounded-xl text-xs leading-relaxed text-gray-600 dark:text-gray-350">
+                        <span class="font-bold text-gray-700 dark:text-gray-200 block mb-1">Dataset Status</span>
+                        <span id="project-info-text">Select a project to view metrics.</span>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex flex-col gap-3">
+                        <a id="configure-qa-btn" href="#" class="btn-secondary-forced w-full opacity-50 pointer-events-none">
+                            Configure QA Dataset
+                        </a>
+                        
+                        <button id="run-eval-btn" disabled
+                                hx-post="" 
+                                hx-target="#evaluation-content-pane" 
+                                class="btn-primary-forced w-full disabled:opacity-60 disabled:cursor-not-allowed">
+                            Run Benchmark Evaluation
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Synthetic QA Workspace Controls -->
+                <div id="synthetic-qa-controls" class="hidden space-y-6">
+                    <!-- Target Document selector -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Target Document</label>
+                        <div id="eval-document-container" class="max-h-56 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-2 bg-gray-50 dark:bg-gray-750 flex flex-col gap-2">
+                            <p class="text-xs text-gray-400 p-2 text-center">Select "Synthetic QA" method to load documents.</p>
+                        </div>
+                        <input type="hidden" name="document_id" id="selected-document-id" value="">
+                    </div>
+
+                    <!-- Evaluate button for Synthetic QA -->
+                    <button id="run-synthetic-eval-btn" disabled
+                        hx-post="{% url 'custom_admin:run-evaluation' %}"
+                        hx-target="#evaluation-content-pane"
+                        hx-include="#hidden-project-id,#selected-document-id,#hidden-eval-method"
+                        class="btn-primary-forced w-full disabled:opacity-60 disabled:cursor-not-allowed">
+                        Evaluate
                     </button>
                 </div>
             </div>
@@ -167,32 +206,94 @@
     const qaSetupBaseUrl = "{% url 'custom_admin:qa-setup-workflow' 'PLACEHOLDER' %}";
 
     function handleProjectChange(projectId) {
-        const selectEl = document.getElementById("eval-project-select");
-        const selectedOpt = selectEl.options[selectEl.selectedIndex];
-        const qaCount = parseInt(selectedOpt.getAttribute("data-qa-count") || "0");
+        document.getElementById("hidden-project-id").value = projectId;
 
-        const infoBox = document.getElementById("project-info-box");
-        const infoText = document.getElementById("project-info-text");
-        const configBtn = document.getElementById("configure-qa-btn");
-        const runBtn = document.getElementById("run-eval-btn");
+        // Show the method selector container
+        const methodContainer = document.getElementById("eval-method-container");
+        methodContainer.classList.remove("hidden");
 
-        // Update info box
-        infoBox.classList.remove("hidden");
-        if (qaCount > 0) {
-            infoText.innerHTML = `✓ This project has **${qaCount} QA items** configured in its dataset, ready for benchmark runs.`;
-            runBtn.disabled = false;
-        } else {
-            infoText.innerHTML = `⚠️ This project's dataset is empty. You must configure at least 1 QA item before benchmarking.`;
-            runBtn.disabled = true;
+        // Reset the method selector and hide both controls
+        const methodSelect = document.getElementById("eval-method-select");
+        methodSelect.selectedIndex = 0;
+        
+        document.getElementById("ragas-controls").classList.add("hidden");
+        document.getElementById("synthetic-qa-controls").classList.add("hidden");
+        
+        // Clear previous documents and selected doc
+        document.getElementById("selected-document-id").value = "";
+        document.getElementById("run-synthetic-eval-btn").disabled = true;
+        document.getElementById("eval-document-container").innerHTML = '<p class="text-xs text-gray-400 p-2 text-center">Select "Synthetic QA" method to load documents.</p>';
+    }
+
+    function handleMethodChange(method) {
+        document.getElementById("hidden-eval-method").value = method;
+
+        const ragasControls = document.getElementById("ragas-controls");
+        const syntheticControls = document.getElementById("synthetic-qa-controls");
+
+        if (method === "ragas") {
+            ragasControls.classList.remove("hidden");
+            syntheticControls.classList.add("hidden");
+
+            // Update info box for RAGAS
+            const selectEl = document.getElementById("eval-project-select");
+            const selectedOpt = selectEl.options[selectEl.selectedIndex];
+            const qaCount = parseInt(selectedOpt.getAttribute("data-qa-count") || "0");
+
+            const infoBox = document.getElementById("project-info-box");
+            const infoText = document.getElementById("project-info-text");
+            const configBtn = document.getElementById("configure-qa-btn");
+            const runBtn = document.getElementById("run-eval-btn");
+
+            infoBox.classList.remove("hidden");
+            if (qaCount > 0) {
+                infoText.innerHTML = `✓ This project has **${qaCount} QA items** configured in its dataset, ready for benchmark runs.`;
+                runBtn.disabled = false;
+            } else {
+                infoText.innerHTML = `⚠️ This project's dataset is empty. You must configure at least 1 QA item before benchmarking.`;
+                runBtn.disabled = true;
+            }
+
+            // Configure dynamic URLs for RAGAS
+            const projectId = selectEl.value;
+            configBtn.href = qaSetupBaseUrl.replace("PLACEHOLDER", projectId);
+            configBtn.classList.remove("opacity-50", "pointer-events-none");
+
+            runBtn.setAttribute("hx-post", runEvalBaseUrl.replace("PLACEHOLDER", projectId));
+            htmx.process(runBtn);
+        } else if (method === "synthetic_qa") {
+            ragasControls.classList.add("hidden");
+            syntheticControls.classList.remove("hidden");
+
+            // Fetch documents dynamically via HTMX
+            const projectId = document.getElementById("eval-project-select").value;
+            const documentContainer = document.getElementById("eval-document-container");
+            documentContainer.innerHTML = '<p class="text-xs text-gray-400 p-2 text-center animate-pulse">Loading documents...</p>';
+
+            htmx.ajax("GET", "/rag/documents/" + projectId + "/?type=evaluate", {
+                target: "#eval-document-container",
+                swap: "innerHTML"
+            });
+        }
+    }
+
+    function selectEvaluateFile(docId, displayName) {
+        // Clear previous selections
+        document.querySelectorAll(".evaluate-file-item").forEach(item => {
+            item.classList.remove("border-blue-500", "bg-blue-50/50", "dark:border-blue-700", "dark:bg-blue-900/10");
+        });
+
+        // Find the selected file container and highlight it
+        const selectedEl = document.querySelector(`[data-evaluate-doc-id="${docId}"]`);
+        if (selectedEl) {
+            selectedEl.classList.add("border-blue-500", "bg-blue-50/50", "dark:border-blue-700", "dark:bg-blue-900/10");
         }
 
-        // Configure dynamic URLs
-        configBtn.href = qaSetupBaseUrl.replace("PLACEHOLDER", projectId);
-        configBtn.classList.remove("opacity-50", "pointer-events-none");
+        // Set hidden input value
+        document.getElementById("selected-document-id").value = docId;
 
-        // Re-bind HTMX to dynamic POST URL
-        runBtn.setAttribute("hx-post", runEvalBaseUrl.replace("PLACEHOLDER", projectId));
-        htmx.process(runBtn);
+        // Enable Evaluate Button
+        document.getElementById("run-synthetic-eval-btn").disabled = false;
     }
 </script>
 {% endblock %}

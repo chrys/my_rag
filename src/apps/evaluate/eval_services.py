@@ -12,11 +12,257 @@ from llama_index.core import VectorStoreIndex, Settings
 from llama_index.embeddings.google import GeminiEmbedding
 from llama_index.llms.google_genai import GoogleGenAI
 
+from google import genai
+from google.genai import types
+
 logger = logging.getLogger(__name__)
 
 # Global in-memory dictionary to track async QA generation status
 # Mapped: project_id -> {"status": "PENDING"|"RUNNING"|"SUCCESS"|"FAILED", "error": str, "count": int}
 QA_GEN_STATUS = {}
+
+
+class SyntheticQAEvaluator:
+    """
+    Evaluates RAG retrieval recall percentage using synthetically generated questions.
+    """
+
+    def __init__(self, project_id: str):
+        self.project_id = project_id
+        api_key = os.getenv("GOOGLE_API_KEY", "")
+        self.client = genai.Client(api_key=api_key) if api_key else None
+        self.embed_model = GeminiEmbedding(
+            model_name="models/gemini-embedding-001",
+            api_key=api_key
+        )
+        
+        # Configure LlamaIndex globally to use Google GenAI/Gemini instead of OpenAI
+        from llama_index.core import Settings
+        from llama_index.llms.google_genai import GoogleGenAI
+        from llama_index.core.embeddings import BaseEmbedding
+        from llama_index.core.llms import LLM
+        
+        if isinstance(self.embed_model, BaseEmbedding):
+            Settings.embed_model = self.embed_model
+        
+        llm = GoogleGenAI(
+            model="gemini-2.5-flash-lite",
+            api_key=api_key
+        )
+        if isinstance(llm, LLM):
+            Settings.llm = llm
+
+    def fetch_document_nodes(self, document_name: str) -> list[dict]:
+        """
+        Fetch up to 5 text nodes associated with the target document from PostgreSQL.
+
+        Parameters
+        ----------
+        document_name : str
+            The name of the target document file.
+
+        Returns
+        -------
+        list[dict]
+            List of nodes containing 'node_id', 'text', and 'metadata'.
+        """
+        config = getattr(settings, "REMOTE_POSTGRES_CONFIG", {})
+        
+        from src.apps.documents.services import get_safe_table_name
+        safe_table = get_safe_table_name(self.project_id)
+        tables_to_try = [
+            f"data_{safe_table}",
+            safe_table,
+            f"data_rag_project_{self.project_id}",
+            f"rag_project_{self.project_id}"
+        ]
+
+        nodes = []
+        conn = None
+        try:
+            import psycopg2
+            conn = psycopg2.connect(
+                dbname=config.get("NAME", "postgres"),
+                user=config.get("USER", "postgres"),
+                password=config.get("PASSWORD", ""),
+                host=config.get("HOST", "localhost"),
+                port=int(config.get("PORT", "5432")),
+            )
+            with conn.cursor() as cur:
+                for table in tables_to_try:
+                    # Check if table exists
+                    cur.execute(f"""
+                        SELECT EXISTS (
+                            SELECT FROM information_schema.tables 
+                            WHERE table_name = '{table}'
+                        );
+                    """)
+                    if cur.fetchone()[0]:
+                        # Try metadata_ first, fallback to metadata
+                        try:
+                            query = f"""
+                                SELECT id, text, node_id, metadata_ 
+                                FROM {table} 
+                                WHERE metadata_->>'file_name' = %s
+                                LIMIT 5;
+                            """
+                            cur.execute(query, (document_name,))
+                            rows = cur.fetchall()
+                        except Exception:
+                            conn.rollback()
+                            query = f"""
+                                SELECT id, text, node_id, metadata 
+                                FROM {table} 
+                                WHERE metadata->>'file_name' = %s
+                                LIMIT 5;
+                            """
+                            cur.execute(query, (document_name,))
+                            rows = cur.fetchall()
+
+                        for row in rows:
+                            nodes.append({
+                                "id": row[0],
+                                "text": row[1],
+                                "node_id": row[2],
+                                "metadata": json.loads(row[3]) if isinstance(row[3], str) else row[3],
+                            })
+                        break
+        except Exception as exc:
+            logger.warning(f"Error fetching document nodes: {exc}")
+        finally:
+            if conn:
+                conn.close()
+
+        return nodes
+
+    def generate_synthetic_questions(self, node_text: str) -> list[str]:
+        """
+        Generate 3 synthetic questions that can be answered only using the provided text.
+
+        Parameters
+        ----------
+        node_text : str
+            The text of the document node.
+
+        Returns
+        -------
+        list[str]
+            List of 3 generated questions.
+        """
+        if not self.client:
+            return []
+
+        prompt = f"""Generate 3 questions that can be answered only using this text. Output each question on a new line. Do not add numbering or prefixes.
+
+Text:
+{node_text}"""
+
+        try:
+            response = self.client.models.generate_content(
+                model="gemini-2.5-flash-lite",
+                contents=prompt,
+                config=types.GenerateContentConfig(temperature=0.3),
+            )
+            text_response = response.text or ""
+            questions = [q.strip() for q in text_response.split("\n") if q.strip()]
+            return questions[:3]
+        except Exception as exc:
+            logger.warning(f"Error generating questions: {exc}")
+            return []
+
+    def evaluate_retrieval_recall(self, document_name: str) -> dict:
+        """
+        Runs the full Synthetic QA recall evaluation flow for a document.
+
+        Parameters
+        ----------
+        document_name : str
+            The name of the document to evaluate.
+
+        Returns
+        -------
+        dict
+            Evaluation results containing recall score, summary and citation logs.
+        """
+        nodes = self.fetch_document_nodes(document_name)
+        if not nodes:
+            return {
+                "recall_score": 0.0,
+                "total_questions": 0,
+                "matches": 0,
+                "logs": [],
+                "error": "No indexed text nodes found for this document in the PostgreSQL store."
+            }
+
+        # Step 2: Generate Questions & Build Ground Truth Map
+        ground_truth = []  # list of {"question": str, "expected_node_id": str}
+        for node in nodes:
+            questions = self.generate_synthetic_questions(node["text"])
+            for q in questions:
+                ground_truth.append({
+                    "question": q,
+                    "expected_node_id": node["node_id"]
+                })
+
+        if not ground_truth:
+            return {
+                "recall_score": 0.0,
+                "total_questions": 0,
+                "matches": 0,
+                "logs": [],
+                "error": "Failed to generate synthetic questions for the document nodes."
+            }
+
+        # Step 3: Configure Vector Store & Load Ingestion Pipeline Index
+        vector_store = get_vector_store(self.project_id)
+        index = VectorStoreIndex.from_vector_store(
+            vector_store=vector_store,
+            embed_model=self.embed_model
+        )
+        retriever = index.as_retriever(similarity_top_k=5)
+
+        # Step 4: Run Tests & Calculate Recall
+        matches = 0
+        logs = []
+
+        for item in ground_truth:
+            question = item["question"]
+            expected_node_id = item["expected_node_id"]
+
+            try:
+                retrieved_nodes = retriever.retrieve(question)
+                retrieved_ids = [n.node.node_id for n in retrieved_nodes]
+                
+                success = expected_node_id in retrieved_ids
+                if success:
+                    matches += 1
+
+                logs.append({
+                    "question": question,
+                    "expected_node_id": expected_node_id,
+                    "success": success,
+                    "citations": retrieved_ids,
+                })
+            except Exception as query_exc:
+                logger.warning(f"Error querying question '{question}': {query_exc}")
+                logs.append({
+                    "question": question,
+                    "expected_node_id": expected_node_id,
+                    "success": False,
+                    "citations": [],
+                    "error": str(query_exc),
+                })
+
+        total_questions = len(ground_truth)
+        recall_score = (matches / total_questions) * 100 if total_questions > 0 else 0.0
+
+        return {
+            "recall_score": round(recall_score, 2),
+            "total_questions": total_questions,
+            "matches": matches,
+            "logs": logs,
+        }
+
 
 
 def _get_postgres_chunks(project_id: str) -> list[dict]:
