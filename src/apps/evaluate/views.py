@@ -129,6 +129,7 @@ def evaluation_results(request, run_id):
     avg_precision = sum(m.context_precision or 0 for m in metrics) / metrics.count()
     avg_faithfulness = sum(m.faithfulness or 0 for m in metrics) / metrics.count()
     avg_relevancy = sum(m.answer_relevancy or 0 for m in metrics) / metrics.count()
+    avg_total = (avg_recall + avg_precision + avg_faithfulness + avg_relevancy) / 4
 
     def get_color(score):
         if score >= 0.85:
@@ -158,14 +159,17 @@ def evaluation_results(request, run_id):
         "avg_precision": avg_precision,
         "avg_faithfulness": avg_faithfulness,
         "avg_relevancy": avg_relevancy,
+        "avg_total": avg_total,
         "recall_color": get_color(avg_recall),
         "precision_color": get_color(avg_precision),
         "faithfulness_color": get_color(avg_faithfulness),
         "relevancy_color": get_color(avg_relevancy),
+        "total_color": get_color(avg_total),
         "traces": traces,
         "url_prefix": "/rag"
     }
     return render(request, "evaluate/metrics_grid.html", context)
+
 
 
 @login_required

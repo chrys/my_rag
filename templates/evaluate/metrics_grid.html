@@ -12,6 +12,29 @@
     </div>
 
     <div class="p-6 space-y-8">
+        <!-- Total Score Banner -->
+        <div class="bg-gradient-to-r from-indigo-50 via-white to-indigo-50/30 border border-indigo-100 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div class="space-y-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider">Overall Performance</span>
+                    <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-{% if total_color == 'green' %}emerald-100 text-emerald-800{% elif total_color == 'yellow' %}amber-100 text-amber-800{% else %}rose-100 text-rose-800{% endif %}">
+                        {% if total_color == 'green' %}Optimal Performance{% elif total_color == 'yellow' %}Needs Optimization{% else %}Critical Failure{% endif %}
+                    </span>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800">Total RAG Triad Score</h3>
+                <p class="text-xs text-slate-500 max-w-xl leading-relaxed">
+                    Calculated as the arithmetic mean of the four core metrics: <strong>Faithfulness</strong> (factual consistency), <strong>Answer Relevancy</strong> (question matching), <strong>Context Recall</strong> (retrieval coverage), and <strong>Context Precision</strong> (noise filtering).
+                </p>
+                <div class="text-[10px] font-mono text-indigo-500 bg-indigo-50/50 px-2 py-1 rounded inline-block">
+                    Formula: (Faithfulness + Answer Relevancy + Context Recall + Context Precision) / 4
+                </div>
+            </div>
+            <div class="flex items-baseline gap-2 bg-white px-6 py-4 rounded-xl border border-slate-100 shadow-inner flex-shrink-0">
+                <span class="text-4xl font-black text-indigo-600">{{ avg_total|floatformat:3 }}</span>
+                <span class="text-sm text-slate-400 font-semibold">/ 1.0</span>
+            </div>
+        </div>
+
         <!-- The Metrics Card Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <!-- Faithfulness -->
@@ -93,6 +116,9 @@
                             </span>
                             <span class="px-2 py-1 text-[10px] font-bold rounded border bg-{% if trace.faithfulness_color == 'green' %}emerald-50 text-emerald-700 border-emerald-200{% elif trace.faithfulness_color == 'yellow' %}amber-50 text-amber-700 border-amber-200{% else %}rose-50 text-rose-700 border-rose-200{% endif %}">
                                 Faith: {{ trace.metric.faithfulness|floatformat:2 }}
+                            </span>
+                            <span class="px-2 py-1 text-[10px] font-bold rounded border bg-{% if trace.relevancy_color == 'green' %}emerald-50 text-emerald-700 border-emerald-200{% elif trace.relevancy_color == 'yellow' %}amber-50 text-amber-700 border-amber-200{% else %}rose-50 text-rose-700 border-rose-200{% endif %}">
+                                Relevancy: {{ trace.metric.answer_relevancy|floatformat:2 }}
                             </span>
                         </div>
                     </button>
