@@ -131,6 +131,7 @@
                         <option value="" disabled selected>-- Select a Method --</option>
                         <option value="ragas">RAGAS</option>
                         <option value="synthetic_qa">Synthetic QA</option>
+                        <option value="manual">Manual Evaluation</option>
                     </select>
                 </div>
 
@@ -177,6 +178,70 @@
                         Evaluate
                     </button>
                 </div>
+
+                <!-- Manual Evaluation Workspace Controls -->
+                <div id="manual-controls" class="hidden space-y-6">
+                    <!-- Segmented Pill Tabs -->
+                    <div class="p-1 bg-gray-100 dark:bg-gray-750 rounded-xl flex gap-1 shadow-inner">
+                        <button type="button" id="tab-manual-text" onclick="switchManualTab('text')" 
+                            class="flex-1 py-2 text-xs font-bold rounded-lg transition-all bg-white dark:bg-gray-700 text-purple-700 dark:text-purple-300 shadow-sm">
+                            ✏️ Type Questions
+                        </button>
+                        <button type="button" id="tab-manual-csv" onclick="switchManualTab('csv')" 
+                            class="flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                            📁 Upload CSV
+                        </button>
+                    </div>
+
+                    <form id="manual-eval-form" 
+                          hx-post="{% url 'custom_admin:manual-eval-create' %}" 
+                          hx-target="#evaluation-content-pane" 
+                          hx-swap="innerHTML"
+                          enctype="multipart/form-data">
+                        <input type="hidden" name="project_id" id="manual-form-project-id" value="">
+                        <input type="hidden" name="input_method" id="manual-input-method" value="manual">
+
+                        <!-- Text Input Section -->
+                        <div id="manual-text-input-group" class="space-y-2">
+                            <label class="block text-xs font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Evaluation Questions</label>
+                            <p class="text-xs text-gray-400">Enter test questions below (one question per line):</p>
+                            <textarea name="manual_questions" rows="6" placeholder="What is the refund policy?&#10;How do I reset my password?&#10;Where are the office locations?" 
+                                class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-xl p-3 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white font-mono leading-relaxed shadow-sm"></textarea>
+                        </div>
+
+                        <!-- CSV Upload Section -->
+                        <div id="manual-csv-input-group" class="hidden space-y-3">
+                            <label class="block text-xs font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Upload Questions CSV</label>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                CSV file must contain a header named <code class="bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded font-mono font-bold">questions</code> or <code class="bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded font-mono font-bold">question</code>.
+                            </p>
+                            
+                            <!-- Interactive Dropzone Box -->
+                            <div onclick="document.getElementById('csv-file-input').click()" 
+                                 class="border-2 border-dashed border-purple-300 dark:border-purple-700 hover:border-purple-500 dark:hover:border-purple-500 bg-purple-50/40 hover:bg-purple-50/80 dark:bg-purple-950/20 dark:hover:bg-purple-950/40 rounded-2xl p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 group">
+                                <div class="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-300 flex items-center justify-center text-2xl font-bold group-hover:scale-110 transition-transform">
+                                    📄
+                                </div>
+                                <div>
+                                    <span class="text-xs font-bold text-purple-700 dark:text-purple-300 block">Click here to browse & select CSV file</span>
+                                    <span class="text-[11px] text-gray-400 block mt-0.5">Supports .csv files</span>
+                                </div>
+                                <div id="csv-file-name-display" class="hidden mt-2 px-3 py-1 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 text-xs font-semibold rounded-full border border-emerald-300 dark:border-emerald-700 flex items-center gap-1.5 shadow-sm">
+                                    <span>✓ Selected:</span>
+                                    <span id="csv-filename-text" class="font-bold"></span>
+                                </div>
+                            </div>
+
+                            <!-- Hidden native file input -->
+                            <input type="file" id="csv-file-input" name="csv_file" accept=".csv" class="hidden" onchange="handleCsvFileSelect(this)">
+                        </div>
+
+                        <button type="submit" id="start-manual-eval-btn"
+                            class="mt-5 btn-primary-forced w-full flex items-center justify-center gap-2 py-3 rounded-xl shadow-md hover:shadow-lg transition-all font-extrabold text-sm">
+                            <span>🚀 Start Manual Evaluation</span>
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
 
@@ -207,17 +272,19 @@
 
     function handleProjectChange(projectId) {
         document.getElementById("hidden-project-id").value = projectId;
+        document.getElementById("manual-form-project-id").value = projectId;
 
         // Show the method selector container
         const methodContainer = document.getElementById("eval-method-container");
         methodContainer.classList.remove("hidden");
 
-        // Reset the method selector and hide both controls
+        // Reset the method selector and hide all controls
         const methodSelect = document.getElementById("eval-method-select");
         methodSelect.selectedIndex = 0;
         
         document.getElementById("ragas-controls").classList.add("hidden");
         document.getElementById("synthetic-qa-controls").classList.add("hidden");
+        document.getElementById("manual-controls").classList.add("hidden");
         
         // Clear previous documents and selected doc
         document.getElementById("selected-document-id").value = "";
@@ -230,10 +297,12 @@
 
         const ragasControls = document.getElementById("ragas-controls");
         const syntheticControls = document.getElementById("synthetic-qa-controls");
+        const manualControls = document.getElementById("manual-controls");
 
         if (method === "ragas") {
             ragasControls.classList.remove("hidden");
             syntheticControls.classList.add("hidden");
+            manualControls.classList.add("hidden");
 
             // Update info box for RAGAS
             const selectEl = document.getElementById("eval-project-select");
@@ -264,6 +333,7 @@
         } else if (method === "synthetic_qa") {
             ragasControls.classList.add("hidden");
             syntheticControls.classList.remove("hidden");
+            manualControls.classList.add("hidden");
 
             // Fetch documents dynamically via HTMX
             const projectId = document.getElementById("eval-project-select").value;
@@ -274,6 +344,46 @@
                 target: "#eval-document-container",
                 swap: "innerHTML"
             });
+        } else if (method === "manual") {
+            ragasControls.classList.add("hidden");
+            syntheticControls.classList.add("hidden");
+            manualControls.classList.remove("hidden");
+
+            const projectId = document.getElementById("eval-project-select").value;
+            document.getElementById("manual-form-project-id").value = projectId;
+        }
+    }
+
+    function handleCsvFileSelect(input) {
+        const display = document.getElementById("csv-file-name-display");
+        const filenameText = document.getElementById("csv-filename-text");
+        if (input.files && input.files[0]) {
+            filenameText.textContent = input.files[0].name;
+            display.classList.remove("hidden");
+        } else {
+            display.classList.add("hidden");
+        }
+    }
+
+    function switchManualTab(tab) {
+        const textTab = document.getElementById("tab-manual-text");
+        const csvTab = document.getElementById("tab-manual-csv");
+        const textGroup = document.getElementById("manual-text-input-group");
+        const csvGroup = document.getElementById("manual-csv-input-group");
+        const methodInput = document.getElementById("manual-input-method");
+
+        if (tab === "text") {
+            methodInput.value = "manual";
+            textTab.className = "flex-1 py-2 text-xs font-bold rounded-lg transition-all bg-white dark:bg-gray-700 text-purple-700 dark:text-purple-300 shadow-sm";
+            csvTab.className = "flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200";
+            textGroup.classList.remove("hidden");
+            csvGroup.classList.add("hidden");
+        } else {
+            methodInput.value = "csv";
+            csvTab.className = "flex-1 py-2 text-xs font-bold rounded-lg transition-all bg-white dark:bg-gray-700 text-purple-700 dark:text-purple-300 shadow-sm";
+            textTab.className = "flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200";
+            csvGroup.classList.remove("hidden");
+            textGroup.classList.add("hidden");
         }
     }
 

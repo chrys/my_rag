@@ -5,7 +5,13 @@ import threading
 import traceback
 from django.conf import settings
 from django.utils import timezone
-from src.apps.evaluate.models import EvaluationDataset, EvaluationRun, EvaluationResultMetrics
+from src.apps.evaluate.models import (
+    EvaluationDataset,
+    EvaluationRun,
+    EvaluationResultMetrics,
+    ManualEvaluationRun,
+    ManualEvaluationItem,
+)
 from src.apps.projects.models import Project
 from src.apps.documents.services import get_vector_store
 from llama_index.core import VectorStoreIndex, Settings
@@ -727,3 +733,89 @@ def start_async_evaluation_run(run_id: str) -> None:
     thread = threading.Thread(target=execute_evaluation_run, args=(run_id,))
     thread.daemon = True
     thread.start()
+
+
+def generate_answer_for_manual_item(item_id: str) -> ManualEvaluationItem:
+    """
+    Queries the project's RAG pipeline (LlamaIndex retriever + Gemini LLM) to generate
+    an answer and store context citations for a single ManualEvaluationItem.
+    """
+    item = ManualEvaluationItem.objects.filter(id=item_id).first()
+    if not item:
+        raise ValueError(f"ManualEvaluationItem with ID {item_id} not found.")
+
+    item.status = "GENERATING"
+    item.error_message = ""
+    item.save()
+
+    try:
+        project = item.run.project
+        api_key = os.getenv("GOOGLE_API_KEY", "")
+
+        # Set up LlamaIndex models if API key exists
+        llm = GoogleGenAI(
+            model="gemini-2.5-flash-lite",
+            api_key=api_key
+        ) if api_key else None
+
+        embed_model = GeminiEmbedding(
+            model_name="models/gemini-embedding-001",
+            api_key=api_key
+        ) if api_key else None
+
+        if embed_model:
+            Settings.embed_model = embed_model
+        if llm:
+            Settings.llm = llm
+
+        contexts = []
+        answer_text = ""
+
+        try:
+            vector_store = get_vector_store(project.project_id)
+            index = VectorStoreIndex.from_vector_store(vector_store)
+            retriever = index.as_retriever(similarity_top_k=3)
+            nodes = retriever.retrieve(item.question)
+            contexts = [n.text for n in nodes if hasattr(n, 'text') and n.text]
+        except Exception as ret_err:
+            logger.warning(f"Retriever exception for project {project.project_id}: {ret_err}")
+
+        if not contexts:
+            contexts = ["No specific context chunks retrieved from vector store."]
+
+        if llm:
+            base_prompt = "Based on the following document context, answer the user's question accurately and concisely:\n"
+            context_block = "\n---\n".join(contexts)
+            prompt = f"{base_prompt}\nContexts:\n{context_block}\n\nQuestion: {item.question}\nAnswer:"
+            response = llm.complete(prompt)
+            answer_text = (response.text or "").strip()
+        else:
+            answer_text = f"Simulated RAG Answer for '{item.question}' (GOOGLE_API_KEY not configured)."
+
+        item.answer = answer_text
+        item.citations = contexts
+        item.status = "GENERATED"
+        item.save()
+        return item
+
+    except Exception as exc:
+        logger.error(f"Error generating manual answer for item {item_id}: {exc}")
+        item.status = "FAILED"
+        item.error_message = str(exc)
+        item.save()
+        return item
+
+
+def batch_generate_manual_answers(run_id: str) -> None:
+    """
+    Generates answers for all pending or failed ManualEvaluationItems in a run.
+    """
+    run = ManualEvaluationRun.objects.filter(id=run_id).first()
+    if not run:
+        logger.error(f"ManualEvaluationRun {run_id} not found for batch generation.")
+        return
+
+    items = run.items.filter(status__in=["PENDING", "FAILED"])
+    for item in items:
+        generate_answer_for_manual_item(str(item.id))
+

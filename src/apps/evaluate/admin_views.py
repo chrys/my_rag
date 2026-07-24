@@ -13,7 +13,17 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from unfold.views import UnfoldModelAdminViewMixin
 from src.apps.projects.models import Project
-from src.apps.evaluate.models import EvaluationDataset, EvaluationRun, EvaluationResultMetrics
+from src.apps.evaluate.models import (
+    EvaluationDataset,
+    EvaluationRun,
+    EvaluationResultMetrics,
+    ManualEvaluationRun,
+    ManualEvaluationItem,
+)
+from src.apps.evaluate.eval_services import (
+    generate_answer_for_manual_item,
+    batch_generate_manual_answers,
+)
 
 
 class EvaluationWorkflowView(UnfoldModelAdminViewMixin, TemplateView):
@@ -232,5 +242,141 @@ class RunEvaluationView(UnfoldModelAdminViewMixin, View):
             "url_prefix": "/rag",
         }
         return render(request, "admin/evaluation_scorecard.html", context)
+
+
+def get_manual_workspace_context(run: ManualEvaluationRun) -> dict:
+    """
+    Helper function to build summary metrics context for manual evaluation workspace.
+    """
+    items = run.items.all()
+    total_count = items.count()
+    green_count = items.filter(rating="GREEN").count()
+    orange_count = items.filter(rating="ORANGE").count()
+    red_count = items.filter(rating="RED").count()
+    unrated_count = items.filter(rating="UNRATED").count()
+    pending_gen_count = items.filter(status__in=["PENDING", "FAILED"]).count()
+
+    return {
+        "run": run,
+        "project": run.project,
+        "items": items,
+        "total_count": total_count,
+        "green_count": green_count,
+        "orange_count": orange_count,
+        "red_count": red_count,
+        "unrated_count": unrated_count,
+        "pending_gen_count": pending_gen_count,
+        "url_prefix": "/rag",
+    }
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class CreateManualEvaluationRunView(UnfoldModelAdminViewMixin, View):
+    """
+    POST endpoint to initialize a Manual Evaluation Run from text inputs or CSV file upload.
+    """
+    permission_required = ()
+
+    def post(self, request, *args, **kwargs):
+        project_id = request.POST.get("project_id")
+        input_method = request.POST.get("input_method", "manual")
+
+        if not project_id:
+            return HttpResponse('<div class="p-4 bg-red-50 text-red-700 rounded-lg">✗ Error: Target project ID is required.</div>', status=400)
+
+        project = get_object_or_404(Project, project_id=project_id)
+        questions = []
+        source_type = "MANUAL_INPUT"
+
+        if input_method == "manual":
+            raw_text = request.POST.get("manual_questions", "")
+            questions = [q.strip() for q in raw_text.split("\n") if q.strip()]
+        elif input_method == "csv":
+            source_type = "CSV_UPLOAD"
+            csv_file = request.FILES.get("csv_file")
+            if not csv_file:
+                return HttpResponse('<div class="p-4 bg-red-50 text-red-700 rounded-lg">✗ No CSV file uploaded.</div>', status=400)
+
+            try:
+                data_set = csv_file.read().decode("utf-8")
+                io_string = io.StringIO(data_set)
+                reader = csv.DictReader(io_string)
+
+                # Look for 'questions' or 'question' header (case-insensitive)
+                headers = {h.lower().strip(): h for h in reader.fieldnames or []}
+                q_col = headers.get("questions") or headers.get("question")
+                if not q_col:
+                    return HttpResponse('<div class="p-4 bg-red-50 text-red-700 rounded-lg">✗ CSV must contain a "questions" or "question" column header.</div>', status=400)
+
+                for row in reader:
+                    q_val = row.get(q_col, "").strip()
+                    if q_val:
+                        questions.append(q_val)
+            except Exception as exc:
+                return HttpResponse(f'<div class="p-4 bg-red-50 text-red-700 rounded-lg">✗ Error parsing CSV: {exc}</div>', status=400)
+
+        if not questions:
+            return HttpResponse('<div class="p-4 bg-yellow-50 text-yellow-800 rounded-lg">⚠️ Please provide at least one valid question to evaluate.</div>', status=400)
+
+        run = ManualEvaluationRun.objects.create(
+            project=project,
+            source_type=source_type
+        )
+        for q in questions:
+            ManualEvaluationItem.objects.create(
+                run=run,
+                question=q,
+                status="PENDING",
+                rating="UNRATED"
+            )
+
+        context = get_manual_workspace_context(run)
+        return render(request, "evaluate/manual_eval_workspace.html", context)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class GenerateManualAnswerView(UnfoldModelAdminViewMixin, View):
+    """
+    POST endpoint to generate RAG answer for a single ManualEvaluationItem.
+    """
+    permission_required = ()
+
+    def post(self, request, item_id, *args, **kwargs):
+        item = get_object_or_404(ManualEvaluationItem, id=item_id)
+        generate_answer_for_manual_item(str(item.id))
+        context = get_manual_workspace_context(item.run)
+        return render(request, "evaluate/manual_eval_workspace.html", context)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class BatchGenerateManualAnswersView(UnfoldModelAdminViewMixin, View):
+    """
+    POST endpoint to generate RAG answers for all pending items in a ManualEvaluationRun.
+    """
+    permission_required = ()
+
+    def post(self, request, run_id, *args, **kwargs):
+        run = get_object_or_404(ManualEvaluationRun, id=run_id)
+        batch_generate_manual_answers(str(run.id))
+        context = get_manual_workspace_context(run)
+        return render(request, "evaluate/manual_eval_workspace.html", context)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class RateManualItemView(UnfoldModelAdminViewMixin, View):
+    """
+    POST endpoint to update the Red/Orange/Green rating of a ManualEvaluationItem.
+    """
+    permission_required = ()
+
+    def post(self, request, item_id, *args, **kwargs):
+        item = get_object_or_404(ManualEvaluationItem, id=item_id)
+        rating = request.POST.get("rating", "UNRATED")
+        if rating in ["GREEN", "ORANGE", "RED", "UNRATED"]:
+            item.rating = rating
+            item.save()
+        context = get_manual_workspace_context(item.run)
+        return render(request, "evaluate/manual_eval_workspace.html", context)
+
 
 

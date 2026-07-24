@@ -107,3 +107,84 @@ class EvaluationResultMetrics(models.Model):
 
     def __str__(self) -> str:
         return f"Metrics for item {self.dataset_item_id} inside run {self.run_id}"
+
+
+class ManualEvaluationRun(models.Model):
+    """
+    Represents a manual evaluation session for a project.
+    """
+    SOURCE_CHOICES = [
+        ("MANUAL_INPUT", "Manual Input"),
+        ("CSV_UPLOAD", "CSV Upload"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="manual_evaluation_runs",
+        help_text="The project being evaluated manually"
+    )
+    source_type = models.CharField(
+        max_length=20,
+        choices=SOURCE_CHOICES,
+        default="MANUAL_INPUT",
+        help_text="Origin of the question set"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Manual Run {self.id} for {self.project.display_name} ({self.created_at.strftime('%Y-%m-%d %H:%M')})"
+
+
+class ManualEvaluationItem(models.Model):
+    """
+    Individual question-answer pair evaluated manually with Red/Orange/Green ratings.
+    """
+    RATING_CHOICES = [
+        ("UNRATED", "Unrated"),
+        ("GREEN", "Good"),
+        ("ORANGE", "Needs Improvement"),
+        ("RED", "Bad"),
+    ]
+
+    STATUS_CHOICES = [
+        ("PENDING", "Pending"),
+        ("GENERATING", "Generating"),
+        ("GENERATED", "Generated"),
+        ("FAILED", "Failed"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    run = models.ForeignKey(
+        ManualEvaluationRun,
+        on_delete=models.CASCADE,
+        related_name="items",
+        help_text="The manual evaluation run this item belongs to"
+    )
+    question = models.TextField(help_text="The question to evaluate")
+    answer = models.TextField(blank=True, default="", help_text="Generated response from the project RAG API")
+    citations = models.JSONField(default=list, blank=True, help_text="List of context texts/sources retrieved for answer")
+    rating = models.CharField(
+        max_length=20,
+        choices=RATING_CHOICES,
+        default="UNRATED",
+        help_text="Human evaluator score rating"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="PENDING",
+        help_text="Answer generation state"
+    )
+    error_message = models.TextField(blank=True, default="", help_text="Error details if answer generation failed")
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self) -> str:
+        return f"Manual Item: {self.question[:30]}... ({self.rating})"
+

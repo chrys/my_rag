@@ -43,7 +43,15 @@ class CustomUnfoldAdminSite(UnfoldAdminSite):
         """
         urls = super().get_urls()
         from src.apps.chat.admin_views import ChatWorkflowView
-        from src.apps.evaluate.admin_views import EvaluationWorkflowView, QaSetupWorkflowView, RunEvaluationView
+        from src.apps.evaluate.admin_views import (
+            EvaluationWorkflowView,
+            QaSetupWorkflowView,
+            RunEvaluationView,
+            CreateManualEvaluationRunView,
+            GenerateManualAnswerView,
+            BatchGenerateManualAnswersView,
+            RateManualItemView,
+        )
         from src.apps.projects.models import Project
 
         # Fetch the registered Project ModelAdmin instance from the registry
@@ -72,6 +80,26 @@ class CustomUnfoldAdminSite(UnfoldAdminSite):
                 "evaluate/run/",
                 self.admin_view(RunEvaluationView.as_view(model_admin=project_admin)),
                 name="run-evaluation",
+            ),
+            path(
+                "evaluate/manual/create/",
+                self.admin_view(CreateManualEvaluationRunView.as_view(model_admin=project_admin)),
+                name="manual-eval-create",
+            ),
+            path(
+                "evaluate/manual/generate-answer/<uuid:item_id>/",
+                self.admin_view(GenerateManualAnswerView.as_view(model_admin=project_admin)),
+                name="manual-eval-generate-answer",
+            ),
+            path(
+                "evaluate/manual/generate-all/<uuid:run_id>/",
+                self.admin_view(BatchGenerateManualAnswersView.as_view(model_admin=project_admin)),
+                name="manual-eval-generate-all",
+            ),
+            path(
+                "evaluate/manual/rate/<uuid:item_id>/",
+                self.admin_view(RateManualItemView.as_view(model_admin=project_admin)),
+                name="manual-eval-rate",
             ),
         ]
         return custom_urls + urls
