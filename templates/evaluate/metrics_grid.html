@@ -108,17 +108,17 @@
                             <p class="text-sm font-semibold text-slate-800">{{ trace.question }}</p>
                         </div>
                         <div class="flex items-center gap-3">
-                            <span class="px-2 py-1 text-[10px] font-bold rounded border bg-{% if trace.recall_color == 'green' %}emerald-50 text-emerald-700 border-emerald-200{% elif trace.recall_color == 'yellow' %}amber-50 text-amber-700 border-amber-200{% else %}rose-50 text-rose-700 border-rose-200{% endif %}">
-                                Recall: {{ trace.metric.context_recall|floatformat:2 }}
-                            </span>
-                            <span class="px-2 py-1 text-[10px] font-bold rounded border bg-{% if trace.precision_color == 'green' %}emerald-50 text-emerald-700 border-emerald-200{% elif trace.precision_color == 'yellow' %}amber-50 text-amber-700 border-amber-200{% else %}rose-50 text-rose-700 border-rose-200{% endif %}">
-                                Precision: {{ trace.metric.context_precision|floatformat:2 }}
-                            </span>
                             <span class="px-2 py-1 text-[10px] font-bold rounded border bg-{% if trace.faithfulness_color == 'green' %}emerald-50 text-emerald-700 border-emerald-200{% elif trace.faithfulness_color == 'yellow' %}amber-50 text-amber-700 border-amber-200{% else %}rose-50 text-rose-700 border-rose-200{% endif %}">
                                 Faith: {{ trace.metric.faithfulness|floatformat:2 }}
                             </span>
                             <span class="px-2 py-1 text-[10px] font-bold rounded border bg-{% if trace.relevancy_color == 'green' %}emerald-50 text-emerald-700 border-emerald-200{% elif trace.relevancy_color == 'yellow' %}amber-50 text-amber-700 border-amber-200{% else %}rose-50 text-rose-700 border-rose-200{% endif %}">
                                 Relevancy: {{ trace.metric.answer_relevancy|floatformat:2 }}
+                            </span>
+                            <span class="px-2 py-1 text-[10px] font-bold rounded border bg-{% if trace.recall_color == 'green' %}emerald-50 text-emerald-700 border-emerald-200{% elif trace.recall_color == 'yellow' %}amber-50 text-amber-700 border-amber-200{% else %}rose-50 text-rose-700 border-rose-200{% endif %}">
+                                Recall: {{ trace.metric.context_recall|floatformat:2 }}
+                            </span>
+                            <span class="px-2 py-1 text-[10px] font-bold rounded border bg-{% if trace.precision_color == 'green' %}emerald-50 text-emerald-700 border-emerald-200{% elif trace.precision_color == 'yellow' %}amber-50 text-amber-700 border-amber-200{% else %}rose-50 text-rose-700 border-rose-200{% endif %}">
+                                Precision: {{ trace.metric.context_precision|floatformat:2 }}
                             </span>
                         </div>
                     </button>
