@@ -79,8 +79,9 @@ class TestManualEvaluationServices:
         ManualEvaluationItem.objects.create(run=run, question="Q2?")
         return run
 
+    @patch("os.getenv", return_value="")
     @patch("src.apps.evaluate.eval_services.get_vector_store")
-    def test_generate_answer_for_single_item(self, mock_get_store, manual_run):
+    def test_generate_answer_for_single_item(self, mock_get_store, mock_getenv, manual_run):
         mock_get_store.side_effect = Exception("Mocked vector store connection skip")
         item = manual_run.items.first()
         updated_item = generate_answer_for_manual_item(str(item.id))
@@ -89,8 +90,9 @@ class TestManualEvaluationServices:
         assert updated_item.answer != ""
         assert isinstance(updated_item.citations, list)
 
+    @patch("os.getenv", return_value="")
     @patch("src.apps.evaluate.eval_services.get_vector_store")
-    def test_batch_generate_manual_answers(self, mock_get_store, manual_run):
+    def test_batch_generate_manual_answers(self, mock_get_store, mock_getenv, manual_run):
         mock_get_store.side_effect = Exception("Mocked vector store connection skip")
         batch_generate_manual_answers(str(manual_run.id))
         
@@ -173,8 +175,9 @@ class TestManualEvaluationViews:
         item.refresh_from_db()
         assert item.rating == "RED"
 
+    @patch("os.getenv", return_value="")
     @patch("src.apps.evaluate.eval_services.get_vector_store")
-    def test_generate_answer_view(self, mock_get_store, client, user, project):
+    def test_generate_answer_view(self, mock_get_store, mock_getenv, client, user, project):
         mock_get_store.side_effect = Exception("Mocked vector store connection skip")
         client.force_login(user)
         run = ManualEvaluationRun.objects.create(project=project)
@@ -187,8 +190,9 @@ class TestManualEvaluationViews:
         assert item.status == "GENERATED"
         assert item.answer != ""
 
+    @patch("os.getenv", return_value="")
     @patch("src.apps.evaluate.eval_services.get_vector_store")
-    def test_batch_generate_answers_view(self, mock_get_store, client, user, project):
+    def test_batch_generate_answers_view(self, mock_get_store, mock_getenv, client, user, project):
         mock_get_store.side_effect = Exception("Mocked vector store connection skip")
         client.force_login(user)
         run = ManualEvaluationRun.objects.create(project=project)

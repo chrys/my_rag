@@ -236,13 +236,13 @@ class TestProjectModel:
             synthesizer=True,
             document_parsing='markitdown',
             chunking='semantic',
-            embedding_model='gemma',
+            embedding_model='gemini-1',
             custom_prompt=True
         )
         assert project.synthesizer is True
         assert project.document_parsing == 'markitdown'
         assert project.chunking == 'semantic'
-        assert project.embedding_model == 'gemma'
+        assert project.embedding_model == 'gemini-1'
         assert project.custom_prompt is True
 
 

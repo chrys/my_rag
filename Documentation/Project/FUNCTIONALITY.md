@@ -24,3 +24,28 @@ Businesses can configure "System Prompts" for each project. This allows administ
 
 ### 6. Performance Evaluation
 The platform includes built-in quality assurance tools. Users can create test datasets (questions and expected answers) to evaluate the AI's accuracy and performance, ensuring the system consistently meets business standards.
+
+### 7. Project Parameters & Sources Configuration
+Each project exposes configurable parameters under the **Parameters** and **Sources** tabs:
+
+#### Parameters Tab
+- **Is Active (`is_active`)** — `[ACTIVE]`
+  - Soft-activation flag for projects and API keys. Used in database queries (`.filter(is_active=True)`) across admin views and API endpoints to enable or deactivate projects without hard deleting records.
+- **Synthesizer (`synthesizer`)** — `[TODO: Placeholder]`
+  - Boolean configuration toggle on the `Project` model designed to enable/disable answer synthesis. Rendered in admin metadata panels ([chat_workflow.html](file:///Users/chrys/Projects/my_rag/templates/admin/chat_workflow.html)), but not yet wired to bypass main chat LLM generation.
+- **Document Parsing (`document_parsing`)** — `[IMMUTABLE / TODO]`
+  - Choice field for document extraction backends (`markitdown`). Document ingestion in `LlamaIndexIngestionPipeline` currently defaults to `SimpleDirectoryReader`. **Note: Cannot be changed after the first source is indexed; disabled in admin when documents exist.**
+- **Chunking Options (`chunking`)** — `[IMMUTABLE / PARTIALLY IMPLEMENTED]`
+  - Selectable text chunking strategies (`fixed-size`, `sentence-paragraph`, `recursive`, `document-structure`, `semantic`). The default `fixed-size` strategy (LlamaIndex sentence splitter) is active; other options are schema placeholders. **Note: Cannot be changed after the first source is indexed.**
+- **Embedding Models (`embedding_model`)** — `[IMMUTABLE / ACTIVE]`
+  - Choice field for vector embedding models (`gemini-1`). `gemini-1` (`models/gemini-embedding-001` with 3072 dimensions) is active and used in vector store ingestion. **Note: Cannot be changed after the first source is indexed; disabled in admin when documents exist.**
+- **Custom Prompt (`custom_prompt` / `custom_prompt_text`)** — `[ACTIVE]`
+  - Custom system prompt behavior is **ACTIVE** via the related `SystemPrompt` model ([models.py](file:///Users/chrys/Projects/my_rag/src/apps/projects/models.py#L171)) and admin `custom_prompt_text` textarea. Automatically injects saved prompts into chat queries.
+- **Use MarkItDown (`use_markitdown`)** — `[IMMUTABLE / TODO]`
+  - Boolean flag intended to enable Microsoft's MarkItDown pipeline for converting complex files into Markdown prior to ingestion. **Note: Cannot be changed after the first source is indexed; disabled in admin when documents exist.**
+
+#### Sources Tab
+- **Use Structural Grading (`use_structural_grading`)** — `[ACTIVE]`
+  - Fully active quality gate ([services.py](file:///Users/chrys/Projects/my_rag/src/apps/documents/services.py#L82)) located under the **Sources** tab. Extracts a 1,000-character sample during document upload and uses `gemini-2.5-flash-lite` to score text layout quality (1–10). Extractions scoring $\le 7$ (garbled text, broken layout, CID artifacts) fail quality inspection and are rejected.
+
+

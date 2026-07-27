@@ -1,0 +1,1584 @@
+openapi: 3.0.3
+info:
+  title: My RAG Platform API
+  description: |
+    Enterprise API for Retrieval-Augmented Generation (RAG). Supports multi-backend knowledge base management,
+    document ingestion and indexing, context-aware query processing with verifiable source citations, AI persona prompt governance,
+    quantitative evaluation benchmarking, and API key usage analytics.
+  version: 1.0.0
+servers:
+  - url: /rag/api
+    description: Base URL for My RAG API endpoints
+
+security:
+  - apiKeyAuth: []
+  - basicAuth: []
+  - cookieAuth: []
+
+paths:
+  /chat/:
+    post:
+      summary: Direct RAG Chat Query
+      description: Execute a natural language query against a project knowledge base using RAG vector search and LLM synthesis.
+      operationId: chatQuery
+      tags:
+        - Chat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatQueryRequest'
+      responses:
+        '200':
+          description: Successful query response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatQueryResponse'
+        '400':
+          description: Missing required fields (store_id or query)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access forbidden for requested store/project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /projects/:
+    get:
+      summary: List User Projects
+      description: Retrieve all projects owned by the authenticated user.
+      operationId: listProjects
+      tags:
+        - Projects
+      responses:
+        '200':
+          description: List of user projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProjectList'
+    post:
+      summary: Create Project
+      description: Create a new knowledge base project store.
+      operationId: createProject
+      tags:
+        - Projects
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+      responses:
+        '201':
+          description: Project created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Invalid input or unsupported storage type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /projects/active/:
+    get:
+      summary: List Active Projects
+      description: Retrieve all active projects for the authenticated user.
+      operationId: listActiveProjects
+      tags:
+        - Projects
+      responses:
+        '200':
+          description: List of active projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProjectList'
+
+  /projects/by_storage/:
+    get:
+      summary: Filter Projects by Storage Engine
+      description: Retrieve projects filtered by backend storage type (local, google, postgres).
+      operationId: filterProjectsByStorage
+      tags:
+        - Projects
+      parameters:
+        - name: type
+          in: query
+          required: true
+          description: Storage engine type
+          schema:
+            type: string
+            enum: [local, google, postgres]
+      responses:
+        '200':
+          description: Filtered list of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProjectList'
+        '400':
+          description: Storage type parameter missing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /projects/{id}/:
+    get:
+      summary: Get Project Details
+      description: Retrieve details for a project. Supports lookup by primary key ID, project_id string, or external_store_id.
+      operationId: getProject
+      tags:
+        - Projects
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Primary Key, project_id, or external_store_id
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Update Project
+      description: Update display name, description, or status of a project.
+      operationId: updateProject
+      tags:
+        - Projects
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdate'
+      responses:
+        '200':
+          description: Updated project details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+    patch:
+      summary: Partially Update Project
+      description: Partially update project settings.
+      operationId: patchProject
+      tags:
+        - Projects
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdate'
+      responses:
+        '200':
+          description: Updated project details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+    delete:
+      summary: Delete Project
+      description: Permanently delete a project and associated resources.
+      operationId: deleteProject
+      tags:
+        - Projects
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Project deleted successfully
+
+  /projects/{id}/prompt/:
+    get:
+      summary: Get Project System Prompt
+      description: Retrieve the active system prompt bound to this project.
+      operationId: getProjectPrompt
+      tags:
+        - Projects
+        - Prompts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: System prompt content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  prompt:
+                    type: string
+                    example: "You are an expert financial analysis assistant."
+    post:
+      summary: Set Project System Prompt
+      description: Set or update the system prompt governing AI persona and rules for this project.
+      operationId: setProjectPrompt
+      tags:
+        - Projects
+        - Prompts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  description: System prompt instructions content
+                  example: "You are an expert customer support agent."
+                prompt:
+                  type: string
+                  description: Legacy key alternative for content
+      responses:
+        '200':
+          description: Prompt saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  prompt:
+                    type: string
+
+  /projects/{id}/documents/:
+    get:
+      summary: Get Project Documents
+      description: Retrieve all documents associated with a specific project.
+      operationId: getProjectDocuments
+      tags:
+        - Projects
+        - Documents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of project documents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentList'
+
+  /prompts/:
+    get:
+      summary: List System Prompts
+      description: List all system prompts across projects.
+      operationId: listSystemPrompts
+      tags:
+        - Prompts
+      responses:
+        '200':
+          description: List of system prompts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SystemPrompt'
+    post:
+      summary: Create System Prompt
+      description: Create a system prompt for a project.
+      operationId: createSystemPrompt
+      tags:
+        - Prompts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SystemPrompt'
+      responses:
+        '201':
+          description: System prompt created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemPrompt'
+
+  /prompts/{id}/:
+    get:
+      summary: Get System Prompt
+      description: Get details of a system prompt by ID.
+      operationId: getSystemPrompt
+      tags:
+        - Prompts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemPrompt'
+    put:
+      summary: Update System Prompt
+      operationId: updateSystemPrompt
+      tags:
+        - Prompts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SystemPrompt'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemPrompt'
+    delete:
+      summary: Delete System Prompt
+      operationId: deleteSystemPrompt
+      tags:
+        - Prompts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Prompt deleted
+
+  /documents/:
+    get:
+      summary: List Documents
+      description: Retrieve all registered documents.
+      operationId: listDocuments
+      tags:
+        - Documents
+      responses:
+        '200':
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentList'
+    post:
+      summary: Register Document Metadata
+      description: Register metadata for an incoming file document.
+      operationId: createDocument
+      tags:
+        - Documents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentCreate'
+      responses:
+        '201':
+          description: Document registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+
+  /documents/by_project/:
+    get:
+      summary: Filter Documents by Project
+      description: List documents associated with a project ID.
+      operationId: listDocumentsByProject
+      tags:
+        - Documents
+      parameters:
+        - name: project_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentList'
+
+  /documents/by_state/:
+    get:
+      summary: Filter Documents by Ingestion State
+      description: Filter documents by status (PENDING, INDEXING, INDEXED, FAILED).
+      operationId: listDocumentsByState
+      tags:
+        - Documents
+      parameters:
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [PENDING, INDEXING, INDEXED, FAILED]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentList'
+
+  /documents/indexed/:
+    get:
+      summary: List Indexed Documents
+      description: Retrieve all successfully indexed documents.
+      operationId: listIndexedDocuments
+      tags:
+        - Documents
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentList'
+
+  /documents/failed/:
+    get:
+      summary: List Failed Documents
+      description: Retrieve all documents that failed indexing.
+      operationId: listFailedDocuments
+      tags:
+        - Documents
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentList'
+
+  /documents/{document_id}:
+    delete:
+      summary: Delete Document by Filename
+      description: Catch-all route to delete a document when the filename contains dots (e.g. report.pdf).
+      operationId: deleteDocumentByFilename
+      tags:
+        - Documents
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          description: Document filename or identifier
+          schema:
+            type: string
+        - name: store_id
+          in: query
+          required: false
+          description: Store ID for removing document from vector index
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Document deleted successfully
+
+  /documents/{id}/:
+    get:
+      summary: Get Document Details
+      description: Retrieve document details by numeric ID or exact document name.
+      operationId: getDocument
+      tags:
+        - Documents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '404':
+          description: Document not found
+    put:
+      summary: Update Document Metadata
+      operationId: updateDocument
+      tags:
+        - Documents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentUpdate'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+    delete:
+      summary: Delete Document
+      description: Delete document from database and vector store if store_id provided.
+      operationId: deleteDocument
+      tags:
+        - Documents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: store_id
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Document deleted
+
+  /messages/:
+    get:
+      summary: List Chat Messages
+      operationId: listChatMessages
+      tags:
+        - Chat Messages
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatMessageList'
+    post:
+      summary: Create Chat Message
+      description: Create a chat message record.
+      operationId: createChatMessage
+      tags:
+        - Chat Messages
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatMessageCreate'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessage'
+
+  /messages/{id}/:
+    get:
+      summary: Get Chat Message Details
+      operationId: getChatMessage
+      tags:
+        - Chat Messages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessage'
+
+  /messages/by_project/:
+    get:
+      summary: List Messages by Project
+      operationId: listMessagesByProject
+      tags:
+        - Chat Messages
+      parameters:
+        - name: project_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatMessageList'
+
+  /messages/by_session/:
+    get:
+      summary: List Messages by Session ID
+      operationId: listMessagesBySession
+      tags:
+        - Chat Messages
+      parameters:
+        - name: session_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatMessageList'
+
+  /messages/by_user/:
+    get:
+      summary: List Messages by Authenticated User
+      operationId: listMessagesByUser
+      tags:
+        - Chat Messages
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatMessageList'
+
+  /datasets/:
+    get:
+      summary: List Evaluation QA Datasets
+      operationId: listDatasets
+      tags:
+        - Evaluation
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EvaluationDataset'
+    post:
+      summary: Create QA Dataset Item
+      operationId: createDatasetItem
+      tags:
+        - Evaluation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluationDataset'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationDataset'
+
+  /datasets/by_project/:
+    get:
+      summary: Get QA Dataset by Project
+      operationId: getDatasetsByProject
+      tags:
+        - Evaluation
+      parameters:
+        - name: project_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EvaluationDataset'
+
+  /datasets/{id}/:
+    get:
+      summary: Get QA Dataset Item
+      operationId: getDatasetItem
+      tags:
+        - Evaluation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationDataset'
+    delete:
+      summary: Delete Dataset Item
+      operationId: deleteDatasetItem
+      tags:
+        - Evaluation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Dataset item deleted
+
+  /runs/:
+    get:
+      summary: List Evaluation Runs
+      operationId: listEvaluationRuns
+      tags:
+        - Evaluation
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EvaluationRun'
+    post:
+      summary: Create Evaluation Run
+      operationId: createEvaluationRun
+      tags:
+        - Evaluation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluationRun'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationRun'
+
+  /runs/{id}/:
+    get:
+      summary: Get Evaluation Run Details
+      operationId: getEvaluationRun
+      tags:
+        - Evaluation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationRun'
+
+  /results/:
+    get:
+      summary: List Evaluation Quantitative Results Metrics
+      operationId: listEvaluationResults
+      tags:
+        - Evaluation
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EvaluationResultMetrics'
+
+  /results/{id}/:
+    get:
+      summary: Get Evaluation Result Metrics Item
+      operationId: getEvaluationResultMetric
+      tags:
+        - Evaluation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationResultMetrics'
+
+  /keys/:
+    get:
+      summary: List API Keys
+      description: List API keys for the authenticated user.
+      operationId: listAPIKeys
+      tags:
+        - API Keys
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/APIKeyList'
+    post:
+      summary: Generate New API Key
+      description: Generate a new secret API token.
+      operationId: createAPIKey
+      tags:
+        - API Keys
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/APIKeyCreate'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKey'
+
+  /keys/active/:
+    get:
+      summary: List Active API Keys
+      operationId: listActiveAPIKeys
+      tags:
+        - API Keys
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/APIKeyList'
+
+  /keys/{id}/:
+    get:
+      summary: Get API Key Details
+      operationId: getAPIKey
+      tags:
+        - API Keys
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKey'
+    delete:
+      summary: Revoke / Delete API Key
+      operationId: deleteAPIKey
+      tags:
+        - API Keys
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Key revoked
+
+  /usage/:
+    get:
+      summary: List API Usage Logs
+      description: Read-only access to API telemetry logs.
+      operationId: listAPIUsage
+      tags:
+        - API Telemetry
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/APIUsageList'
+
+  /usage/by_key/:
+    get:
+      summary: Filter Usage by API Key ID
+      operationId: getAPIUsageByKey
+      tags:
+        - API Telemetry
+      parameters:
+        - name: key_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/APIUsage'
+
+  /usage/by_endpoint/:
+    get:
+      summary: Filter Usage by Endpoint Path
+      operationId: getAPIUsageByEndpoint
+      tags:
+        - API Telemetry
+      parameters:
+        - name: endpoint
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/APIUsage'
+
+  /usage/summary/:
+    get:
+      summary: Get API Telemetry Analytics Summary
+      operationId: getAPIUsageSummary
+      tags:
+        - API Telemetry
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIUsageSummary'
+
+components:
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Secret API key header
+    basicAuth:
+      type: http
+      scheme: basic
+      description: HTTP Basic Authentication
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+      description: Django session cookie
+
+  schemas:
+    ChatQueryRequest:
+      type: object
+      required:
+        - store_id
+        - query
+      properties:
+        store_id:
+          type: string
+          description: Target project store identifier (e.g. postgres_123, google_store_abc, local_store)
+          example: "postgres_myproject"
+        query:
+          type: string
+          description: User question or natural language prompt
+          example: "What is our company policy on remote work?"
+        system_prompt:
+          type: string
+          description: Optional transient system prompt override
+          example: "Answer concisely in bullet points."
+
+    ChatQueryResponse:
+      type: object
+      properties:
+        user_message:
+          type: string
+          example: "What is our company policy on remote work?"
+        bot_response:
+          type: string
+          description: Markdown-formatted answer
+          example: "Our remote work policy allows full-time employees up to 2 remote days per week."
+        bot_response_html:
+          type: string
+          description: HTML-rendered answer
+          example: "<p>Our remote work policy allows full-time employees up to 2 remote days per week.</p>"
+        source_documents:
+          type: array
+          items:
+            type: string
+          description: Deduplicated list of source documents used in RAG context
+          example: ["employee_handbook_2026.pdf"]
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project_id:
+          type: string
+          example: "proj_finance_2026"
+        display_name:
+          type: string
+          example: "Finance Department Knowledge Base"
+        storage_type:
+          type: string
+          enum: [local, google, postgres]
+          example: "postgres"
+        external_store_id:
+          type: string
+          nullable: true
+          example: "fileSearchStores/mystore-12345"
+        description:
+          type: string
+          nullable: true
+          example: "Contains Q1-Q4 internal financial documentation."
+        is_active:
+          type: boolean
+          example: true
+        document_count:
+          type: integer
+          readOnly: true
+          example: 12
+        last_indexed_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        system_prompt:
+          $ref: '#/components/schemas/SystemPrompt'
+
+    ProjectList:
+      type: object
+      properties:
+        id:
+          type: integer
+        project_id:
+          type: string
+        display_name:
+          type: string
+        storage_type:
+          type: string
+        document_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean
+
+    ProjectCreate:
+      type: object
+      required:
+        - project_id
+        - display_name
+        - storage_type
+      properties:
+        project_id:
+          type: string
+          example: "proj_legal"
+        display_name:
+          type: string
+          example: "Legal & Compliance Knowledge Base"
+        storage_type:
+          type: string
+          enum: [local, google, postgres]
+          example: "postgres"
+        description:
+          type: string
+          example: "Legal terms, NDAs, and contract templates."
+
+    ProjectUpdate:
+      type: object
+      properties:
+        display_name:
+          type: string
+        description:
+          type: string
+        is_active:
+          type: boolean
+
+    SystemPrompt:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project:
+          type: integer
+          description: Associated Project PK ID
+        content:
+          type: string
+          example: "You are a professional assistant providing legal guidance."
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    Document:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project:
+          type: integer
+        document_name:
+          type: string
+          example: "nda_template.pdf"
+        display_name:
+          type: string
+          example: "NDA Standard Template"
+        external_document_id:
+          type: string
+          nullable: true
+        mime_type:
+          type: string
+          example: "application/pdf"
+        file_size:
+          type: integer
+          example: 1048576
+        state:
+          type: string
+          enum: [PENDING, INDEXING, INDEXED, FAILED]
+          example: "INDEXED"
+        indexed_at:
+          type: string
+          format: date-time
+          nullable: true
+        error_message:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    DocumentList:
+      type: object
+      properties:
+        id:
+          type: integer
+        document_name:
+          type: string
+        display_name:
+          type: string
+        state:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    DocumentCreate:
+      type: object
+      required:
+        - project
+        - document_name
+        - display_name
+      properties:
+        project:
+          type: integer
+        document_name:
+          type: string
+        display_name:
+          type: string
+        mime_type:
+          type: string
+        file_size:
+          type: integer
+
+    DocumentUpdate:
+      type: object
+      properties:
+        display_name:
+          type: string
+        state:
+          type: string
+          enum: [PENDING, INDEXING, INDEXED, FAILED]
+        error_message:
+          type: string
+
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project:
+          type: integer
+        user:
+          type: integer
+          nullable: true
+        user_username:
+          type: string
+          readOnly: true
+        message_type:
+          type: string
+          enum: [user, bot, system]
+        content:
+          type: string
+        response_html:
+          type: string
+          readOnly: true
+        context_documents:
+          type: array
+          items:
+            type: string
+        system_prompt_used:
+          type: string
+        session_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    ChatMessageList:
+      type: object
+      properties:
+        id:
+          type: integer
+        message_type:
+          type: string
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        session_id:
+          type: string
+
+    ChatMessageCreate:
+      type: object
+      required:
+        - project
+        - message_type
+        - content
+      properties:
+        project:
+          type: integer
+        message_type:
+          type: string
+          enum: [user, bot, system]
+        content:
+          type: string
+        session_id:
+          type: string
+
+    EvaluationDataset:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project:
+          type: integer
+        document:
+          type: integer
+          nullable: true
+        question:
+          type: string
+        ground_truth:
+          type: string
+        source:
+          type: string
+          enum: [manual, generated, csv]
+        created_at:
+          type: string
+          format: date-time
+
+    EvaluationRun:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project:
+          type: integer
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [PENDING, RUNNING, COMPLETED, FAILED]
+        error_message:
+          type: string
+          nullable: true
+
+    EvaluationResultMetrics:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        run:
+          type: string
+          format: uuid
+        dataset_item:
+          type: string
+          format: uuid
+        context_recall:
+          type: number
+          format: float
+        context_precision:
+          type: number
+          format: float
+        faithfulness:
+          type: number
+          format: float
+        answer_relevancy:
+          type: number
+          format: float
+
+    APIKey:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: integer
+        user_username:
+          type: string
+          readOnly: true
+        key:
+          type: string
+          readOnly: true
+        name:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+
+    APIKeyList:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    APIKeyCreate:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: "Production Integration Key"
+        is_active:
+          type: boolean
+          default: true
+        key:
+          type: string
+          readOnly: true
+
+    APIUsage:
+      type: object
+      properties:
+        id:
+          type: integer
+        api_key:
+          type: integer
+        api_key_name:
+          type: string
+        endpoint:
+          type: string
+        method:
+          type: string
+        status_code:
+          type: integer
+        response_time_ms:
+          type: integer
+        ip_address:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    APIUsageList:
+      type: object
+      properties:
+        id:
+          type: integer
+        endpoint:
+          type: string
+        method:
+          type: string
+        status_code:
+          type: integer
+        response_time_ms:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    APIUsageSummary:
+      type: object
+      properties:
+        total_requests:
+          type: integer
+          example: 1450
+        requests_last_24h:
+          type: integer
+          example: 120
+        avg_response_time_ms:
+          type: number
+          example: 245.5
+        error_count:
+          type: integer
+          example: 3
+        by_endpoint:
+          type: array
+          items:
+            type: object
+            properties:
+              endpoint:
+                type: string
+              count:
+                type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Missing store_id or query"
+        detail:
+          type: string
+          example: "Invalid credentials provided."

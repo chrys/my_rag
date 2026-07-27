@@ -113,3 +113,62 @@ class TestAdminPromptViews:
             'Tell me about dogs.',
             system_prompt="System Prompt: Only talk about cats."
         )
+
+    def test_project_admin_form_saves_custom_prompt_text(self):
+        from src.apps.projects.admin import ProjectAdminForm
+        project = Project.objects.create(
+            project_id='admin_form_prompt_store',
+            display_name='Admin Form Prompt Project',
+            storage_type='postgres'
+        )
+
+        form_data = {
+            'project_id': project.project_id,
+            'display_name': project.display_name,
+            'storage_type': project.storage_type,
+            'is_active': True,
+            'custom_prompt': True,
+            'custom_prompt_text': 'Act as a senior Django engineer.',
+            'synthesizer': False,
+            'document_parsing': 'markitdown',
+            'chunking': 'fixed-size',
+            'embedding_model': 'gemini-1',
+            'use_markitdown': False,
+            'use_structural_grading': True,
+            'document_count': 0,
+        }
+        form = ProjectAdminForm(data=form_data, instance=project)
+        assert form.is_valid(), form.errors
+        form.save()
+
+        saved_prompt = SystemPrompt.objects.get(project=project)
+        assert saved_prompt.content == 'Act as a senior Django engineer.'
+        assert project.custom_prompt is True
+
+    def test_project_admin_form_disables_immutable_fields_when_sources_exist(self):
+        from src.apps.projects.admin import ProjectAdminForm
+        project = Project.objects.create(
+            project_id='admin_form_sources_exist',
+            display_name='Admin Form Sources Exist',
+            storage_type='postgres',
+            document_count=3
+        )
+
+        form = ProjectAdminForm(instance=project)
+        assert form.fields['embedding_model'].disabled is True
+        assert form.fields['document_parsing'].disabled is True
+        assert form.fields['use_markitdown'].disabled is True
+        assert "Locked" in form.fields['embedding_model'].help_text
+
+        empty_project = Project.objects.create(
+            project_id='admin_form_no_sources',
+            display_name='Admin Form No Sources',
+            storage_type='postgres',
+            document_count=0
+        )
+        empty_form = ProjectAdminForm(instance=empty_project)
+        assert empty_form.fields['embedding_model'].disabled is False
+        assert empty_form.fields['document_parsing'].disabled is False
+        assert empty_form.fields['use_markitdown'].disabled is False
+
+
