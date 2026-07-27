@@ -144,11 +144,14 @@ def chat(request):
             if isinstance(llm, LLM):
                 Settings.llm = llm
             
-            index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
-            query_engine = index.as_query_engine(llm=llm)
+            mode = getattr(project, 'response_mode', 'compact') if project else 'compact'
+            query_engine = index.as_query_engine(llm=llm, response_mode=mode)
             
+            from .services import generate_adaptive_hyde_passage
+            search_query = generate_adaptive_hyde_passage(query) if (project and getattr(project, 'use_hyde', False)) else query
+
             prompt = system_prompt or "You are a helpful assistant."
-            response = query_engine.query(f"System Context: {prompt}\n\nQuery: {query}")
+            response = query_engine.query(f"System Context: {prompt}\n\nQuery: {search_query}")
             bot_response = str(response)
             source_documents = []
             if hasattr(response, 'source_nodes'):
@@ -260,11 +263,14 @@ def chat_submit(request):
             if isinstance(llm, LLM):
                 Settings.llm = llm
             
-            index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
-            query_engine = index.as_query_engine(llm=llm)
+            mode = getattr(project, 'response_mode', 'compact') if project else 'compact'
+            query_engine = index.as_query_engine(llm=llm, response_mode=mode)
             
+            from .services import generate_adaptive_hyde_passage
+            search_query = generate_adaptive_hyde_passage(query) if (project and getattr(project, 'use_hyde', False)) else query
+
             prompt = system_prompt or "You are a helpful assistant."
-            response = query_engine.query(f"System Context: {prompt}\n\nQuery: {query}")
+            response = query_engine.query(f"System Context: {prompt}\n\nQuery: {search_query}")
             bot_response = str(response)
             source_documents = []
             if hasattr(response, "source_nodes"):

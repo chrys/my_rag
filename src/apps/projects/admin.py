@@ -91,6 +91,8 @@ class ProjectAdmin(ModelAdmin):
                     "project_id",
                     "display_name",
                     "storage_type",
+                    "response_mode",
+                    "use_hyde",
                     "description",
                     "is_active",
                     "synthesizer",

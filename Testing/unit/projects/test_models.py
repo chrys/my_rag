@@ -27,6 +27,19 @@ class TestProjectModel:
         assert project.storage_type == 'local'
         assert project.is_active is True
         assert project.document_count == 0
+        assert project.response_mode == 'compact'
+        assert project.use_hyde is False
+
+    def test_project_response_mode_choices(self):
+        """Test setting custom response_mode choices"""
+        project = Project.objects.create(
+            project_id='response_mode_test',
+            display_name='Response Mode Test',
+            response_mode='refine',
+            use_hyde=True
+        )
+        assert project.response_mode == 'refine'
+        assert project.use_hyde is True
     
     def test_create_project_google(self):
         """Test creating a Google File Search project"""

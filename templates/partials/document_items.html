@@ -20,6 +20,11 @@
         {% if doc.is_expired %}
         <span class="px-2 py-1 bg-red-100 text-red-750 text-xs font-bold rounded-full select-none animate-pulse">EXPIRED</span>
         {% endif %}
+        {% if doc.chunking_strategy %}
+        <span class="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full font-mono font-medium border border-blue-100">
+            {{ doc.get_chunking_strategy_display|default:doc.chunking_strategy }}
+        </span>
+        {% endif %}
         <span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">{{ doc.state.name }}</span>
         <button hx-delete="{{ url_prefix }}/api/documents/{{ doc.name }}?store_id={{ store_id }}"
             hx-target="closest .document-item"

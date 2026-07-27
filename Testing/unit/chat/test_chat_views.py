@@ -14,8 +14,20 @@ from src.apps.chat.views import chat, chat_submit
 
 from django.contrib.auth.models import User
 
+from src.apps.chat.services import generate_adaptive_hyde_passage
+
+
 @pytest.mark.django_db
 class TestChatViews:
+    def test_adaptive_hyde_direct_lookup(self, mocker):
+        mock_client = mocker.Mock()
+        mock_response = mocker.Mock()
+        mock_response.text = "CATEGORY: DIRECT_LOOKUP"
+        mock_client.models.generate_content.return_value = mock_response
+        mocker.patch('google.genai.Client', return_value=mock_client)
+
+        result = generate_adaptive_hyde_passage("Error 0x80070005")
+        assert result == "Error 0x80070005"
     def test_chat_submit_authenticated(self, mocker):
         user = User.objects.create_user(username='testuser', password='password')
         project = Project.objects.create(

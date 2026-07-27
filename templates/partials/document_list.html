@@ -22,6 +22,18 @@
                 <span id="selected-file-name" class="text-xs text-gray-400 max-w-[120px] sm:max-w-[180px] truncate select-none">No file chosen</span>
             </div>
 
+            <!-- Chunking Strategy Selector -->
+            <div class="flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-3">
+                <select name="chunking_strategy" id="chunking-strategy-select"
+                    class="border border-gray-300 dark:border-gray-700 rounded-md px-2 py-1 text-xs text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="auto_detect" selected>Auto-Detect</option>
+                    <option value="markdown">Markdown Header</option>
+                    <option value="code">Code / AST</option>
+                    <option value="hierarchical">Hierarchical</option>
+                    <option value="sentence">Sentence Boundary</option>
+                </select>
+            </div>
+
             <!-- Expiration Tracking -->
             <div class="flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-3">
                 <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600 dark:text-gray-300 font-medium select-none">

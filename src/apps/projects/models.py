@@ -107,11 +107,23 @@ class Project(models.Model):
         default=False,
         help_text="Use MarkItDown pipeline (cannot be changed after first source is indexed)."
     )
-    use_structural_grading = models.BooleanField(
-        default=True,
-        help_text="Use structural quality grading"
+    RESPONSE_MODE_CHOICES = [
+        ("compact", "Compact (Fastest - Stuffs Context into 1 Call)"),
+        ("refine", "Refine (Iterative - Thorough for Multi-Chunk Deep Analysis)"),
+        ("tree_summarize", "Tree Summarize (Hierarchical Summary for Broad Queries)"),
+    ]
+
+    response_mode = models.CharField(
+        max_length=50,
+        choices=RESPONSE_MODE_CHOICES,
+        default="compact",
+        help_text="LlamaIndex response synthesis mode. 'Compact' maximizes speed and cuts LLM API calls."
     )
-    
+    use_hyde = models.BooleanField(
+        default=False,
+        help_text="Enable Adaptive HyDE (Hypothetical Document Embeddings)"
+    )
+
     # Statistics (denormalized for performance)
     document_count = models.IntegerField(
         default=0,

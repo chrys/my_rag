@@ -22,6 +22,51 @@ def get_safe_table_name(project_id: str) -> str:
         return f"rag_project_{truncated_id}_{hash_suffix}"
     return base_name
 
+from llama_index.core.node_parser import (
+    CodeSplitter,
+    HierarchicalNodeParser,
+    MarkdownNodeParser,
+    SentenceSplitter,
+)
+
+
+def select_node_parser(file_path: str, strategy: str = "auto_detect"):
+    """
+    Factory function returning the appropriate LlamaIndex NodeParser instance.
+    Gracefully falls back to SentenceSplitter if specialized dependencies are missing or fail.
+    """
+    ext = os.path.splitext(file_path)[1].lower()
+
+    try:
+        if strategy == "markdown" or (strategy == "auto_detect" and ext == ".md"):
+            return MarkdownNodeParser.from_defaults()
+
+        elif strategy == "code" or (strategy == "auto_detect" and ext in [".py", ".js", ".ts", ".html"]):
+            language_map = {
+                ".py": "python",
+                ".js": "javascript",
+                ".ts": "typescript",
+                ".html": "html"
+            }
+            target_lang = language_map.get(ext, "python")
+            return CodeSplitter(
+                language=target_lang,
+                chunk_lines=40,
+                chunk_lines_overlap=5,
+                max_chars=1500
+            )
+
+        elif strategy == "hierarchical":
+            return HierarchicalNodeParser.from_defaults(chunk_sizes=[1024, 256])
+
+        else:
+            return SentenceSplitter(chunk_size=512, chunk_overlap=50)
+
+    except Exception as exc:
+        logger.warning(f"Failed to initialize node parser for {file_path} (strategy: {strategy}): {exc}. Falling back to SentenceSplitter.")
+        return SentenceSplitter(chunk_size=512, chunk_overlap=50)
+
+
 class LlamaIndexIngestionPipeline:
     def __init__(self, project_id):
         self.project_id = project_id
@@ -31,7 +76,7 @@ class LlamaIndexIngestionPipeline:
             api_key=os.getenv("GOOGLE_API_KEY")
         )
         
-    def index_document(self, file_path, original_filename: str = None):
+    def index_document(self, file_path, original_filename: str = None, strategy: str = "auto_detect"):
         # Read the document
         documents = SimpleDirectoryReader(input_files=[file_path]).load_data()
         
@@ -56,12 +101,14 @@ class LlamaIndexIngestionPipeline:
         )
         
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
+        node_parser = select_node_parser(file_path, strategy=strategy)
         
         # Create Index
         index = VectorStoreIndex.from_documents(
             documents, 
             storage_context=storage_context,
-            embed_model=self.embed_model
+            embed_model=self.embed_model,
+            transformations=[node_parser]
         )
         return index
 

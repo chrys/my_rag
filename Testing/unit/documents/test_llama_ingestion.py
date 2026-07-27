@@ -5,8 +5,10 @@ import pytest
 from src.apps.documents.services import (
     LlamaIndexIngestionPipeline,
     check_structural_quality,
-    get_safe_table_name
+    get_safe_table_name,
+    select_node_parser,
 )
+from llama_index.core.node_parser import MarkdownNodeParser, SentenceSplitter
 from src.apps.projects.models import Project
 from src.apps.documents.models import Document
 
@@ -58,6 +60,13 @@ def test_llama_ingestion_pipeline_original_filename():
 def test_get_safe_table_name():
     # Test short project_id (should not change)
     name_short = get_safe_table_name("short_id")
+
+def test_select_node_parser_autodetect():
+    md_parser = select_node_parser("doc.md", strategy="auto_detect")
+    assert isinstance(md_parser, MarkdownNodeParser)
+
+    txt_parser = select_node_parser("notes.txt", strategy="auto_detect")
+    assert isinstance(txt_parser, SentenceSplitter)
     assert name_short == "rag_project_short_id"
     
     # Test extremely long project_id (should be truncated to keep under 48 characters)

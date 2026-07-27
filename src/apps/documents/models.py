@@ -61,6 +61,22 @@ class Document(models.Model):
         help_text="Size of the file in bytes"
     )
     
+    CHUNKING_CHOICES = [
+        ("project_default", "Use Project Default"),
+        ("auto_detect", "Auto-Detect by File Extension"),
+        ("markdown", "Markdown Header Splitter"),
+        ("code", "Code / AST Splitter"),
+        ("hierarchical", "Hierarchical / Parent-Child"),
+        ("sentence", "Sentence / Paragraph Splitter"),
+    ]
+
+    chunking_strategy = models.CharField(
+        max_length=50,
+        choices=CHUNKING_CHOICES,
+        default="auto_detect",
+        help_text="Document-specific chunking strategy."
+    )
+    
     # Indexing status
     state = models.CharField(
         max_length=20,
