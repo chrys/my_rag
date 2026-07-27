@@ -21,8 +21,12 @@
         <span class="px-2 py-1 bg-red-100 text-red-750 text-xs font-bold rounded-full select-none animate-pulse">EXPIRED</span>
         {% endif %}
         {% if doc.chunking_strategy %}
-        <span class="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full font-mono font-medium border border-blue-100">
-            {{ doc.get_chunking_strategy_display|default:doc.chunking_strategy }}
+        <span class="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full font-medium border border-blue-100 flex items-center gap-1 select-none" title="Parsing strategy applied during indexing">
+            {% if doc.chunking_strategy == 'auto_detect' %}
+            <span>⚡ Auto-Detect</span>
+            {% else %}
+            <span>⚙️ {{ doc.chunking_strategy_display|default:doc.chunking_strategy }}</span>
+            {% endif %}
         </span>
         {% endif %}
         <span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">{{ doc.state.name }}</span>

@@ -7,3 +7,8 @@ llama-index-llms-gemini
 google-generativeai
 llama-index-embeddings-google
 llama-index-llms-google-genai
+
+# Code AST parsing for LlamaIndex CodeSplitter (TASK 2)
+tree-sitter
+tree-sitter-languages; python_version < "3.12"
+tree_sitter_language_pack

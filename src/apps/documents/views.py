@@ -25,7 +25,7 @@ from src.postgres_rag import EmbeddingRateLimitError
 
 
 
-SUPPORTED_TEXT_FILE_EXTENSIONS = {'.pdf', '.txt', '.md'}
+SUPPORTED_TEXT_FILE_EXTENSIONS = {'.pdf', '.txt', '.md', '.py', '.js', '.ts', '.html'}
 
 gfs = LazyModuleProxy(
     "src.google_file_search",
@@ -56,6 +56,9 @@ def _doc_adapter(doc):
     if doc.is_expired_checked and doc.expiration_date:
         is_expired = timezone.now() > doc.expiration_date
 
+    strategy_raw = getattr(doc, 'chunking_strategy', 'auto_detect')
+    strategy_display = dict(Document.CHUNKING_CHOICES).get(strategy_raw, strategy_raw)
+
     return {
         'name': doc.document_name,
         'display_name': doc.display_name or doc.document_name,
@@ -64,6 +67,8 @@ def _doc_adapter(doc):
         'state': type('State', (), {'name': doc.state})(),
         'error_message': getattr(doc, 'error_message', ''),
         'is_expired': is_expired,
+        'chunking_strategy': strategy_raw,
+        'chunking_strategy_display': strategy_display,
     }
 
 
@@ -159,8 +164,9 @@ def upload_document(request, store_id):
         file_ext = os.path.splitext(filename)[1].lower()
 
         if (store_id.startswith('rag_') or store_id.startswith('postgres_')) and file_ext not in SUPPORTED_TEXT_FILE_EXTENSIONS:
+            supported_str = ", ".join(sorted(SUPPORTED_TEXT_FILE_EXTENSIONS))
             return JsonResponse(
-                {'error': f'Unsupported file type: {file_ext or "[none]"}. Supported file types are: .pdf, .txt, .md'},
+                {'error': f'Unsupported file type: {file_ext or "[none]"}. Supported file types are: {supported_str}'},
                 status=400,
             )
         
@@ -215,12 +221,13 @@ def upload_document(request, store_id):
 
                 try:
                     # Ingestion Quality Grading Gate
-                    if project and project.use_structural_grading:
+                    if project and getattr(project, 'use_structural_grading', False):
                         from src.apps.documents.services import check_structural_quality
                         check_structural_quality(filepath)
 
+                    chunking_strategy = request.POST.get('chunking_strategy', 'auto_detect')
                     pipeline = LlamaIndexIngestionPipeline(project_id=store_id)
-                    index = pipeline.index_document(filepath, original_filename=filename)
+                    index = pipeline.index_document(filepath, original_filename=filename, strategy=chunking_strategy)
                     success = index is not None
                 except EmbeddingRateLimitError as exc:
                     if project:
@@ -267,6 +274,7 @@ def upload_document(request, store_id):
                             defaults={
                                 'display_name': filename,
                                 'state': 'INDEXED',
+                                'chunking_strategy': chunking_strategy,
                                 'error_message': '',
                                 'indexed_at': timezone.now(),
                                 'is_expired_checked': is_expired_checked,

@@ -18,18 +18,19 @@
                     <span>Choose File</span>
                 </label>
                 <input type="file" id="file-uploader-input" name="file" required class="hidden" 
-                    onchange="const nameSpan = document.getElementById('selected-file-name'); if (this.files && this.files[0]) { nameSpan.textContent = this.files[0].name; nameSpan.classList.remove('text-gray-400'); nameSpan.classList.add('text-gray-700', 'font-medium'); } else { nameSpan.textContent = 'No file chosen'; nameSpan.classList.remove('text-gray-700', 'font-medium'); nameSpan.classList.add('text-gray-400'); }">
+                    onchange="const nameSpan = document.getElementById('selected-file-name'); if (this.files && this.files[0]) { nameSpan.textContent = this.files[0].name; nameSpan.classList.remove('text-gray-400'); nameSpan.classList.add('text-gray-700', 'font-medium'); } else { nameSpan.textContent = 'No file chosen'; nameSpan.classList.remove('text-gray-700', 'font-medium'); nameSpan.classList.add('text-gray-400'); } updateAutoDetectBanner();">
                 <span id="selected-file-name" class="text-xs text-gray-400 max-w-[120px] sm:max-w-[180px] truncate select-none">No file chosen</span>
             </div>
 
             <!-- Chunking Strategy Selector -->
             <div class="flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-3">
                 <select name="chunking_strategy" id="chunking-strategy-select"
+                    onchange="updateAutoDetectBanner()"
                     class="border border-gray-300 dark:border-gray-700 rounded-md px-2 py-1 text-xs text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    <option value="auto_detect" selected>Auto-Detect</option>
-                    <option value="markdown">Markdown Header</option>
-                    <option value="code">Code / AST</option>
-                    <option value="hierarchical">Hierarchical</option>
+                    <option value="auto_detect" selected>⚡ Auto-Detect (Recommended)</option>
+                    <option value="markdown">Markdown Header Splitter</option>
+                    <option value="code">Code / AST Splitter</option>
+                    <option value="hierarchical">Hierarchical (Parent-Child)</option>
                     <option value="sentence">Sentence Boundary</option>
                 </select>
             </div>
@@ -73,8 +74,48 @@
         </form>
     </div>
 
+    <!-- Auto-Detect Information Banner -->
+    <div id="autodetect-info-banner" class="px-4 py-2 bg-blue-50 dark:bg-blue-950/40 border-b border-blue-100 dark:border-blue-900 flex items-center justify-between text-xs text-blue-800 dark:text-blue-300">
+        <div class="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span id="autodetect-banner-text">
+                <strong>Auto-Detect Mode:</strong> The system automatically selects the optimal parser for your file extension (.md, .py, .js, .pdf). You can manually select a strategy above if needed.
+            </span>
+        </div>
+    </div>
+
     <!-- Document List -->
     <div id="document-list" class="flex-1 overflow-y-auto p-4 space-y-2">
         {% include 'partials/document_items.html' %}
     </div>
 </div>
+
+<script>
+function updateAutoDetectBanner() {
+    const fileInput = document.getElementById('file-uploader-input');
+    const strategySelect = document.getElementById('chunking-strategy-select');
+    const bannerText = document.getElementById('autodetect-banner-text');
+    if (!fileInput || !strategySelect || !bannerText) return;
+
+    const selectedStrategy = strategySelect.value;
+    if (selectedStrategy !== 'auto_detect') {
+        bannerText.innerHTML = `<strong>Manual Override Active:</strong> Using <em>${strategySelect.options[strategySelect.selectedIndex].text}</em>. Change to <strong>⚡ Auto-Detect</strong> to revert to automatic file extension parsing.`;
+        return;
+    }
+
+    if (fileInput.files && fileInput.files[0]) {
+        const fname = fileInput.files[0].name.toLowerCase();
+        const ext = fname.substring(fname.lastIndexOf('.'));
+        let detected = "Sentence Boundary Splitter (Standard Text)";
+        if (ext === '.md') detected = "Markdown Header Splitter (#, ##, ###)";
+        else if (['.py', '.js', '.ts', '.html'].includes(ext)) detected = `Code / AST Splitter (Syntax-aware for ${ext})`;
+        else if (ext === '.pdf') detected = "Hierarchical Splitter (Parent-Child Tree)";
+
+        bannerText.innerHTML = `⚡ <strong>Auto-Detected File Extension (${ext}):</strong> System will use <strong>${detected}</strong>. Change strategy above to manually override.`;
+    } else {
+        bannerText.innerHTML = `<strong>Auto-Detect Mode:</strong> The system automatically selects the optimal parser for your file extension (.md, .py, .js, .pdf). Select a strategy above if you want to manually override.`;
+    }
+}
+</script>

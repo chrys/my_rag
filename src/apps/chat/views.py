@@ -144,6 +144,7 @@ def chat(request):
             if isinstance(llm, LLM):
                 Settings.llm = llm
             
+            index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
             mode = getattr(project, 'response_mode', 'compact') if project else 'compact'
             query_engine = index.as_query_engine(llm=llm, response_mode=mode)
             
@@ -263,6 +264,7 @@ def chat_submit(request):
             if isinstance(llm, LLM):
                 Settings.llm = llm
             
+            index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
             mode = getattr(project, 'response_mode', 'compact') if project else 'compact'
             query_engine = index.as_query_engine(llm=llm, response_mode=mode)
             

@@ -113,7 +113,6 @@ class ProjectAdmin(ModelAdmin):
                     "external_store_id",
                     "document_count",
                     "last_indexed_at",
-                    "use_structural_grading",
                     "created_at",
                     "updated_at",
                     "document_uploader_and_list",
