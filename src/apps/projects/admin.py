@@ -1,11 +1,83 @@
+from django import forms
 from django.contrib import admin
 from unfold.admin import ModelAdmin
 from src.apps.my_rag_project.admin import custom_admin_site
 from .models import Project, SystemPrompt
 
 
+class ProjectAdminForm(forms.ModelForm):
+    custom_prompt_text = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'rows': 4,
+            'placeholder': 'Enter system prompt rules, instructions, or role definition...',
+            'style': 'width: 100%; font-family: monospace;',
+        }),
+        required=False,
+        label="Custom Prompt Text",
+        help_text="Custom system prompt content applied to chat queries when custom prompt is enabled."
+    )
+
+    class Meta:
+        model = Project
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            prompt_obj = SystemPrompt.objects.filter(project=self.instance).first()
+            if prompt_obj:
+                self.fields['custom_prompt_text'].initial = prompt_obj.content
+
+            # Check if project already has indexed sources
+            has_sources = (self.instance.document_count > 0) or self.instance.documents.exists()
+            if has_sources:
+                locked_fields = ['embedding_model', 'document_parsing', 'use_markitdown']
+                for field_name in locked_fields:
+                    if field_name in self.fields:
+                        self.fields[field_name].disabled = True
+                        self.fields[field_name].help_text = (
+                            "🔒 Locked: Cannot be changed after the first source has been indexed."
+                        )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        custom_prompt = cleaned_data.get('custom_prompt', False)
+        prompt_text = cleaned_data.get('custom_prompt_text', '').strip()
+        if prompt_text and not custom_prompt:
+            cleaned_data['custom_prompt'] = True
+            self.instance.custom_prompt = True
+        return cleaned_data
+
+    def save(self, commit=True):
+        project = super().save(commit=commit)
+        custom_prompt = self.cleaned_data.get('custom_prompt', False)
+        prompt_text = self.cleaned_data.get('custom_prompt_text', '').strip()
+
+        if commit:
+            self._save_system_prompt(project, custom_prompt, prompt_text)
+        else:
+            original_save_m2m = self.save_m2m
+            def save_m2m():
+                original_save_m2m()
+                self._save_system_prompt(project, custom_prompt, prompt_text)
+            self.save_m2m = save_m2m
+
+        return project
+
+    def _save_system_prompt(self, project, enabled, prompt_text):
+        if enabled and prompt_text:
+            SystemPrompt.objects.update_or_create(
+                project=project,
+                defaults={'content': prompt_text}
+            )
+        elif not enabled:
+            # When custom prompt is disabled, keep system prompt or delete as needed
+            pass
+
+
 @admin.register(Project, site=custom_admin_site)
 class ProjectAdmin(ModelAdmin):
+    form = ProjectAdminForm
     list_display = ("display_name", "storage_type", "document_count", "created_at", "is_active")
     list_filter = ("storage_type", "is_active", "created_at")
     search_fields = ("display_name", "project_id", "external_store_id")
@@ -26,8 +98,8 @@ class ProjectAdmin(ModelAdmin):
                     "chunking",
                     "embedding_model",
                     "custom_prompt",
+                    "custom_prompt_text",
                     "use_markitdown",
-                    "use_structural_grading",
                 ),
             },
         ),
@@ -39,6 +111,7 @@ class ProjectAdmin(ModelAdmin):
                     "external_store_id",
                     "document_count",
                     "last_indexed_at",
+                    "use_structural_grading",
                     "created_at",
                     "updated_at",
                     "document_uploader_and_list",
@@ -46,6 +119,9 @@ class ProjectAdmin(ModelAdmin):
             },
         ),
     )
+
+    class Media:
+        js = ("admin/js/custom_prompt_toggle.js",)
 
     def document_uploader_and_list(self, obj):
         """

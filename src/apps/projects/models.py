@@ -74,11 +74,10 @@ class Project(models.Model):
     document_parsing = models.CharField(
         max_length=50,
         choices=[
-            ("pymupdf", "PyMUPDF"),
             ("markitdown", "markitdown"),
         ],
         default="markitdown",
-        help_text="Document parsing backend"
+        help_text="Document parsing backend (cannot be changed after first source is indexed)."
     )
     chunking = models.CharField(
         max_length=50,
@@ -96,11 +95,9 @@ class Project(models.Model):
         max_length=50,
         choices=[
             ("gemini-1", "Gemini embedding 1"),
-            ("google-2", "Google embedding 2"),
-            ("gemma", "fkEmbeddingGemma"),
         ],
         default="gemini-1",
-        help_text="Embedding model to use"
+        help_text="Embedding model to use (cannot be changed after first source is indexed)."
     )
     custom_prompt = models.BooleanField(
         default=False,
@@ -108,7 +105,7 @@ class Project(models.Model):
     )
     use_markitdown = models.BooleanField(
         default=False,
-        help_text="Use MarkItDown pipeline"
+        help_text="Use MarkItDown pipeline (cannot be changed after first source is indexed)."
     )
     use_structural_grading = models.BooleanField(
         default=True,
