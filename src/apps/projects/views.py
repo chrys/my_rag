@@ -36,13 +36,23 @@ def _user_can_access_project(project, user):
     if not project or project.user_id is None:
         return True
 
-    return bool(getattr(user, 'is_authenticated', False) and user.id == project.user_id)
+    if bool(getattr(user, 'is_authenticated', False)):
+        if getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False):
+            return True
+        return user.id == project.user_id
+
+    return False
 
 
 def get_combined_stores(request=None):
     """Get list of projects for the current user from Django database"""
-    if request and request.user.is_authenticated:
-        projects = Project.objects.filter(user=request.user).order_by('-created_at')
+    if request and getattr(request.user, 'is_authenticated', False):
+        if getattr(request.user, 'is_superuser', False) or getattr(request.user, 'is_staff', False):
+            projects = Project.objects.all().order_by('-created_at')
+        else:
+            projects = Project.objects.filter(
+                models.Q(user=request.user) | models.Q(user__isnull=True)
+            ).order_by('-created_at')
     else:
         # Show projects without an owner for unauthenticated users (legacy behavior)
         projects = Project.objects.filter(user__isnull=True).order_by('-created_at')

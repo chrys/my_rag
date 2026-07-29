@@ -39,10 +39,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
     lookup_value_regex = '[^/]+'  # Allow anything except forward slash in URL segment
     
     def get_queryset(self):
-        """Filter projects by authenticated user"""
+        """Filter projects by authenticated user or staff/superuser status"""
         if getattr(self, 'swagger_fake_view', False):
             return Project.objects.none()
-        return Project.objects.filter(user=self.request.user)
+        user = self.request.user
+        if getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False):
+            return Project.objects.all()
+        return Project.objects.filter(models.Q(user=user) | models.Q(user__isnull=True))
 
     def perform_create(self, serializer):
         """Set the user to the authenticated user on create"""
