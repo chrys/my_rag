@@ -92,12 +92,24 @@ class Project(models.Model):
         help_text="Text chunking strategy"
     )
     embedding_model = models.CharField(
-        max_length=50,
+        max_length=100,
         choices=[
+            ("models/gemini-embedding-001", "Gemini Embedding 001 (768-dim)"),
             ("gemini-1", "Gemini embedding 1"),
         ],
-        default="gemini-1",
+        default="models/gemini-embedding-001",
         help_text="Embedding model to use (cannot be changed after first source is indexed)."
+    )
+    llm_model = models.CharField(
+        max_length=100,
+        choices=[
+            ("gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite (Cloud)"),
+            ("gemma4:12b-mlx", "Gemma 4 12B MLX (Local Ollama)"),
+            ("gemma4:e2b-mlx", "Gemma 4 E2B MLX (Local Ollama - Ultra Fast)"),
+            ("gemma4:e4b-mlx", "Gemma 4 E4B MLX (Local Ollama - Balanced)"),
+        ],
+        default="gemini-2.5-flash-lite",
+        help_text="LLM model used for synthesis, chat, and evaluation queries."
     )
     custom_prompt = models.BooleanField(
         default=False,
@@ -152,6 +164,13 @@ class Project(models.Model):
             raise ValidationError({
                 "storage_type": "This functionality has not been implemented yet."
             })
+        if self.pk:
+            original = Project.objects.filter(pk=self.pk).values("embedding_model", "document_count").first()
+            if original and (original["document_count"] > 0 or self.document_count > 0):
+                if original["embedding_model"] != self.embedding_model:
+                    raise ValidationError({
+                        "embedding_model": "Embedding model cannot be changed once documents are indexed."
+                    })
 
     def save(self, *args, **kwargs):
         """

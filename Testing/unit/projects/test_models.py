@@ -30,6 +30,30 @@ class TestProjectModel:
         assert project.response_mode == 'compact'
         assert project.use_hyde is False
 
+    def test_project_llm_and_embedding_model_defaults(self):
+        """Test llm_model and embedding_model defaults and choices"""
+        project = Project.objects.create(
+            project_id='model_defaults_test',
+            display_name='Model Defaults Test'
+        )
+        assert project.llm_model == 'gemini-2.5-flash-lite'
+        assert project.embedding_model == 'models/gemini-embedding-001'
+
+    def test_embedding_model_immutability_guardrail_when_indexed(self):
+        """Test clean() raises ValidationError when attempting to change embedding_model after indexing documents"""
+        from django.core.exceptions import ValidationError
+        project = Project.objects.create(
+            project_id='immutability_test',
+            display_name='Immutability Test',
+            storage_type='postgres',
+            embedding_model='models/gemini-embedding-001',
+            document_count=5
+        )
+        project.embedding_model = 'models/gemini-embedding-002-other'
+        with pytest.raises(ValidationError) as excinfo:
+            project.clean()
+        assert 'embedding_model' in excinfo.value.message_dict
+
     def test_project_response_mode_choices(self):
         """Test setting custom response_mode choices"""
         project = Project.objects.create(
@@ -238,7 +262,7 @@ class TestProjectModel:
         assert project.synthesizer is False
         assert project.document_parsing == 'markitdown'
         assert project.chunking == 'fixed-size'
-        assert project.embedding_model == 'gemini-1'
+        assert project.embedding_model == 'models/gemini-embedding-001'
         assert project.custom_prompt is False
 
     def test_project_parameter_placeholders_custom(self):

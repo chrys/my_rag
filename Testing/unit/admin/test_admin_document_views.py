@@ -129,8 +129,7 @@ class TestAdminDocumentViews:
         project = Project.objects.create(
             project_id='postgres_test_id',
             display_name='Test Upload Postgres',
-            storage_type='postgres',
-            use_structural_grading=False
+            storage_type='postgres'
         )
         mocker.patch('src.apps.documents.views.test_postgres_connection', return_value=(True, ""))
         mock_pipeline = mocker.Mock()
@@ -156,8 +155,7 @@ class TestAdminDocumentViews:
         project = Project.objects.create(
             project_id='postgres_failed_test_id',
             display_name='Test Failed Upload Postgres',
-            storage_type='postgres',
-            use_structural_grading=False
+            storage_type='postgres'
         )
         mocker.patch('src.apps.documents.views.test_postgres_connection', return_value=(True, ""))
         mock_pipeline = mocker.Mock()
@@ -185,8 +183,7 @@ class TestAdminDocumentViews:
         project = Project.objects.create(
             project_id='postgres_rate_limit_test_id',
             display_name='Test Rate Limited Upload Postgres',
-            storage_type='postgres',
-            use_structural_grading=False
+            storage_type='postgres'
         )
         mocker.patch('src.apps.documents.views.test_postgres_connection', return_value=(True, ""))
         mock_pipeline = mocker.Mock()

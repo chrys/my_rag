@@ -126,6 +126,7 @@ def chat(request):
             from llama_index.embeddings.google import GeminiEmbedding
             from llama_index.llms.google_genai import GoogleGenAI
             from src.apps.documents.services import get_vector_store
+            from .llm_router import generate_llm_response
             import os
             
             vector_store = get_vector_store(store_id)
@@ -133,10 +134,21 @@ def chat(request):
                 model_name="models/gemini-embedding-001",
                 api_key=os.getenv("GOOGLE_API_KEY")
             )
-            llm = GoogleGenAI(
-                model="gemini-2.5-flash-lite",
-                api_key=os.getenv("GOOGLE_API_KEY")
-            )
+            target_llm = getattr(project, 'llm_model', 'gemini-2.5-flash-lite') if project else 'gemini-2.5-flash-lite'
+            if "gemma" in target_llm.lower() or "mlx" in target_llm.lower() or ":" in target_llm:
+                from llama_index.llms.ollama import Ollama
+                ollama_url = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434/api/generate")
+                base_url = ollama_url.split('/api/generate')[0]
+                llm = Ollama(
+                    model=target_llm,
+                    base_url=base_url,
+                    request_timeout=60.0
+                )
+            else:
+                llm = GoogleGenAI(
+                    model=target_llm,
+                    api_key=os.getenv("GOOGLE_API_KEY")
+                )
             from llama_index.core.embeddings import BaseEmbedding
             from llama_index.core.llms import LLM
             if isinstance(embed_model, BaseEmbedding):
@@ -149,13 +161,25 @@ def chat(request):
             query_engine = index.as_query_engine(llm=llm, response_mode=mode)
             
             from .services import generate_adaptive_hyde_passage
-            search_query = generate_adaptive_hyde_passage(query) if (project and getattr(project, 'use_hyde', False)) else query
+            search_query = generate_adaptive_hyde_passage(query, model_id=target_llm) if (project and getattr(project, 'use_hyde', False)) else query
 
             prompt = system_prompt or "You are a helpful assistant."
-            response = query_engine.query(f"System Context: {prompt}\n\nQuery: {search_query}")
-            bot_response = str(response)
+            response = None
+            try:
+                response = query_engine.query(f"System Context: {prompt}\n\nQuery: {search_query}")
+                bot_response = str(response)
+            except Exception as q_err:
+                err_str = str(q_err).lower()
+                if any(k in err_str for k in ['ollama', '11434', 'failed to connect', 'connection refused']):
+                    raise RuntimeError("Local Ollama server is not running or accessible. Please start Ollama on your machine (http://localhost:11434).") from q_err
+                bot_response = "Empty Response"
+
+            # If vector store yields no matching nodes (LlamaIndex returns "Empty Response"), fall back to LLM router
+            if not bot_response or bot_response.strip().lower() == "empty response":
+                bot_response = generate_llm_response(prompt=query, model_id=target_llm, system_prompt=prompt)
+
             source_documents = []
-            if hasattr(response, 'source_nodes'):
+            if response and hasattr(response, 'source_nodes'):
                 source_documents = _extract_source_documents([node.node.metadata for node in response.source_nodes])
         else:
             google_store_id = project.external_store_id if project and project.external_store_id else store_id
@@ -195,7 +219,10 @@ def chat(request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JsonResponse({'error': str(e)}, status=500)
+        err_msg = str(e)
+        if any(k in err_msg.lower() for k in ['ollama', '11434', 'failed to connect', 'connection refused']):
+            err_msg = "⚠️ Local Ollama server is not running or accessible. Please start Ollama on your machine (http://localhost:11434) and try again."
+        return JsonResponse({'error': err_msg}, status=500)
 
 
 @require_http_methods(["POST"])
@@ -253,10 +280,21 @@ def chat_submit(request):
                 model_name="models/gemini-embedding-001",
                 api_key=os.getenv("GOOGLE_API_KEY")
             )
-            llm = GoogleGenAI(
-                model="gemini-2.5-flash-lite",
-                api_key=os.getenv("GOOGLE_API_KEY")
-            )
+            target_llm = getattr(project, 'llm_model', 'gemini-2.5-flash-lite') if project else 'gemini-2.5-flash-lite'
+            if "gemma" in target_llm.lower() or "mlx" in target_llm.lower() or ":" in target_llm:
+                from llama_index.llms.ollama import Ollama
+                ollama_url = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434/api/generate")
+                base_url = ollama_url.split('/api/generate')[0]
+                llm = Ollama(
+                    model=target_llm,
+                    base_url=base_url,
+                    request_timeout=60.0
+                )
+            else:
+                llm = GoogleGenAI(
+                    model=target_llm,
+                    api_key=os.getenv("GOOGLE_API_KEY")
+                )
             from llama_index.core.embeddings import BaseEmbedding
             from llama_index.core.llms import LLM
             if isinstance(embed_model, BaseEmbedding):
@@ -269,13 +307,25 @@ def chat_submit(request):
             query_engine = index.as_query_engine(llm=llm, response_mode=mode)
             
             from .services import generate_adaptive_hyde_passage
-            search_query = generate_adaptive_hyde_passage(query) if (project and getattr(project, 'use_hyde', False)) else query
+            search_query = generate_adaptive_hyde_passage(query, model_id=target_llm) if (project and getattr(project, 'use_hyde', False)) else query
 
             prompt = system_prompt or "You are a helpful assistant."
-            response = query_engine.query(f"System Context: {prompt}\n\nQuery: {search_query}")
-            bot_response = str(response)
+            response = None
+            try:
+                response = query_engine.query(f"System Context: {prompt}\n\nQuery: {search_query}")
+                bot_response = str(response)
+            except Exception as q_err:
+                err_str = str(q_err).lower()
+                if any(k in err_str for k in ['ollama', '11434', 'failed to connect', 'connection refused']):
+                    raise RuntimeError("Local Ollama server is not running or accessible. Please start Ollama on your machine (http://localhost:11434).") from q_err
+                bot_response = "Empty Response"
+
+            if not bot_response or bot_response.strip().lower() == "empty response":
+                from .llm_router import generate_llm_response
+                bot_response = generate_llm_response(prompt=query, model_id=target_llm, system_prompt=prompt)
+
             source_documents = []
-            if hasattr(response, "source_nodes"):
+            if response and hasattr(response, "source_nodes"):
                 source_documents = _extract_source_documents([node.node.metadata for node in response.source_nodes])
         else:
             google_store_id = project.external_store_id if project and project.external_store_id else store_id

@@ -60,13 +60,6 @@ def test_llama_ingestion_pipeline_original_filename():
 def test_get_safe_table_name():
     # Test short project_id (should not change)
     name_short = get_safe_table_name("short_id")
-
-def test_select_node_parser_autodetect():
-    md_parser = select_node_parser("doc.md", strategy="auto_detect")
-    assert isinstance(md_parser, MarkdownNodeParser)
-
-    txt_parser = select_node_parser("notes.txt", strategy="auto_detect")
-    assert isinstance(txt_parser, SentenceSplitter)
     assert name_short == "rag_project_short_id"
     
     # Test extremely long project_id (should be truncated to keep under 48 characters)
@@ -81,6 +74,14 @@ def test_select_node_parser_autodetect():
     
     name_other = get_safe_table_name("a" * 99 + "b")
     assert name_long != name_other
+
+
+def test_select_node_parser_autodetect():
+    md_parser = select_node_parser("doc.md", strategy="auto_detect")
+    assert isinstance(md_parser, MarkdownNodeParser)
+
+    txt_parser = select_node_parser("notes.txt", strategy="auto_detect")
+    assert isinstance(txt_parser, SentenceSplitter)
 
 
 class TestStructuralQualityGrading:

@@ -121,3 +121,98 @@ class Document(models.Model):
     
     def __str__(self):
         return f"{self.display_name or self.document_name} ({self.project.display_name})"
+
+
+class ObsidianSource(models.Model):
+    """
+    Represents an Obsidian vault source configuration for a project.
+    """
+    SOURCE_TYPES = [
+        ('document', 'Document'),
+        ('obsidian', 'Obsidian'),
+    ]
+
+    project = models.OneToOneField(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='obsidian_source',
+        help_text="The project this Obsidian source is attached to"
+    )
+    source_type = models.CharField(
+        max_length=20,
+        choices=SOURCE_TYPES,
+        default='document',
+        help_text="Selected source type for this project (Document or Obsidian)"
+    )
+    vault_path = models.CharField(
+        max_length=1024,
+        blank=True,
+        help_text="Absolute local file directory path to the Obsidian vault"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_synced_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the vault was last synced"
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Obsidian Source for {self.project.display_name} ({self.vault_path})"
+
+
+class ObsidianFile(models.Model):
+    """
+    Tracks individual notes within an Obsidian vault and their indexing state.
+    """
+    FILE_STATES = [
+        ('PENDING', 'Pending Indexing'),
+        ('INDEXED', 'Successfully Indexed'),
+        ('FAILED', 'Indexing Failed'),
+    ]
+
+    obsidian_source = models.ForeignKey(
+        ObsidianSource,
+        on_delete=models.CASCADE,
+        related_name='files',
+        help_text="The Obsidian source this note belongs to"
+    )
+    relative_path = models.CharField(
+        max_length=1024,
+        help_text="Relative file path from vault root (e.g. Certifications/AWS_Guide.md)"
+    )
+    folder_name = models.CharField(
+        max_length=255,
+        help_text="Immediate parent folder name (e.g. AWS)"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=FILE_STATES,
+        default='PENDING',
+        help_text="Indexing status of this note"
+    )
+    file_mtime = models.FloatField(
+        default=0.0,
+        help_text="Last modified timestamp (mtime) of the note file"
+    )
+    last_indexed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this note was last indexed"
+    )
+    error_message = models.TextField(
+        blank=True,
+        help_text="Error message if note indexing failed"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['relative_path']
+        unique_together = [['obsidian_source', 'relative_path']]
+
+    def __str__(self):
+        return f"{self.relative_path} [{self.status}]"

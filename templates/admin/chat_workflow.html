@@ -1,5 +1,15 @@
 {% extends 'admin/base.html' %}
 
+{% block extrahead %}
+{{ block.super }}
+<style>
+    /* Prevent admin page scroll – only #messages-container should scroll */
+    #content { overflow: hidden !important; height: calc(100vh - 80px) !important; display: flex !important; flex-direction: column !important; }
+    #content > .container-fluid { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+    #content > .container-fluid > .grid { flex: 1; min-height: 0; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-6 py-6">
     <!-- Header with vibrant gradient -->
@@ -77,7 +87,7 @@
         </div>
 
         <!-- Chat Workspace -->
-        <div class="lg:col-span-8 flex flex-col bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm min-h-[550px] overflow-hidden">
+        <div class="lg:col-span-8 flex flex-col bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden" style="height: calc(100vh - 260px); min-height: 400px;">
             <!-- Active Project Banner -->
             <div class="bg-gray-50 dark:bg-gray-700/50 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                 <div class="flex items-center gap-3">
@@ -90,7 +100,7 @@
             </div>
 
             <!-- Messages Window -->
-            <div id="messages-container" class="flex-1 p-6 overflow-y-auto max-h-[400px] min-h-[350px] space-y-4 bg-gray-50/50 dark:bg-gray-900/10">
+            <div id="messages-container" class="flex-1 min-h-0 p-6 overflow-y-auto space-y-4 bg-gray-50/50 dark:bg-gray-900/10" style="scroll-behavior:smooth">
                 <!-- System Greeting -->
                 <div class="flex gap-4 max-w-[85%]">
                     <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm">AI</div>
@@ -138,6 +148,20 @@ document.addEventListener("DOMContentLoaded", function() {
     const metaEmbed = document.getElementById("meta-embed");
     const metaCustomPrompt = document.getElementById("meta-custom-prompt");
 
+    function scrollToBottom() {
+        // Wait for the browser to finish layout/paint before scrolling.
+        // Double-rAF ensures the DOM mutation has been fully rendered.
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            });
+        });
+        // Safety net: also force-scroll after a short delay
+        setTimeout(() => {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }, 200);
+    }
+
     projectSelect.addEventListener("change", function() {
         const selected = projectSelect.options[projectSelect.selectedIndex];
         if (!selected || selected.value === "") return;
@@ -167,6 +191,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (greeting) {
             messagesContainer.appendChild(greeting);
         }
+        scrollToBottom();
     });
 
     chatForm.addEventListener("submit", function(e) {
@@ -187,7 +212,7 @@ document.addEventListener("DOMContentLoaded", function() {
         `;
         messagesContainer.appendChild(userBubble);
         chatQuery.value = "";
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        scrollToBottom();
 
         // Append pending assistant bubble
         const pendingId = "pending-" + Date.now();
@@ -206,7 +231,7 @@ document.addEventListener("DOMContentLoaded", function() {
             </div>
         `;
         messagesContainer.appendChild(pendingBubble);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        scrollToBottom();
 
         // CSRF Token
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
@@ -259,18 +284,25 @@ document.addEventListener("DOMContentLoaded", function() {
                 </div>
             `;
             messagesContainer.appendChild(botBubble);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            scrollToBottom();
         })
         .catch(err => {
             console.error(err);
             const pending = document.getElementById(pendingId);
             if (pending) {
+                let errorMessage = "Sorry, an error occurred while executing the search query. Please ensure your RAG keys are configured.";
+                if (err.message && (err.message.toLowerCase().includes("ollama") || err.message.toLowerCase().includes("11434") || err.message.toLowerCase().includes("connection"))) {
+                    errorMessage = "⚠️ Local Ollama server is not running or accessible. Please start Ollama on your machine (http://localhost:11434) and try again.";
+                } else if (err.message && err.message !== "Server Error") {
+                    errorMessage = escapeHtml(err.message);
+                }
                 pending.innerHTML = `
                     <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-sm shadow-sm">!</div>
                     <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-2xl rounded-tl-none border border-red-100 dark:border-red-900/30 shadow-sm text-red-700 dark:text-red-300 text-sm">
-                        Sorry, an error occurred while executing the search query. Please ensure your RAG keys are configured.
+                        ${errorMessage}
                     </div>
                 `;
+                scrollToBottom();
             }
         });
     });

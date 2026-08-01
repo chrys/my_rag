@@ -5,8 +5,31 @@
             <h2 class="font-semibold text-gray-700">{{ project_name }}</h2>
             <p class="text-xs text-gray-500">{{ store_id }}</p>
         </div>
-        <form hx-post="{{ url_prefix }}/documents/{{ store_id }}/upload/" hx-encoding="multipart/form-data"
-            hx-target="#document-list" hx-swap="innerHTML" class="flex flex-wrap items-center gap-3">
+
+        <!-- Source Type Selector -->
+        <form hx-post="{% url 'documents:set_source_type' store_id %}"
+              hx-target="#project-document-manager"
+              hx-swap="innerHTML"
+              class="flex items-center gap-4 bg-white dark:bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Type:</span>
+            <label class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 cursor-pointer">
+                <input type="radio" name="source_type" value="document" {% if source_type != 'obsidian' %}checked{% endif %}
+                       onchange="htmx.trigger(this.form, 'submit')"
+                       class="text-blue-600 focus:ring-blue-500">
+                <span>Document</span>
+            </label>
+            <label class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 cursor-pointer">
+                <input type="radio" name="source_type" value="obsidian" {% if source_type == 'obsidian' %}checked{% endif %}
+                       onchange="htmx.trigger(this.form, 'submit')"
+                       class="text-purple-600 focus:ring-purple-500">
+                <span>Obsidian</span>
+            </label>
+        </form>
+    </div>
+
+    {% if source_type == 'obsidian' %}
+        {% include 'partials/obsidian_section.html' %}
+    {% else %}
             
             <!-- Custom Styled Choose File Button -->
             <div class="flex items-center gap-2">
@@ -90,6 +113,7 @@
     <div id="document-list" class="flex-1 overflow-y-auto p-4 space-y-2">
         {% include 'partials/document_items.html' %}
     </div>
+    {% endif %}
 </div>
 
 <script>

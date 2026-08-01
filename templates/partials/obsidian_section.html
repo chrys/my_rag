@@ -1,0 +1,165 @@
+<style>
+    .htmx-indicator {
+        display: none;
+    }
+    .htmx-request .htmx-indicator,
+    .htmx-request.htmx-indicator {
+        display: flex !important;
+    }
+</style>
+
+<div id="obsidian-section-container" class="p-6 bg-white dark:bg-gray-900 rounded-xl space-y-6">
+
+    <!-- Active Indexing Progress Indicator Banner -->
+    <div id="obsidian-loading-indicator" class="htmx-indicator p-4 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200 text-sm font-medium flex items-center gap-3 animate-pulse">
+        <svg class="animate-spin h-5 w-5 text-indigo-600 dark:text-indigo-400 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <div>
+            <div class="font-semibold text-indigo-800 dark:text-indigo-200">⚡ Vault Indexing in Progress...</div>
+            <div class="text-xs text-indigo-600 dark:text-indigo-300">Generating vector embeddings and ingesting notes into PostgreSQL database. Please wait for completion...</div>
+        </div>
+    </div>
+
+    <!-- Feedback Message Banner -->
+    {% if message %}
+    <div class="p-4 rounded-lg {% if is_error %}bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200{% else %}bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200{% endif %} text-sm font-medium flex items-center justify-between">
+        <span>{{ message }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Detailed Status Count Cards -->
+    {% if total_files_count > 0 %}
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700">
+        <div class="p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm text-center">
+            <span class="text-xs font-semibold text-gray-500 uppercase block">Total Discovered</span>
+            <span class="text-lg font-bold text-gray-800 dark:text-gray-100 font-mono">{{ total_files_count }}</span>
+        </div>
+        <div class="p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm text-center">
+            <span class="text-xs font-semibold text-green-600 dark:text-green-400 uppercase block">Indexed</span>
+            <span class="text-lg font-bold text-green-700 dark:text-green-300 font-mono">{{ indexed_files_count }}</span>
+        </div>
+        <div class="p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm text-center">
+            <span class="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase block">Pending</span>
+            <span class="text-lg font-bold text-amber-700 dark:text-amber-300 font-mono">{{ pending_files_count }}</span>
+        </div>
+        <div class="p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm text-center">
+            <span class="text-xs font-semibold text-red-600 dark:text-red-400 uppercase block">Failed</span>
+            <span class="text-lg font-bold text-red-700 dark:text-red-300 font-mono">{{ failed_files_count }}</span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Vault Path Configuration Form -->
+    <form hx-post="{% url 'documents:obsidian_save_path' store_id %}"
+          hx-target="#obsidian-section-container"
+          hx-swap="outerHTML"
+          hx-indicator="#obsidian-loading-indicator"
+          class="space-y-3">
+        <label for="obsidian-vault-path" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+            Obsidian Vault Directory Path
+        </label>
+        <div class="flex items-center gap-3">
+            <input type="text"
+                   id="obsidian-vault-path"
+                   name="vault_path"
+                   value="{{ obsidian_source.vault_path|default:'' }}"
+                   placeholder="/Users/username/ObsidianVault"
+                   required
+                   class="flex-1 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-purple-500 focus:outline-none font-mono">
+            <button type="submit"
+                    hx-disabled-elt="this"
+                    class="!bg-blue-600 hover:!bg-blue-700 !text-white font-medium px-4 py-2 rounded-lg text-sm transition-all shadow-sm flex items-center gap-1.5 border-0"
+                    style="background-color: #2563eb !important; color: #ffffff !important; display: inline-flex; align-items: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 !text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: #ffffff !important;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                <span class="!text-white" style="color: #ffffff !important;">Save Path</span>
+            </button>
+        </div>
+    </form>
+
+    <!-- Action Controls -->
+    {% if obsidian_source and obsidian_source.vault_path %}
+    <div class="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-100 dark:border-gray-800">
+        <button hx-post="{% url 'documents:obsidian_index' store_id %}"
+                {% if indexed_files_count > 0 %}hx-confirm="Are you sure you want to re-index ALL Obsidian files? This will re-process all notes."{% endif %}
+                hx-target="#obsidian-section-container"
+                hx-swap="outerHTML"
+                hx-indicator="#obsidian-loading-indicator"
+                hx-disabled-elt="this"
+                class="!bg-indigo-600 hover:!bg-indigo-700 !text-white font-medium px-4 py-2 rounded-lg text-sm transition-all shadow-sm flex items-center gap-1.5 border-0"
+                style="background-color: #4f46e5 !important; color: #ffffff !important;">
+            <span class="!text-white" style="color: #ffffff !important;">Index ALL Obsidian files</span>
+        </button>
+        <button hx-post="{% url 'documents:obsidian_sync' store_id %}"
+                hx-target="#obsidian-section-container"
+                hx-swap="outerHTML"
+                hx-indicator="#obsidian-loading-indicator"
+                hx-disabled-elt="this"
+                class="!bg-emerald-600 hover:!bg-emerald-700 !text-white font-medium px-4 py-2 rounded-lg text-sm transition-all shadow-sm flex items-center gap-1.5 border-0"
+                style="background-color: #059669 !important; color: #ffffff !important;">
+            <span class="!text-white" style="color: #ffffff !important;">Discover new Files</span>
+        </button>
+        <button hx-post="{% url 'documents:obsidian_index_new' store_id %}"
+                hx-target="#obsidian-section-container"
+                hx-swap="outerHTML"
+                hx-indicator="#obsidian-loading-indicator"
+                hx-disabled-elt="this"
+                class="!bg-amber-600 hover:!bg-amber-700 !text-white font-medium px-4 py-2 rounded-lg text-sm transition-all shadow-sm flex items-center gap-1.5 border-0"
+                style="background-color: #d97706 !important; color: #ffffff !important;">
+            <span class="!text-white" style="color: #ffffff !important;">Index New Files</span>
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Unindexed / Pending Obsidian File Status Table -->
+    <div class="mt-4 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
+        <div class="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200">Pending / Failed Notes</h3>
+            <span class="text-xs text-gray-500 font-mono">{{ unindexed_files|length }} File(s)</span>
+        </div>
+        {% if unindexed_files %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 uppercase font-semibold border-b border-gray-200 dark:border-gray-700">
+                    <tr>
+                        <th class="px-4 py-2.5">Relative Path</th>
+                        <th class="px-4 py-2.5">Folder</th>
+                        <th class="px-4 py-2.5">Status</th>
+                        <th class="px-4 py-2.5">Details</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-800 text-gray-800 dark:text-gray-200">
+                    {% for file in unindexed_files %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                        <td class="px-4 py-2.5 font-mono">{{ file.relative_path }}</td>
+                        <td class="px-4 py-2.5 font-medium text-gray-600 dark:text-gray-400">{{ file.folder_name }}</td>
+                        <td class="px-4 py-2.5">
+                            {% if file.status == 'PENDING' %}
+                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">PENDING</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">FAILED</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-2.5 text-gray-500 font-mono">{{ file.error_message|default:"Awaiting index operation" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% elif total_files_count > 0 %}
+        <div class="p-6 text-center text-green-700 dark:text-green-400 text-xs font-medium bg-green-50/50 dark:bg-green-950/20 flex items-center justify-center gap-2">
+            <svg class="h-4 w-4 text-green-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <span>All <strong>{{ total_files_count }}</strong> notes are fully indexed into PostgreSQL.</span>
+        </div>
+        {% else %}
+        <div class="p-8 text-center text-gray-500 text-xs">
+            No Obsidian notes discovered yet. Enter a vault path above and save to begin.
+        </div>
+        {% endif %}
+    </div>
+</div>

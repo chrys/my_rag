@@ -7,13 +7,10 @@ from google.genai import types
 logger = logging.getLogger(__name__)
 
 
-def generate_adaptive_hyde_passage(query: str) -> str:
+def generate_adaptive_hyde_passage(query: str, model_id: str = "gemini-2.5-flash-lite") -> str:
     """
     Single-turn Adaptive HyDE query routing and hypothetical document generation.
-    Uses raw text completion and regex parsing as specified in jul2-specs.md.
-    
-    If query is classified as DIRECT_LOOKUP (error codes, SKUs, exact names), returns original query text.
-    If query is CONCEPTUAL, generates a hypothetical passage to improve vector retrieval recall.
+    Supports dynamic model selection based on project llm_model (e.g. gemma4:12b-mlx vs gemini-2.5-flash-lite).
     """
     if not query or not query.strip():
         return query
@@ -41,32 +38,21 @@ User Query:
 """
 
     try:
-        api_key = os.getenv("GOOGLE_API_KEY", "")
-        client = genai.Client(api_key=api_key)
-        
-        response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.2,
-                max_output_tokens=300
-            ),
-        )
-
-        response_text = response.text if hasattr(response, 'text') else str(response)
+        from .llm_router import generate_llm_response
+        response_text = generate_llm_response(prompt=prompt, model_id=model_id)
 
         # Regex extraction
         category_match = re.search(r"CATEGORY:\s*(DIRECT_LOOKUP|CONCEPTUAL)", response_text, re.IGNORECASE)
         category = category_match.group(1).upper() if category_match else "CONCEPTUAL"
 
         if category == "DIRECT_LOOKUP":
-            logger.info(f"🔍 [HyDE Router] Query: '{query}' -> Category: DIRECT_LOOKUP (Bypassing HyDE)")
+            logger.info(f"🔍 [HyDE Router] Model: {model_id} | Query: '{query}' -> Category: DIRECT_LOOKUP (Bypassing HyDE)")
             return query
 
         passage_match = re.search(r"HYPOTHETICAL_DOCUMENT:\s*(.*)", response_text, re.DOTALL | re.IGNORECASE)
         if passage_match:
             hypothetical_doc = passage_match.group(1).strip()
-            logger.info(f"💡 [HyDE Router] Query: '{query}' -> Category: CONCEPTUAL | HyDE Passage generated ({len(hypothetical_doc)} chars)")
+            logger.info(f"💡 [HyDE Router] Model: {model_id} | Query: '{query}' -> Category: CONCEPTUAL | HyDE Passage generated ({len(hypothetical_doc)} chars)")
             return hypothetical_doc
 
         return query

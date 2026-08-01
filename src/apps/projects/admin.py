@@ -99,6 +99,7 @@ class ProjectAdmin(ModelAdmin):
                     "document_parsing",
                     "chunking",
                     "embedding_model",
+                    "llm_model",
                     "custom_prompt",
                     "custom_prompt_text",
                     "use_markitdown",

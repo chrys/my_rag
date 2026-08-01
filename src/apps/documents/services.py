@@ -1,4 +1,5 @@
 import os
+import re
 from django.conf import settings
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext
 from llama_index.vector_stores.postgres import PGVectorStore
@@ -6,6 +7,249 @@ from llama_index.embeddings.google import GeminiEmbedding
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+def sanitize_obsidian_markdown(text: str) -> str:
+    """
+    Sanitize Obsidian-specific Markdown syntax:
+    - [[Target Note|Custom Alias]] -> Custom Alias
+    - [[Target Note]] -> Target Note
+    """
+    if not text:
+        return text
+    # Convert [[Target Note|Custom Alias]] -> Custom Alias
+    text = re.sub(r'\[\[[^\]|]+\|([^\]]+)\]\]', r'\1', text)
+    # Convert [[Target Note]] -> Target Note
+    text = re.sub(r'\[\[([^\]]+)\]\]', r'\1', text)
+    return text
+
+
+def scan_obsidian_vault(vault_path: str) -> list[dict]:
+    """
+    Traverse an Obsidian vault directory and discover valid markdown note files.
+    Applies exclusion rules:
+    - Skips reserved folders: _resources/, Templates/, .obsidian/, .git/
+    - Skips media & binary files: .png, .jpg, .jpeg, .gif, .pdf
+    - Skips proprietary files: .canvas, .base
+    - Skips draft notes: filenames starting with 'Untitled' (e.g. Untitled 1.md)
+    """
+    if not vault_path or not os.path.exists(vault_path) or not os.path.isdir(vault_path):
+        raise ValueError(f"Vault path '{vault_path}' does not exist or is not a valid directory.")
+
+    try:
+        os.listdir(vault_path)
+    except PermissionError:
+        raise PermissionError(f"Permission denied accessing '{vault_path}'. On macOS, grant Full Disk Access to your Terminal/IDE in System Settings > Privacy & Security, or choose a directory inside your workspace/home folder.")
+
+    excluded_dirs = {'_resources', 'templates', '.obsidian', '.git'}
+    excluded_exts = {'.png', '.jpg', '.jpeg', '.gif', '.pdf', '.canvas', '.base'}
+
+    discovered_files = []
+
+    try:
+        for root, dirs, files in os.walk(vault_path):
+            # Prune excluded directories from traversal
+            dirs[:] = [d for d in dirs if d.lower() not in excluded_dirs and not d.startswith('.')]
+
+            for file_name in files:
+                ext = os.path.splitext(file_name)[1].lower()
+                base_name = os.path.splitext(file_name)[0]
+
+                # Skip binary, media, canvas, hidden, and untitled draft files
+                if ext in excluded_exts or file_name.startswith('.'):
+                    continue
+                if base_name.lower().startswith('untitled'):
+                    continue
+                if ext != '.md':
+                    continue
+
+                abs_path = os.path.join(root, file_name)
+                rel_path = os.path.relpath(abs_path, vault_path)
+
+                # Determine immediate parent folder name
+                parent_dir = os.path.basename(root)
+                folder_name = parent_dir if root != vault_path else 'Root'
+
+                try:
+                    mtime = os.path.getmtime(abs_path)
+                except OSError:
+                    mtime = 0.0
+
+                discovered_files.append({
+                    'relative_path': rel_path,
+                    'folder_name': folder_name,
+                    'absolute_path': abs_path,
+                    'file_mtime': mtime
+                })
+    except PermissionError as pe:
+        raise PermissionError(f"Permission denied accessing directory in '{vault_path}': {pe}")
+
+    return discovered_files
+
+
+def enrich_chunk_metadata(chunk_metadata: dict, folder: str, file_name: str, project_id: str) -> dict:
+    """
+    Enrich chunk metadata dictionary with folder, file_name, and project_id structural tags.
+    """
+    metadata = dict(chunk_metadata or {})
+    metadata['folder'] = folder
+    metadata['file_name'] = file_name
+    metadata['project_id'] = project_id
+    return metadata
+
+
+def discover_obsidian_vault_files(source) -> list:
+    """
+    Stage 1 Discovery: Scan vault directory, sync ObsidianFile records in DB.
+    Purges ObsidianFile records for notes deleted from disk.
+    Optimized with bulk operations and atomic transaction.
+    """
+    from django.utils import timezone
+    from django.db import transaction
+    from src.apps.documents.models import ObsidianFile
+
+    discovered = scan_obsidian_vault(source.vault_path)
+    discovered_rel_paths = {d['relative_path']: d for d in discovered}
+
+    with transaction.atomic():
+        # Purge records and vector store embeddings for notes deleted on disk
+        deleted_files = list(source.files.exclude(relative_path__in=discovered_rel_paths.keys()))
+        if deleted_files:
+            try:
+                from src.postgres_rag import PostgresRAGEngine
+                engine = PostgresRAGEngine(project_id=source.project.project_id)
+                for d_file in deleted_files:
+                    engine.delete_document(d_file.relative_path)
+            except Exception as exc:
+                logger.warning(f"Failed cleaning up vector entries for deleted obsidian files: {exc}")
+
+        source.files.exclude(relative_path__in=discovered_rel_paths.keys()).delete()
+
+        existing_files = {f.relative_path: f for f in source.files.all()}
+        new_objects = []
+        update_objects = []
+
+        for item in discovered:
+            rel = item['relative_path']
+            if rel in existing_files:
+                obj = existing_files[rel]
+                obj.folder_name = item['folder_name']
+                obj.file_mtime = item['file_mtime']
+                update_objects.append(obj)
+            else:
+                new_objects.append(ObsidianFile(
+                    obsidian_source=source,
+                    relative_path=rel,
+                    folder_name=item['folder_name'],
+                    file_mtime=item['file_mtime']
+                ))
+
+        if new_objects:
+            ObsidianFile.objects.bulk_create(new_objects)
+        if update_objects:
+            ObsidianFile.objects.bulk_update(update_objects, fields=['folder_name', 'file_mtime'])
+
+        source.last_synced_at = timezone.now()
+        source.save()
+
+    return list(source.files.all())
+
+
+def process_obsidian_file_indexing(obsidian_file, project_id: str) -> bool:
+    """
+    Stage 2 & 3: Read, sanitize Markdown, enrich metadata, run LlamaIndex vector ingestion, update status.
+    """
+    from django.utils import timezone
+    import tempfile
+
+    source = obsidian_file.obsidian_source
+    abs_path = os.path.join(source.vault_path, obsidian_file.relative_path)
+
+    if not os.path.exists(abs_path):
+        obsidian_file.status = 'FAILED'
+        obsidian_file.error_message = "File does not exist on disk."
+        obsidian_file.save()
+        return False
+
+    try:
+        with open(abs_path, 'r', encoding='utf-8', errors='ignore') as f:
+            raw_content = f.read()
+
+        sanitized_content = sanitize_obsidian_markdown(raw_content)
+
+        # Write sanitized content to temporary file for LlamaIndex parser
+        with tempfile.NamedTemporaryFile('w', suffix='.md', encoding='utf-8', delete=False) as tmp:
+            tmp.write(sanitized_content)
+            tmp_path = tmp.name
+
+        try:
+            pipeline = LlamaIndexIngestionPipeline(project_id=project_id)
+            pipeline.index_document(
+                file_path=tmp_path,
+                original_filename=obsidian_file.relative_path,
+                strategy='markdown'
+            )
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+
+        obsidian_file.status = 'INDEXED'
+        obsidian_file.last_indexed_at = timezone.now()
+        obsidian_file.error_message = ""
+        obsidian_file.save()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to index Obsidian file '{obsidian_file.relative_path}': {e}")
+        obsidian_file.status = 'FAILED'
+        obsidian_file.error_message = str(e)
+        obsidian_file.save()
+        return False
+
+
+def run_obsidian_lifecycle(source, mode: str = 'full') -> dict:
+    """
+    Run 3-stage Obsidian indexing/sync lifecycle.
+    - mode='full': Discovers vault notes, re-indexes all valid notes.
+    - mode='new': Discovers vault notes, indexes only pending/unindexed notes.
+    - mode='sync': Discovers vault notes, purges deleted notes, re-indexes modified/pending notes.
+    - mode='discover': Discovers vault notes and populates ObsidianFile tracking records (PENDING), but does NOT automatically index them.
+    """
+    from django.utils import timezone
+
+    db_files = discover_obsidian_vault_files(source)
+    project_id = source.project.project_id
+
+    indexed_count = 0
+    failed_count = 0
+
+    if mode != 'discover':
+        for obsidian_file in db_files:
+            should_index = False
+            if mode == 'full':
+                should_index = True
+            elif mode == 'new':
+                should_index = (obsidian_file.status != 'INDEXED')
+            elif mode == 'sync':
+                should_index = (obsidian_file.status != 'INDEXED') or (obsidian_file.last_indexed_at is None)
+
+            if should_index:
+                success = process_obsidian_file_indexing(obsidian_file, project_id)
+                if success:
+                    indexed_count += 1
+                else:
+                    failed_count += 1
+
+        total_indexed = source.files.filter(status='INDEXED').count()
+        source.project.document_count = total_indexed
+        source.project.last_indexed_at = timezone.now()
+        source.project.save()
+
+    return {
+        'total_files': len(db_files),
+        'indexed_count': indexed_count,
+        'failed_count': failed_count,
+        'mode': mode
+    }
 
 def get_safe_table_name(project_id: str) -> str:
     """
@@ -81,9 +325,13 @@ class LlamaIndexIngestionPipeline:
         documents = SimpleDirectoryReader(input_files=[file_path]).load_data()
         
         if original_filename:
+            parent_dir = os.path.dirname(original_filename)
+            folder_name = os.path.basename(parent_dir) if parent_dir else 'Root'
             for doc in documents:
                 doc.metadata['file_name'] = original_filename
                 doc.metadata['file_path'] = original_filename
+                doc.metadata['folder'] = folder_name
+                doc.metadata['project_id'] = self.project_id
         
         config = getattr(settings, "REMOTE_POSTGRES_CONFIG", {})
         

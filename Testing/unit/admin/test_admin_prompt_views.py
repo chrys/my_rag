@@ -132,9 +132,10 @@ class TestAdminPromptViews:
             'synthesizer': False,
             'document_parsing': 'markitdown',
             'chunking': 'fixed-size',
-            'embedding_model': 'gemini-1',
+            'embedding_model': 'models/gemini-embedding-001',
+            'llm_model': 'gemini-2.5-flash-lite',
+            'response_mode': 'compact',
             'use_markitdown': False,
-            'use_structural_grading': True,
             'document_count': 0,
         }
         form = ProjectAdminForm(data=form_data, instance=project)

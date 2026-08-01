@@ -2,7 +2,7 @@
 Document views for managing indexed documents
 """
 
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
@@ -17,7 +17,8 @@ from src.local_project_storage import get_local_project_storage
 from src.optional_dependencies import LazyModuleProxy
 from urllib.parse import unquote
 
-from .models import Document
+from .models import Document, ObsidianSource, ObsidianFile
+from .services import run_obsidian_lifecycle
 from src.apps.projects.models import Project
 from src.apps.projects.db_utils import test_postgres_connection
 from src.postgres_rag import EmbeddingRateLimitError
@@ -123,13 +124,22 @@ def list_documents(request, store_id):
     if doc_type == 'evaluate':
         return render(request, 'partials/evaluate_document_items.html', {'documents': documents})
 
-    return render(request, 'partials/document_list.html', {
+    obsidian_source = getattr(project, 'obsidian_source', None) if project else None
+    source_type = obsidian_source.source_type if obsidian_source else 'document'
+    obsidian_ctx = get_obsidian_context(obsidian_source)
+
+    ctx = {
         'documents': documents,
         'store_id': store_id,
         'project_name': project_name,
         'storage_type': storage_type,
         'url_prefix': '/rag',
-    })
+        'project': project,
+        'source_type': source_type,
+    }
+    ctx.update(obsidian_ctx)
+
+    return render(request, 'partials/document_list.html', ctx)
 
 
 @require_http_methods(["POST"])
@@ -416,3 +426,127 @@ def delete_document(request, document_id):
         return response
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def set_source_type(request, store_id):
+    """Switch project source type between Document and Obsidian."""
+    project = get_object_or_404(Project, project_id=store_id)
+    source_type = request.POST.get('source_type', 'document')
+    obs_source, _ = ObsidianSource.objects.get_or_create(project=project)
+    obs_source.source_type = source_type
+    obs_source.save()
+    request.method = 'GET'
+    return list_documents(request, store_id)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def obsidian_save_path(request, store_id):
+    """Save Obsidian vault path."""
+    project = get_object_or_404(Project, project_id=store_id)
+    vault_path = request.POST.get('vault_path', '').strip()
+    obs_source, _ = ObsidianSource.objects.get_or_create(project=project)
+    obs_source.vault_path = vault_path
+    obs_source.source_type = 'obsidian'
+    obs_source.save()
+    try:
+        result = run_obsidian_lifecycle(obs_source, mode='full')
+        return render_obsidian_section(request, project, obs_source, message=f"Vault path saved. Indexed {result['indexed_count']} note(s).")
+    except Exception as e:
+        return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def obsidian_index(request, store_id):
+    """Run full Obsidian vault index."""
+    project = get_object_or_404(Project, project_id=store_id)
+    obs_source = get_object_or_404(ObsidianSource, project=project)
+    try:
+        result = run_obsidian_lifecycle(obs_source, mode='full')
+        return render_obsidian_section(request, project, obs_source, message=f"Indexed {result['indexed_count']} note(s).")
+    except Exception as e:
+        return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def obsidian_index_new(request, store_id):
+    """Run incremental Obsidian vault index for unindexed notes."""
+    project = get_object_or_404(Project, project_id=store_id)
+    obs_source = get_object_or_404(ObsidianSource, project=project)
+    try:
+        result = run_obsidian_lifecycle(obs_source, mode='new')
+        return render_obsidian_section(request, project, obs_source, message=f"Indexed {result['indexed_count']} new note(s).")
+    except Exception as e:
+        return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def obsidian_sync(request, store_id):
+    """Discover new files in Obsidian vault without automatically indexing them."""
+    project = get_object_or_404(Project, project_id=store_id)
+    obs_source = get_object_or_404(ObsidianSource, project=project)
+    try:
+        result = run_obsidian_lifecycle(obs_source, mode='discover')
+        pending_count = obs_source.files.filter(status='PENDING').count()
+        return render_obsidian_section(request, project, obs_source, message=f"Discovered {result['total_files']} note(s) total ({pending_count} pending indexing).")
+    except Exception as e:
+        return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
+
+
+@require_http_methods(["GET"])
+def obsidian_status(request, store_id):
+    """Render Obsidian note status table."""
+    project = get_object_or_404(Project, project_id=store_id)
+    obs_source = getattr(project, 'obsidian_source', None)
+    return render_obsidian_section(request, project, obs_source)
+
+
+def get_obsidian_context(obs_source):
+    """Return common context dictionary for Obsidian vault and files."""
+    if obs_source:
+        files_qs = obs_source.files.all()
+        total_files_count = files_qs.count()
+        indexed_files_count = files_qs.filter(status='INDEXED').count()
+        pending_files_count = files_qs.filter(status='PENDING').count()
+        failed_files_count = files_qs.filter(status='FAILED').count()
+        unindexed_files = files_qs.exclude(status='INDEXED')
+        indexed_files = files_qs.filter(status='INDEXED')
+        all_files = list(files_qs)
+        progress_percent = int((indexed_files_count / total_files_count) * 100) if total_files_count > 0 else 0
+    else:
+        total_files_count = 0
+        indexed_files_count = 0
+        pending_files_count = 0
+        failed_files_count = 0
+        unindexed_files = []
+        indexed_files = []
+        all_files = []
+        progress_percent = 0
+
+    return {
+        'obsidian_source': obs_source,
+        'total_files_count': total_files_count,
+        'indexed_files_count': indexed_files_count,
+        'pending_files_count': pending_files_count,
+        'failed_files_count': failed_files_count,
+        'unindexed_files': unindexed_files,
+        'indexed_files': indexed_files,
+        'all_files': all_files,
+        'progress_percent': progress_percent,
+    }
+
+
+def render_obsidian_section(request, project, obs_source, message="", is_error=False):
+    ctx = get_obsidian_context(obs_source)
+    ctx.update({
+        'project': project,
+        'store_id': project.project_id,
+        'message': message,
+        'is_error': is_error,
+    })
+    return render(request, 'partials/obsidian_section.html', ctx)
