@@ -51,6 +51,14 @@ sys.path.insert(0, str(APPS_DIR))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # SECRET_KEY must be set in production, but allow fallback for tests and build environments
+import os
+import sys
+
+# In CI/Testing, inject dummy secret key to avoid failures. But in production, fail.
+if 'pytest' in sys.modules or 'test' in sys.argv or os.getenv('GITHUB_ACTIONS') == 'true' or 'check' in sys.argv:
+    if 'SECRET_KEY' not in os.environ:
+        os.environ['SECRET_KEY'] = 'django-insecure-test-key-only'
+
 SECRET_KEY = os.environ['SECRET_KEY']  # Will fail if not set, no hardcoded fallbacks allowed
 
 # Application definition

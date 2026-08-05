@@ -4,12 +4,13 @@ Extends base settings with testing-specific overrides.
 """
 
 
-from .base import *
-
-# In testing environments, fallback to a dummy secret key if none is provided
 import os
+# In testing environments, fallback to a dummy secret key if none is provided
+# We must set this in os.environ BEFORE importing .base
 if 'SECRET_KEY' not in os.environ:
-    SECRET_KEY = 'django-insecure-test-key-only'
+    os.environ['SECRET_KEY'] = 'django-insecure-test-key-only'
+
+from .base import *
 
 
 # Override testing-specific settings
