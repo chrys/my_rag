@@ -10,18 +10,20 @@ This specification defines the functional, data, architectural, UI/UX, and testi
    - Project-level configurable embedding model selection (supporting `models/gemini-embedding-001` as default, strictly enforcing a 768-dimensional output).
    - Embedding model immutability guardrail strictly locking the field (read-only in UI, enforcing `ValidationError` on API update attempts once documents/notes are indexed).
    - Project-level LLM model selection for synthesis, chat, and evaluation (`gemini-2.5-flash-lite` cloud API vs `gemma4:12b-mlx`, `gemma4:e2b-mlx`, `gemma4:e4b-mlx` local MLX / Ollama engine).
+   - `Disable Thinking` configuration: Conditionally visible checkbox in Parameters when a local Gemma model is selected. Disables Gemma reasoning mode for fast generation by passing `thinking=False` in Ollama API calls.
+   - Response Time Display: Measures backend execution time for each query and displays `Response Time: X.XXs` in the chat UI directly under the Source Nodes section.
    - Dynamic runtime routing to cloud API or local engine (connecting strictly to the local Ollama server API at `http://localhost:11434/api/generate` for local Gemma models).
    - Graceful local LLM failure handling: Intercepts Ollama connection errors (`http://localhost:11434`) and informs the user that Ollama is not running and needs to be started.
 
 2. **Task 2: Native Obsidian Vault Integration**
    - Project management "Sources" tab UI update with a `Type` selector (`Document` vs `Obsidian`).
-   - Dynamic section display: Standard Document Uploader for `Document` mode vs path input, action buttons (`Index ALL Obsidian files`, `Discover new Files`, `Index New Files`), count summary cards, and pending/failed notes table for `Obsidian` mode.
+   - Dynamic section display: Standard Document Uploader for `Document` mode vs path input, action buttons (`Index ALL Obsidian files`, `Find Updates`, `Index New Files`), count summary cards, and pending/modified/failed notes table for `Obsidian` mode.
    - Page load context population: Automatically computes and passes Obsidian vault statistics (`get_obsidian_context`) on initial project page load (`list_documents` view).
    - Distinct action button & UI behaviors:
      - `Index ALL Obsidian files`: Performs a full re-index of all valid notes in the vault. Prompts with a confirmation dialog (`hx-confirm`) if notes are already indexed.
-     - `Discover new Files`: Scans the vault directory to detect new files and populate `PENDING` records without automatically indexing them.
-     - `Index New Files`: Ingests only pending/unindexed notes.
-     - **Hidden Indexed Files List**: Hides the list of indexed files, rendering count cards at the top and listing only pending or failed notes in the issues table.
+     - `Find Updates`: Scans the vault directory to detect new files (`PENDING`) and modified files (`MODIFIED` status when disk `mtime` is newer than stored `file_mtime`) without automatically indexing them.
+     - `Index New Files`: Ingests all pending, modified, and failed notes (`PENDING`, `MODIFIED`, `FAILED`), purging old vector embeddings for modified notes prior to re-indexing.
+     - **Hidden Indexed Files List**: Hides the list of indexed files, rendering count cards at the top and listing pending, modified, or failed notes in the issues table.
    - Automated vault directory traversal with strict exclusion rules (skipping reserved folders `_resources/`, `Templates/`, `.obsidian/`, `.git/`, binary media, `.canvas`/`.base`, and `Untitled` drafts).
    - Markdown syntax sanitization (`[[Target Note|Custom Alias]]` -> `Custom Alias`, `[[Target Note]]` -> `Target Note`).
    - Metadata enrichment tagging on each chunk (`folder` storing immediate parent folder name, `file_name` storing relative file path, and `project_id`).

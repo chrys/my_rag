@@ -1,7 +1,7 @@
 # CodeBundle: src
-Generated: 2026-07-26T08:09:19.957Z
+Generated: 2026-08-01T10:48:42.152Z
 Root: /Users/chrys/Projects/my_rag/src
-Files: 90
+Files: 97
 
 ## How to apply changes
 - Return changes as **unified diffs** per file whenever possible.
@@ -31,12 +31,14 @@ Files: 90
 │  │  ├─ admin.py
 │  │  ├─ api_views.py
 │  │  ├─ apps.py
+│  │  ├─ llm_router.py
 │  │  ├─ migrations
 │  │  │  ├─ __init__.py
 │  │  │  └─ 0001_initial.py
 │  │  ├─ models.py
 │  │  ├─ pages.py
 │  │  ├─ serializers.py
+│  │  ├─ services.py
 │  │  ├─ tests.py
 │  │  ├─ urls.py
 │  │  └─ views.py
@@ -48,7 +50,9 @@ Files: 90
 │  │  ├─ migrations
 │  │  │  ├─ __init__.py
 │  │  │  ├─ 0001_initial.py
-│  │  │  └─ 0002_document_expiration_date_document_is_expired_checked.py
+│  │  │  ├─ 0002_document_expiration_date_document_is_expired_checked.py
+│  │  │  ├─ 0003_document_chunking_strategy.py
+│  │  │  └─ 0004_obsidiansource_obsidianfile.py
 │  │  ├─ models.py
 │  │  ├─ serializers.py
 │  │  ├─ services.py
@@ -99,7 +103,10 @@ Files: 90
 │     │  ├─ 0006_project_use_markitdown_and_more.py
 │     │  ├─ 0007_alter_project_storage_type.py
 │     │  ├─ 0008_alter_project_document_parsing.py
-│     │  └─ 0009_alter_project_storage_type_and_more.py
+│     │  ├─ 0009_alter_project_storage_type_and_more.py
+│     │  ├─ 0010_remove_project_use_structural_grading_and_more.py
+│     │  ├─ 0011_project_llm_model_alter_project_embedding_model.py
+│     │  └─ 0012_alter_project_llm_model.py
 │     ├─ models.py
 │     ├─ serializers.py
 │     ├─ tests.py
@@ -134,27 +141,31 @@ Files: 90
 - `apps/chat/admin.py` (701 bytes)
 - `apps/chat/api_views.py` (3807 bytes)
 - `apps/chat/apps.py` (92 bytes)
+- `apps/chat/llm_router.py` (2395 bytes)
 - `apps/chat/migrations/__init__.py` (0 bytes)
 - `apps/chat/migrations/0001_initial.py` (2282 bytes)
 - `apps/chat/models.py` (2449 bytes)
 - `apps/chat/pages.py` (882 bytes)
 - `apps/chat/serializers.py` (1359 bytes)
+- `apps/chat/services.py` (2445 bytes)
 - `apps/chat/tests.py` (60 bytes)
 - `apps/chat/urls.py` (524 bytes)
-- `apps/chat/views.py` (12457 bytes)
+- `apps/chat/views.py` (16244 bytes)
 - `apps/documents/__init__.py` (0 bytes)
-- `apps/documents/admin.py` (768 bytes)
+- `apps/documents/admin.py` (1544 bytes)
 - `apps/documents/api_views.py` (5152 bytes)
 - `apps/documents/apps.py` (102 bytes)
 - `apps/documents/migrations/__init__.py` (0 bytes)
 - `apps/documents/migrations/0001_initial.py` (2342 bytes)
 - `apps/documents/migrations/0002_document_expiration_date_document_is_expired_checked.py` (673 bytes)
-- `apps/documents/models.py` (2799 bytes)
+- `apps/documents/migrations/0003_document_chunking_strategy.py` (781 bytes)
+- `apps/documents/migrations/0004_obsidiansource_obsidianfile.py` (3132 bytes)
+- `apps/documents/models.py` (6172 bytes)
 - `apps/documents/serializers.py` (1352 bytes)
-- `apps/documents/services.py` (5213 bytes)
+- `apps/documents/services.py` (16547 bytes)
 - `apps/documents/tests.py` (60 bytes)
-- `apps/documents/urls.py` (288 bytes)
-- `apps/documents/views.py` (17746 bytes)
+- `apps/documents/urls.py` (903 bytes)
+- `apps/documents/views.py` (23959 bytes)
 - `apps/evaluate/__init__.py` (0 bytes)
 - `apps/evaluate/admin_views.py` (15319 bytes)
 - `apps/evaluate/admin.py` (990 bytes)
@@ -180,8 +191,8 @@ Files: 90
 - `apps/my_rag_project/urls.py` (1020 bytes)
 - `apps/my_rag_project/wsgi.py` (414 bytes)
 - `apps/projects/__init__.py` (0 bytes)
-- `apps/projects/admin.py` (5491 bytes)
-- `apps/projects/api_views.py` (6604 bytes)
+- `apps/projects/admin.py` (5547 bytes)
+- `apps/projects/api_views.py` (6816 bytes)
 - `apps/projects/apps.py` (100 bytes)
 - `apps/projects/db_utils.py` (1144 bytes)
 - `apps/projects/migrations/__init__.py` (0 bytes)
@@ -194,11 +205,14 @@ Files: 90
 - `apps/projects/migrations/0007_alter_project_storage_type.py` (591 bytes)
 - `apps/projects/migrations/0008_alter_project_document_parsing.py` (530 bytes)
 - `apps/projects/migrations/0009_alter_project_storage_type_and_more.py` (800 bytes)
-- `apps/projects/models.py` (5959 bytes)
-- `apps/projects/serializers.py` (2113 bytes)
+- `apps/projects/migrations/0010_remove_project_use_structural_grading_and_more.py` (1985 bytes)
+- `apps/projects/migrations/0011_project_llm_model_alter_project_embedding_model.py` (1051 bytes)
+- `apps/projects/migrations/0012_alter_project_llm_model.py` (783 bytes)
+- `apps/projects/models.py` (7556 bytes)
+- `apps/projects/serializers.py` (2770 bytes)
 - `apps/projects/tests.py` (60 bytes)
 - `apps/projects/urls.py` (411 bytes)
-- `apps/projects/views.py` (7663 bytes)
+- `apps/projects/views.py` (8075 bytes)
 - `google_file_search.py` (14448 bytes)
 - `local_project_storage.py` (5506 bytes)
 - `local_rag.py` (20550 bytes)
@@ -939,6 +953,74 @@ class ChatConfig(AppConfig):
 <!-- END_FILE -->
 
 ---
+<!-- FILE: apps/chat/llm_router.py -->
+## apps/chat/llm_router.py
+
+```py
+"""
+Dynamic LLM Router for handling generation queries across different LLM backends:
+- Google Gemini Cloud API (gemini-2.5-flash-lite)
+- Local Ollama API server at http://localhost:11434/api/generate (gemma4:12b-mlx)
+"""
+
+import os
+import logging
+import requests
+from google import genai
+from google.genai import types
+
+logger = logging.getLogger(__name__)
+
+OLLAMA_ENDPOINT = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434/api/generate")
+
+
+def generate_llm_response(prompt: str, model_id: str = "gemini-2.5-flash-lite", system_prompt: str = "") -> str:
+    """
+    Generate response text based on the selected project LLM model.
+    - 'gemma4:12b-mlx': Routes to local Ollama API server.
+    - Otherwise: Routes to Google Gemini Cloud API.
+    """
+    if "gemma" in model_id.lower() or "mlx" in model_id.lower() or ":" in model_id:
+        try:
+            full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
+            payload = {
+                "model": model_id,
+                "prompt": full_prompt,
+                "stream": False
+            }
+            response = requests.post(OLLAMA_ENDPOINT, json=payload, timeout=60)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("response", "")
+        except Exception as e:
+            logger.error(f"Error invoking local Ollama model '{model_id}': {e}")
+            raise RuntimeError(f"Local LLM service failure ({model_id}): Local Ollama server is not running or accessible. Please start Ollama on your machine (http://localhost:11434).") from e
+    else:
+        # Default: Gemini Cloud API
+        try:
+api_key=***REDACTED***
+            client = genai.Client(api_key=api_key)
+            config = types.GenerateContentConfig(
+                temperature=0.2,
+                max_output_tokens=1024
+            )
+            if system_prompt:
+                config.system_instruction = system_prompt
+
+            response = client.models.generate_content(
+                model=model_id if model_id else "gemini-2.5-flash-lite",
+                contents=prompt,
+                config=config,
+            )
+            return response.text if hasattr(response, 'text') else str(response)
+        except Exception as e:
+            logger.error(f"Error invoking Gemini cloud model '{model_id}': {e}")
+            raise e
+
+```
+<!-- END_FILE -->
+
+---
 <!-- FILE: apps/chat/migrations/__init__.py -->
 ## apps/chat/migrations/__init__.py
 
@@ -1192,6 +1274,77 @@ class ChatMessageListSerializer(serializers.ModelSerializer):
 <!-- END_FILE -->
 
 ---
+<!-- FILE: apps/chat/services.py -->
+## apps/chat/services.py
+
+```py
+import os
+import re
+import logging
+from google import genai
+from google.genai import types
+
+logger = logging.getLogger(__name__)
+
+
+def generate_adaptive_hyde_passage(query: str, model_id: str = "gemini-2.5-flash-lite") -> str:
+    """
+    Single-turn Adaptive HyDE query routing and hypothetical document generation.
+    Supports dynamic model selection based on project llm_model (e.g. gemma4:12b-mlx vs gemini-2.5-flash-lite).
+    """
+    if not query or not query.strip():
+        return query
+
+    prompt = f"""You are an Adaptive Query Transformation Router for a RAG system.
+Analyze the user query below and classify its intent into one of two categories:
+
+CATEGORY 1: DIRECT_LOOKUP
+- Queries containing specific error codes (e.g. 0x80070005), exact SKUs, product IDs, emails, or short verbatim definitions.
+
+CATEGORY 2: CONCEPTUAL
+- Broad, abstract, or informal questions asking for explanations, troubleshooting procedures, summaries, or how-to guides.
+
+If category is DIRECT_LOOKUP:
+Respond with:
+CATEGORY: DIRECT_LOOKUP
+
+If category is CONCEPTUAL:
+Respond with:
+CATEGORY: CONCEPTUAL
+HYPOTHETICAL_DOCUMENT: <Write a single paragraph, 3-5 sentence hypothetical technical passage that directly answers the question as if it were extracted from authoritative documentation>
+
+User Query:
+"{query}"
+"""
+
+    try:
+        from .llm_router import generate_llm_response
+        response_text = generate_llm_response(prompt=prompt, model_id=model_id)
+
+        # Regex extraction
+        category_match = re.search(r"CATEGORY:\s*(DIRECT_LOOKUP|CONCEPTUAL)", response_text, re.IGNORECASE)
+        category = category_match.group(1).upper() if category_match else "CONCEPTUAL"
+
+        if category == "DIRECT_LOOKUP":
+            logger.info(f"🔍 [HyDE Router] Model: {model_id} | Query: '{query}' -> Category: DIRECT_LOOKUP (Bypassing HyDE)")
+            return query
+
+        passage_match = re.search(r"HYPOTHETICAL_DOCUMENT:\s*(.*)", response_text, re.DOTALL | re.IGNORECASE)
+        if passage_match:
+            hypothetical_doc = passage_match.group(1).strip()
+            logger.info(f"💡 [HyDE Router] Model: {model_id} | Query: '{query}' -> Category: CONCEPTUAL | HyDE Passage generated ({len(hypothetical_doc)} chars)")
+            return hypothetical_doc
+
+        return query
+
+    except Exception as exc:
+        logger.warning(f"Failed to generate HyDE passage for query '{query}': {exc}. Using raw query.")
+        return query
+
+```
+<!-- END_FILE -->
+
+---
 <!-- FILE: apps/chat/tests.py -->
 ## apps/chat/tests.py
 
@@ -1363,6 +1516,7 @@ def chat(request):
             from llama_index.embeddings.google import GeminiEmbedding
             from llama_index.llms.google_genai import GoogleGenAI
             from src.apps.documents.services import get_vector_store
+            from .llm_router import generate_llm_response
             import os
             
             vector_store = get_vector_store(store_id)
@@ -1370,10 +1524,21 @@ def chat(request):
                 model_name="models/gemini-embedding-001",
 api_key=***REDACTED***
             )
-            llm = GoogleGenAI(
-                model="gemini-2.5-flash-lite",
+            target_llm = getattr(project, 'llm_model', 'gemini-2.5-flash-lite') if project else 'gemini-2.5-flash-lite'
+            if "gemma" in target_llm.lower() or "mlx" in target_llm.lower() or ":" in target_llm:
+                from llama_index.llms.ollama import Ollama
+                ollama_url = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434/api/generate")
+                base_url = ollama_url.split('/api/generate')[0]
+                llm = Ollama(
+                    model=target_llm,
+                    base_url=base_url,
+                    request_timeout=60.0
+                )
+            else:
+                llm = GoogleGenAI(
+                    model=target_llm,
 api_key=***REDACTED***
-            )
+                )
             from llama_index.core.embeddings import BaseEmbedding
             from llama_index.core.llms import LLM
             if isinstance(embed_model, BaseEmbedding):
@@ -1382,13 +1547,29 @@ api_key=***REDACTED***
                 Settings.llm = llm
             
             index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
-            query_engine = index.as_query_engine(llm=llm)
+            mode = getattr(project, 'response_mode', 'compact') if project else 'compact'
+            query_engine = index.as_query_engine(llm=llm, response_mode=mode)
             
+            from .services import generate_adaptive_hyde_passage
+            search_query = generate_adaptive_hyde_passage(query, model_id=target_llm) if (project and getattr(project, 'use_hyde', False)) else query
+
             prompt = system_prompt or "You are a helpful assistant."
-            response = query_engine.query(f"System Context: {prompt}\n\nQuery: {query}")
-            bot_response = str(response)
+            response = None
+            try:
+                response = query_engine.query(f"System Context: {prompt}\n\nQuery: {search_query}")
+                bot_response = str(response)
+            except Exception as q_err:
+                err_str = str(q_err).lower()
+                if any(k in err_str for k in ['ollama', '11434', 'failed to connect', 'connection refused']):
+                    raise RuntimeError("Local Ollama server is not running or accessible. Please start Ollama on your machine (http://localhost:11434).") from q_err
+                bot_response = "Empty Response"
+
+            # If vector store yields no matching nodes (LlamaIndex returns "Empty Response"), fall back to LLM router
+            if not bot_response or bot_response.strip().lower() == "empty response":
+                bot_response = generate_llm_response(prompt=query, model_id=target_llm, system_prompt=prompt)
+
             source_documents = []
-            if hasattr(response, 'source_nodes'):
+            if response and hasattr(response, 'source_nodes'):
                 source_documents = _extract_source_documents([node.node.metadata for node in response.source_nodes])
         else:
             google_store_id = project.external_store_id if project and project.external_store_id else store_id
@@ -1428,7 +1609,10 @@ api_key=***REDACTED***
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JsonResponse({'error': str(e)}, status=500)
+        err_msg = str(e)
+        if any(k in err_msg.lower() for k in ['ollama', '11434', 'failed to connect', 'connection refused']):
+            err_msg = "⚠️ Local Ollama server is not running or accessible. Please start Ollama on your machine (http://localhost:11434) and try again."
+        return JsonResponse({'error': err_msg}, status=500)
 
 
 @require_http_methods(["POST"])
@@ -1486,10 +1670,21 @@ def chat_submit(request):
                 model_name="models/gemini-embedding-001",
 api_key=***REDACTED***
             )
-            llm = GoogleGenAI(
-                model="gemini-2.5-flash-lite",
+            target_llm = getattr(project, 'llm_model', 'gemini-2.5-flash-lite') if project else 'gemini-2.5-flash-lite'
+            if "gemma" in target_llm.lower() or "mlx" in target_llm.lower() or ":" in target_llm:
+                from llama_index.llms.ollama import Ollama
+                ollama_url = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434/api/generate")
+                base_url = ollama_url.split('/api/generate')[0]
+                llm = Ollama(
+                    model=target_llm,
+                    base_url=base_url,
+                    request_timeout=60.0
+                )
+            else:
+                llm = GoogleGenAI(
+                    model=target_llm,
 api_key=***REDACTED***
-            )
+                )
             from llama_index.core.embeddings import BaseEmbedding
             from llama_index.core.llms import LLM
             if isinstance(embed_model, BaseEmbedding):
@@ -1498,13 +1693,29 @@ api_key=***REDACTED***
                 Settings.llm = llm
             
             index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
-            query_engine = index.as_query_engine(llm=llm)
+            mode = getattr(project, 'response_mode', 'compact') if project else 'compact'
+            query_engine = index.as_query_engine(llm=llm, response_mode=mode)
             
+            from .services import generate_adaptive_hyde_passage
+            search_query = generate_adaptive_hyde_passage(query, model_id=target_llm) if (project and getattr(project, 'use_hyde', False)) else query
+
             prompt = system_prompt or "You are a helpful assistant."
-            response = query_engine.query(f"System Context: {prompt}\n\nQuery: {query}")
-            bot_response = str(response)
+            response = None
+            try:
+                response = query_engine.query(f"System Context: {prompt}\n\nQuery: {search_query}")
+                bot_response = str(response)
+            except Exception as q_err:
+                err_str = str(q_err).lower()
+                if any(k in err_str for k in ['ollama', '11434', 'failed to connect', 'connection refused']):
+                    raise RuntimeError("Local Ollama server is not running or accessible. Please start Ollama on your machine (http://localhost:11434).") from q_err
+                bot_response = "Empty Response"
+
+            if not bot_response or bot_response.strip().lower() == "empty response":
+                from .llm_router import generate_llm_response
+                bot_response = generate_llm_response(prompt=query, model_id=target_llm, system_prompt=prompt)
+
             source_documents = []
-            if hasattr(response, "source_nodes"):
+            if response and hasattr(response, "source_nodes"):
                 source_documents = _extract_source_documents([node.node.metadata for node in response.source_nodes])
         else:
             google_store_id = project.external_store_id if project and project.external_store_id else store_id
@@ -1579,7 +1790,7 @@ api_key=***REDACTED***
 
 ```py
 from django.contrib import admin
-from .models import Document
+from .models import Document, ObsidianSource, ObsidianFile
 
 
 @admin.register(Document)
@@ -1595,6 +1806,22 @@ class DocumentAdmin(admin.ModelAdmin):
         ('Indexing Status', {'fields': ('state', 'indexed_at', 'error_message')}),
         ('Timestamps', {'fields': ('created_at',)}),
     )
+
+
+@admin.register(ObsidianSource)
+class ObsidianSourceAdmin(admin.ModelAdmin):
+    list_display = ('project', 'source_type', 'vault_path', 'last_synced_at', 'created_at')
+    list_filter = ('source_type', 'created_at')
+    search_fields = ('project__display_name', 'vault_path')
+    readonly_fields = ('created_at', 'updated_at', 'last_synced_at')
+
+
+@admin.register(ObsidianFile)
+class ObsidianFileAdmin(admin.ModelAdmin):
+    list_display = ('relative_path', 'obsidian_source', 'folder_name', 'status', 'last_indexed_at')
+    list_filter = ('status', 'folder_name', 'created_at')
+    search_fields = ('relative_path', 'folder_name', 'obsidian_source__project__display_name')
+    readonly_fields = ('created_at', 'updated_at', 'last_indexed_at')
 
 ```
 <!-- END_FILE -->
@@ -1845,6 +2072,91 @@ class Migration(migrations.Migration):
 <!-- END_FILE -->
 
 ---
+<!-- FILE: apps/documents/migrations/0003_document_chunking_strategy.py -->
+## apps/documents/migrations/0003_document_chunking_strategy.py
+
+```py
+# Generated by Django 6.0.1 on 2026-07-27 08:20
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('documents', '0002_document_expiration_date_document_is_expired_checked'),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name='document',
+            name='chunking_strategy',
+            field=models.CharField(choices=[('project_default', 'Use Project Default'), ('auto_detect', 'Auto-Detect by File Extension'), ('markdown', 'Markdown Header Splitter'), ('code', 'Code / AST Splitter'), ('hierarchical', 'Hierarchical / Parent-Child'), ('sentence', 'Sentence / Paragraph Splitter')], default='auto_detect', help_text='Document-specific chunking strategy.', max_length=50),
+        ),
+    ]
+
+```
+<!-- END_FILE -->
+
+---
+<!-- FILE: apps/documents/migrations/0004_obsidiansource_obsidianfile.py -->
+## apps/documents/migrations/0004_obsidiansource_obsidianfile.py
+
+```py
+# Generated by Django 6.0.1 on 2026-07-29 16:16
+
+import django.db.models.deletion
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('documents', '0003_document_chunking_strategy'),
+        ('projects', '0011_project_llm_model_alter_project_embedding_model'),
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name='ObsidianSource',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('source_type', models.CharField(choices=[('document', 'Document'), ('obsidian', 'Obsidian')], default='document', help_text='Selected source type for this project (Document or Obsidian)', max_length=20)),
+                ('vault_path', models.CharField(blank=True, help_text='Absolute local file directory path to the Obsidian vault', max_length=1024)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('last_synced_at', models.DateTimeField(blank=True, help_text='When the vault was last synced', null=True)),
+                ('project', models.OneToOneField(help_text='The project this Obsidian source is attached to', on_delete=django.db.models.deletion.CASCADE, related_name='obsidian_source', to='projects.project')),
+            ],
+            options={
+                'ordering': ['-created_at'],
+            },
+        ),
+        migrations.CreateModel(
+            name='ObsidianFile',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('relative_path', models.CharField(help_text='Relative file path from vault root (e.g. Certifications/AWS_Guide.md)', max_length=1024)),
+                ('folder_name', models.CharField(help_text='Immediate parent folder name (e.g. AWS)', max_length=255)),
+                ('status', models.CharField(choices=[('PENDING', 'Pending Indexing'), ('INDEXED', 'Successfully Indexed'), ('FAILED', 'Indexing Failed')], default='PENDING', help_text='Indexing status of this note', max_length=20)),
+                ('file_mtime', models.FloatField(default=0.0, help_text='Last modified timestamp (mtime) of the note file')),
+                ('last_indexed_at', models.DateTimeField(blank=True, help_text='When this note was last indexed', null=True)),
+                ('error_message', models.TextField(blank=True, help_text='Error message if note indexing failed')),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('obsidian_source', models.ForeignKey(help_text='The Obsidian source this note belongs to', on_delete=django.db.models.deletion.CASCADE, related_name='files', to='documents.obsidiansource')),
+            ],
+            options={
+                'ordering': ['relative_path'],
+                'unique_together': {('obsidian_source', 'relative_path')},
+            },
+        ),
+    ]
+
+```
+<!-- END_FILE -->
+
+---
 <!-- FILE: apps/documents/models.py -->
 ## apps/documents/models.py
 
@@ -1912,6 +2224,22 @@ class Document(models.Model):
         help_text="Size of the file in bytes"
     )
     
+    CHUNKING_CHOICES = [
+        ("project_default", "Use Project Default"),
+        ("auto_detect", "Auto-Detect by File Extension"),
+        ("markdown", "Markdown Header Splitter"),
+        ("code", "Code / AST Splitter"),
+        ("hierarchical", "Hierarchical / Parent-Child"),
+        ("sentence", "Sentence / Paragraph Splitter"),
+    ]
+
+    chunking_strategy = models.CharField(
+        max_length=50,
+        choices=CHUNKING_CHOICES,
+        default="auto_detect",
+        help_text="Document-specific chunking strategy."
+    )
+    
     # Indexing status
     state = models.CharField(
         max_length=20,
@@ -1956,6 +2284,101 @@ class Document(models.Model):
     
     def __str__(self):
         return f"{self.display_name or self.document_name} ({self.project.display_name})"
+
+
+class ObsidianSource(models.Model):
+    """
+    Represents an Obsidian vault source configuration for a project.
+    """
+    SOURCE_TYPES = [
+        ('document', 'Document'),
+        ('obsidian', 'Obsidian'),
+    ]
+
+    project = models.OneToOneField(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='obsidian_source',
+        help_text="The project this Obsidian source is attached to"
+    )
+    source_type = models.CharField(
+        max_length=20,
+        choices=SOURCE_TYPES,
+        default='document',
+        help_text="Selected source type for this project (Document or Obsidian)"
+    )
+    vault_path = models.CharField(
+        max_length=1024,
+        blank=True,
+        help_text="Absolute local file directory path to the Obsidian vault"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_synced_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the vault was last synced"
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Obsidian Source for {self.project.display_name} ({self.vault_path})"
+
+
+class ObsidianFile(models.Model):
+    """
+    Tracks individual notes within an Obsidian vault and their indexing state.
+    """
+    FILE_STATES = [
+        ('PENDING', 'Pending Indexing'),
+        ('INDEXED', 'Successfully Indexed'),
+        ('FAILED', 'Indexing Failed'),
+    ]
+
+    obsidian_source = models.ForeignKey(
+        ObsidianSource,
+        on_delete=models.CASCADE,
+        related_name='files',
+        help_text="The Obsidian source this note belongs to"
+    )
+    relative_path = models.CharField(
+        max_length=1024,
+        help_text="Relative file path from vault root (e.g. Certifications/AWS_Guide.md)"
+    )
+    folder_name = models.CharField(
+        max_length=255,
+        help_text="Immediate parent folder name (e.g. AWS)"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=FILE_STATES,
+        default='PENDING',
+        help_text="Indexing status of this note"
+    )
+    file_mtime = models.FloatField(
+        default=0.0,
+        help_text="Last modified timestamp (mtime) of the note file"
+    )
+    last_indexed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this note was last indexed"
+    )
+    error_message = models.TextField(
+        blank=True,
+        help_text="Error message if note indexing failed"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['relative_path']
+        unique_together = [['obsidian_source', 'relative_path']]
+
+    def __str__(self):
+        return f"{self.relative_path} [{self.status}]"
 
 ```
 <!-- END_FILE -->
@@ -2022,6 +2445,7 @@ class DocumentListSerializer(serializers.ModelSerializer):
 
 ```py
 import os
+import re
 from django.conf import settings
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext
 from llama_index.vector_stores.postgres import PGVectorStore
@@ -2029,6 +2453,249 @@ from llama_index.embeddings.google import GeminiEmbedding
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+def sanitize_obsidian_markdown(text: str) -> str:
+    """
+    Sanitize Obsidian-specific Markdown syntax:
+    - [[Target Note|Custom Alias]] -> Custom Alias
+    - [[Target Note]] -> Target Note
+    """
+    if not text:
+        return text
+    # Convert [[Target Note|Custom Alias]] -> Custom Alias
+    text = re.sub(r'\[\[[^\]|]+\|([^\]]+)\]\]', r'\1', text)
+    # Convert [[Target Note]] -> Target Note
+    text = re.sub(r'\[\[([^\]]+)\]\]', r'\1', text)
+    return text
+
+
+def scan_obsidian_vault(vault_path: str) -> list[dict]:
+    """
+    Traverse an Obsidian vault directory and discover valid markdown note files.
+    Applies exclusion rules:
+    - Skips reserved folders: _resources/, Templates/, .obsidian/, .git/
+    - Skips media & binary files: .png, .jpg, .jpeg, .gif, .pdf
+    - Skips proprietary files: .canvas, .base
+    - Skips draft notes: filenames starting with 'Untitled' (e.g. Untitled 1.md)
+    """
+    if not vault_path or not os.path.exists(vault_path) or not os.path.isdir(vault_path):
+        raise ValueError(f"Vault path '{vault_path}' does not exist or is not a valid directory.")
+
+    try:
+        os.listdir(vault_path)
+    except PermissionError:
+        raise PermissionError(f"Permission denied accessing '{vault_path}'. On macOS, grant Full Disk Access to your Terminal/IDE in System Settings > Privacy & Security, or choose a directory inside your workspace/home folder.")
+
+    excluded_dirs = {'_resources', 'templates', '.obsidian', '.git'}
+    excluded_exts = {'.png', '.jpg', '.jpeg', '.gif', '.pdf', '.canvas', '.base'}
+
+    discovered_files = []
+
+    try:
+        for root, dirs, files in os.walk(vault_path):
+            # Prune excluded directories from traversal
+            dirs[:] = [d for d in dirs if d.lower() not in excluded_dirs and not d.startswith('.')]
+
+            for file_name in files:
+                ext = os.path.splitext(file_name)[1].lower()
+                base_name = os.path.splitext(file_name)[0]
+
+                # Skip binary, media, canvas, hidden, and untitled draft files
+                if ext in excluded_exts or file_name.startswith('.'):
+                    continue
+                if base_name.lower().startswith('untitled'):
+                    continue
+                if ext != '.md':
+                    continue
+
+                abs_path = os.path.join(root, file_name)
+                rel_path = os.path.relpath(abs_path, vault_path)
+
+                # Determine immediate parent folder name
+                parent_dir = os.path.basename(root)
+                folder_name = parent_dir if root != vault_path else 'Root'
+
+                try:
+                    mtime = os.path.getmtime(abs_path)
+                except OSError:
+                    mtime = 0.0
+
+                discovered_files.append({
+                    'relative_path': rel_path,
+                    'folder_name': folder_name,
+                    'absolute_path': abs_path,
+                    'file_mtime': mtime
+                })
+    except PermissionError as pe:
+        raise PermissionError(f"Permission denied accessing directory in '{vault_path}': {pe}")
+
+    return discovered_files
+
+
+def enrich_chunk_metadata(chunk_metadata: dict, folder: str, file_name: str, project_id: str) -> dict:
+    """
+    Enrich chunk metadata dictionary with folder, file_name, and project_id structural tags.
+    """
+    metadata = dict(chunk_metadata or {})
+    metadata['folder'] = folder
+    metadata['file_name'] = file_name
+    metadata['project_id'] = project_id
+    return metadata
+
+
+def discover_obsidian_vault_files(source) -> list:
+    """
+    Stage 1 Discovery: Scan vault directory, sync ObsidianFile records in DB.
+    Purges ObsidianFile records for notes deleted from disk.
+    Optimized with bulk operations and atomic transaction.
+    """
+    from django.utils import timezone
+    from django.db import transaction
+    from src.apps.documents.models import ObsidianFile
+
+    discovered = scan_obsidian_vault(source.vault_path)
+    discovered_rel_paths = {d['relative_path']: d for d in discovered}
+
+    with transaction.atomic():
+        # Purge records and vector store embeddings for notes deleted on disk
+        deleted_files = list(source.files.exclude(relative_path__in=discovered_rel_paths.keys()))
+        if deleted_files:
+            try:
+                from src.postgres_rag import PostgresRAGEngine
+                engine = PostgresRAGEngine(project_id=source.project.project_id)
+                for d_file in deleted_files:
+                    engine.delete_document(d_file.relative_path)
+            except Exception as exc:
+                logger.warning(f"Failed cleaning up vector entries for deleted obsidian files: {exc}")
+
+        source.files.exclude(relative_path__in=discovered_rel_paths.keys()).delete()
+
+        existing_files = {f.relative_path: f for f in source.files.all()}
+        new_objects = []
+        update_objects = []
+
+        for item in discovered:
+            rel = item['relative_path']
+            if rel in existing_files:
+                obj = existing_files[rel]
+                obj.folder_name = item['folder_name']
+                obj.file_mtime = item['file_mtime']
+                update_objects.append(obj)
+            else:
+                new_objects.append(ObsidianFile(
+                    obsidian_source=source,
+                    relative_path=rel,
+                    folder_name=item['folder_name'],
+                    file_mtime=item['file_mtime']
+                ))
+
+        if new_objects:
+            ObsidianFile.objects.bulk_create(new_objects)
+        if update_objects:
+            ObsidianFile.objects.bulk_update(update_objects, fields=['folder_name', 'file_mtime'])
+
+        source.last_synced_at = timezone.now()
+        source.save()
+
+    return list(source.files.all())
+
+
+def process_obsidian_file_indexing(obsidian_file, project_id: str) -> bool:
+    """
+    Stage 2 & 3: Read, sanitize Markdown, enrich metadata, run LlamaIndex vector ingestion, update status.
+    """
+    from django.utils import timezone
+    import tempfile
+
+    source = obsidian_file.obsidian_source
+    abs_path = os.path.join(source.vault_path, obsidian_file.relative_path)
+
+    if not os.path.exists(abs_path):
+        obsidian_file.status = 'FAILED'
+        obsidian_file.error_message = "File does not exist on disk."
+        obsidian_file.save()
+        return False
+
+    try:
+        with open(abs_path, 'r', encoding='utf-8', errors='ignore') as f:
+            raw_content = f.read()
+
+        sanitized_content = sanitize_obsidian_markdown(raw_content)
+
+        # Write sanitized content to temporary file for LlamaIndex parser
+        with tempfile.NamedTemporaryFile('w', suffix='.md', encoding='utf-8', delete=False) as tmp:
+            tmp.write(sanitized_content)
+            tmp_path = tmp.name
+
+        try:
+            pipeline = LlamaIndexIngestionPipeline(project_id=project_id)
+            pipeline.index_document(
+                file_path=tmp_path,
+                original_filename=obsidian_file.relative_path,
+                strategy='markdown'
+            )
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+
+        obsidian_file.status = 'INDEXED'
+        obsidian_file.last_indexed_at = timezone.now()
+        obsidian_file.error_message = ""
+        obsidian_file.save()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to index Obsidian file '{obsidian_file.relative_path}': {e}")
+        obsidian_file.status = 'FAILED'
+        obsidian_file.error_message = str(e)
+        obsidian_file.save()
+        return False
+
+
+def run_obsidian_lifecycle(source, mode: str = 'full') -> dict:
+    """
+    Run 3-stage Obsidian indexing/sync lifecycle.
+    - mode='full': Discovers vault notes, re-indexes all valid notes.
+    - mode='new': Discovers vault notes, indexes only pending/unindexed notes.
+    - mode='sync': Discovers vault notes, purges deleted notes, re-indexes modified/pending notes.
+    - mode='discover': Discovers vault notes and populates ObsidianFile tracking records (PENDING), but does NOT automatically index them.
+    """
+    from django.utils import timezone
+
+    db_files = discover_obsidian_vault_files(source)
+    project_id = source.project.project_id
+
+    indexed_count = 0
+    failed_count = 0
+
+    if mode != 'discover':
+        for obsidian_file in db_files:
+            should_index = False
+            if mode == 'full':
+                should_index = True
+            elif mode == 'new':
+                should_index = (obsidian_file.status != 'INDEXED')
+            elif mode == 'sync':
+                should_index = (obsidian_file.status != 'INDEXED') or (obsidian_file.last_indexed_at is None)
+
+            if should_index:
+                success = process_obsidian_file_indexing(obsidian_file, project_id)
+                if success:
+                    indexed_count += 1
+                else:
+                    failed_count += 1
+
+        total_indexed = source.files.filter(status='INDEXED').count()
+        source.project.document_count = total_indexed
+        source.project.last_indexed_at = timezone.now()
+        source.project.save()
+
+    return {
+        'total_files': len(db_files),
+        'indexed_count': indexed_count,
+        'failed_count': failed_count,
+        'mode': mode
+    }
 
 def get_safe_table_name(project_id: str) -> str:
     """
@@ -2045,6 +2712,51 @@ def get_safe_table_name(project_id: str) -> str:
         return f"rag_project_{truncated_id}_{hash_suffix}"
     return base_name
 
+from llama_index.core.node_parser import (
+    CodeSplitter,
+    HierarchicalNodeParser,
+    MarkdownNodeParser,
+    SentenceSplitter,
+)
+
+
+def select_node_parser(file_path: str, strategy: str = "auto_detect"):
+    """
+    Factory function returning the appropriate LlamaIndex NodeParser instance.
+    Gracefully falls back to SentenceSplitter if specialized dependencies are missing or fail.
+    """
+    ext = os.path.splitext(file_path)[1].lower()
+
+    try:
+        if strategy == "markdown" or (strategy == "auto_detect" and ext == ".md"):
+            return MarkdownNodeParser.from_defaults()
+
+        elif strategy == "code" or (strategy == "auto_detect" and ext in [".py", ".js", ".ts", ".html"]):
+            language_map = {
+                ".py": "python",
+                ".js": "javascript",
+                ".ts": "typescript",
+                ".html": "html"
+            }
+            target_lang = language_map.get(ext, "python")
+            return CodeSplitter(
+                language=target_lang,
+                chunk_lines=40,
+                chunk_lines_overlap=5,
+                max_chars=1500
+            )
+
+        elif strategy == "hierarchical":
+            return HierarchicalNodeParser.from_defaults(chunk_sizes=[1024, 256])
+
+        else:
+            return SentenceSplitter(chunk_size=512, chunk_overlap=50)
+
+    except Exception as exc:
+        logger.warning(f"Failed to initialize node parser for {file_path} (strategy: {strategy}): {exc}. Falling back to SentenceSplitter.")
+        return SentenceSplitter(chunk_size=512, chunk_overlap=50)
+
+
 class LlamaIndexIngestionPipeline:
     def __init__(self, project_id):
         self.project_id = project_id
@@ -2054,14 +2766,18 @@ class LlamaIndexIngestionPipeline:
 api_key=***REDACTED***
         )
         
-    def index_document(self, file_path, original_filename: str = None):
+    def index_document(self, file_path, original_filename: str = None, strategy: str = "auto_detect"):
         # Read the document
         documents = SimpleDirectoryReader(input_files=[file_path]).load_data()
         
         if original_filename:
+            parent_dir = os.path.dirname(original_filename)
+            folder_name = os.path.basename(parent_dir) if parent_dir else 'Root'
             for doc in documents:
                 doc.metadata['file_name'] = original_filename
                 doc.metadata['file_path'] = original_filename
+                doc.metadata['folder'] = folder_name
+                doc.metadata['project_id'] = self.project_id
         
         config = getattr(settings, "REMOTE_POSTGRES_CONFIG", {})
         
@@ -2079,12 +2795,14 @@ password=***REDACTED***
         )
         
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
+        node_parser = select_node_parser(file_path, strategy=strategy)
         
         # Create Index
         index = VectorStoreIndex.from_documents(
             documents, 
             storage_context=storage_context,
-            embed_model=self.embed_model
+            embed_model=self.embed_model,
+            transformations=[node_parser]
         )
         return index
 
@@ -2192,6 +2910,12 @@ app_name = 'documents'
 urlpatterns = [
     path('documents/<str:store_id>/', views.list_documents, name='list'),
     path('documents/<str:store_id>/upload/', views.upload_document, name='upload'),
+    path('projects/<str:store_id>/set-source-type/', views.set_source_type, name='set_source_type'),
+    path('projects/<str:store_id>/obsidian/save-path/', views.obsidian_save_path, name='obsidian_save_path'),
+    path('projects/<str:store_id>/obsidian/index/', views.obsidian_index, name='obsidian_index'),
+    path('projects/<str:store_id>/obsidian/index-new/', views.obsidian_index_new, name='obsidian_index_new'),
+    path('projects/<str:store_id>/obsidian/sync/', views.obsidian_sync, name='obsidian_sync'),
+    path('projects/<str:store_id>/obsidian/status/', views.obsidian_status, name='obsidian_status'),
 ]
 
 ```
@@ -2206,7 +2930,7 @@ urlpatterns = [
 Document views for managing indexed documents
 """
 
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
@@ -2221,7 +2945,8 @@ from src.local_project_storage import get_local_project_storage
 from src.optional_dependencies import LazyModuleProxy
 from urllib.parse import unquote
 
-from .models import Document
+from .models import Document, ObsidianSource, ObsidianFile
+from .services import run_obsidian_lifecycle
 from src.apps.projects.models import Project
 from src.apps.projects.db_utils import test_postgres_connection
 from src.postgres_rag import EmbeddingRateLimitError
@@ -2229,7 +2954,7 @@ from src.postgres_rag import EmbeddingRateLimitError
 
 
 
-SUPPORTED_TEXT_FILE_EXTENSIONS = {'.pdf', '.txt', '.md'}
+SUPPORTED_TEXT_FILE_EXTENSIONS = {'.pdf', '.txt', '.md', '.py', '.js', '.ts', '.html'}
 
 gfs = LazyModuleProxy(
     "src.google_file_search",
@@ -2260,6 +2985,9 @@ def _doc_adapter(doc):
     if doc.is_expired_checked and doc.expiration_date:
         is_expired = timezone.now() > doc.expiration_date
 
+    strategy_raw = getattr(doc, 'chunking_strategy', 'auto_detect')
+    strategy_display = dict(Document.CHUNKING_CHOICES).get(strategy_raw, strategy_raw)
+
     return {
         'name': doc.document_name,
         'display_name': doc.display_name or doc.document_name,
@@ -2268,6 +2996,8 @@ def _doc_adapter(doc):
         'state': type('State', (), {'name': doc.state})(),
         'error_message': getattr(doc, 'error_message', ''),
         'is_expired': is_expired,
+        'chunking_strategy': strategy_raw,
+        'chunking_strategy_display': strategy_display,
     }
 
 
@@ -2322,13 +3052,22 @@ def list_documents(request, store_id):
     if doc_type == 'evaluate':
         return render(request, 'partials/evaluate_document_items.html', {'documents': documents})
 
-    return render(request, 'partials/document_list.html', {
+    obsidian_source = getattr(project, 'obsidian_source', None) if project else None
+    source_type = obsidian_source.source_type if obsidian_source else 'document'
+    obsidian_ctx = get_obsidian_context(obsidian_source)
+
+    ctx = {
         'documents': documents,
         'store_id': store_id,
         'project_name': project_name,
         'storage_type': storage_type,
         'url_prefix': '/rag',
-    })
+        'project': project,
+        'source_type': source_type,
+    }
+    ctx.update(obsidian_ctx)
+
+    return render(request, 'partials/document_list.html', ctx)
 
 
 @require_http_methods(["POST"])
@@ -2363,8 +3102,9 @@ def upload_document(request, store_id):
         file_ext = os.path.splitext(filename)[1].lower()
 
         if (store_id.startswith('rag_') or store_id.startswith('postgres_')) and file_ext not in SUPPORTED_TEXT_FILE_EXTENSIONS:
+            supported_str = ", ".join(sorted(SUPPORTED_TEXT_FILE_EXTENSIONS))
             return JsonResponse(
-                {'error': f'Unsupported file type: {file_ext or "[none]"}. Supported file types are: .pdf, .txt, .md'},
+                {'error': f'Unsupported file type: {file_ext or "[none]"}. Supported file types are: {supported_str}'},
                 status=400,
             )
         
@@ -2419,12 +3159,13 @@ def upload_document(request, store_id):
 
                 try:
                     # Ingestion Quality Grading Gate
-                    if project and project.use_structural_grading:
+                    if project and getattr(project, 'use_structural_grading', False):
                         from src.apps.documents.services import check_structural_quality
                         check_structural_quality(filepath)
 
+                    chunking_strategy = request.POST.get('chunking_strategy', 'auto_detect')
                     pipeline = LlamaIndexIngestionPipeline(project_id=store_id)
-                    index = pipeline.index_document(filepath, original_filename=filename)
+                    index = pipeline.index_document(filepath, original_filename=filename, strategy=chunking_strategy)
                     success = index is not None
                 except EmbeddingRateLimitError as exc:
                     if project:
@@ -2471,6 +3212,7 @@ def upload_document(request, store_id):
                             defaults={
                                 'display_name': filename,
                                 'state': 'INDEXED',
+                                'chunking_strategy': chunking_strategy,
                                 'error_message': '',
                                 'indexed_at': timezone.now(),
                                 'is_expired_checked': is_expired_checked,
@@ -2612,6 +3354,130 @@ def delete_document(request, document_id):
         return response
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def set_source_type(request, store_id):
+    """Switch project source type between Document and Obsidian."""
+    project = get_object_or_404(Project, project_id=store_id)
+    source_type = request.POST.get('source_type', 'document')
+    obs_source, _ = ObsidianSource.objects.get_or_create(project=project)
+    obs_source.source_type = source_type
+    obs_source.save()
+    request.method = 'GET'
+    return list_documents(request, store_id)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def obsidian_save_path(request, store_id):
+    """Save Obsidian vault path."""
+    project = get_object_or_404(Project, project_id=store_id)
+    vault_path = request.POST.get('vault_path', '').strip()
+    obs_source, _ = ObsidianSource.objects.get_or_create(project=project)
+    obs_source.vault_path = vault_path
+    obs_source.source_type = 'obsidian'
+    obs_source.save()
+    try:
+        result = run_obsidian_lifecycle(obs_source, mode='full')
+        return render_obsidian_section(request, project, obs_source, message=f"Vault path saved. Indexed {result['indexed_count']} note(s).")
+    except Exception as e:
+        return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def obsidian_index(request, store_id):
+    """Run full Obsidian vault index."""
+    project = get_object_or_404(Project, project_id=store_id)
+    obs_source = get_object_or_404(ObsidianSource, project=project)
+    try:
+        result = run_obsidian_lifecycle(obs_source, mode='full')
+        return render_obsidian_section(request, project, obs_source, message=f"Indexed {result['indexed_count']} note(s).")
+    except Exception as e:
+        return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def obsidian_index_new(request, store_id):
+    """Run incremental Obsidian vault index for unindexed notes."""
+    project = get_object_or_404(Project, project_id=store_id)
+    obs_source = get_object_or_404(ObsidianSource, project=project)
+    try:
+        result = run_obsidian_lifecycle(obs_source, mode='new')
+        return render_obsidian_section(request, project, obs_source, message=f"Indexed {result['indexed_count']} new note(s).")
+    except Exception as e:
+        return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def obsidian_sync(request, store_id):
+    """Discover new files in Obsidian vault without automatically indexing them."""
+    project = get_object_or_404(Project, project_id=store_id)
+    obs_source = get_object_or_404(ObsidianSource, project=project)
+    try:
+        result = run_obsidian_lifecycle(obs_source, mode='discover')
+        pending_count = obs_source.files.filter(status='PENDING').count()
+        return render_obsidian_section(request, project, obs_source, message=f"Discovered {result['total_files']} note(s) total ({pending_count} pending indexing).")
+    except Exception as e:
+        return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
+
+
+@require_http_methods(["GET"])
+def obsidian_status(request, store_id):
+    """Render Obsidian note status table."""
+    project = get_object_or_404(Project, project_id=store_id)
+    obs_source = getattr(project, 'obsidian_source', None)
+    return render_obsidian_section(request, project, obs_source)
+
+
+def get_obsidian_context(obs_source):
+    """Return common context dictionary for Obsidian vault and files."""
+    if obs_source:
+        files_qs = obs_source.files.all()
+        total_files_count = files_qs.count()
+        indexed_files_count = files_qs.filter(status='INDEXED').count()
+        pending_files_count = files_qs.filter(status='PENDING').count()
+        failed_files_count = files_qs.filter(status='FAILED').count()
+        unindexed_files = files_qs.exclude(status='INDEXED')
+        indexed_files = files_qs.filter(status='INDEXED')
+        all_files = list(files_qs)
+        progress_percent = int((indexed_files_count / total_files_count) * 100) if total_files_count > 0 else 0
+    else:
+        total_files_count = 0
+        indexed_files_count = 0
+        pending_files_count = 0
+        failed_files_count = 0
+        unindexed_files = []
+        indexed_files = []
+        all_files = []
+        progress_percent = 0
+
+    return {
+        'obsidian_source': obs_source,
+        'total_files_count': total_files_count,
+        'indexed_files_count': indexed_files_count,
+        'pending_files_count': pending_files_count,
+        'failed_files_count': failed_files_count,
+        'unindexed_files': unindexed_files,
+        'indexed_files': indexed_files,
+        'all_files': all_files,
+        'progress_percent': progress_percent,
+    }
+
+
+def render_obsidian_section(request, project, obs_source, message="", is_error=False):
+    ctx = get_obsidian_context(obs_source)
+    ctx.update({
+        'project': project,
+        'store_id': project.project_id,
+        'message': message,
+        'is_error': is_error,
+    })
+    return render(request, 'partials/obsidian_section.html', ctx)
 
 ```
 <!-- END_FILE -->
@@ -5387,12 +6253,15 @@ class ProjectAdmin(ModelAdmin):
                     "project_id",
                     "display_name",
                     "storage_type",
+                    "response_mode",
+                    "use_hyde",
                     "description",
                     "is_active",
                     "synthesizer",
                     "document_parsing",
                     "chunking",
                     "embedding_model",
+                    "llm_model",
                     "custom_prompt",
                     "custom_prompt_text",
                     "use_markitdown",
@@ -5407,7 +6276,6 @@ class ProjectAdmin(ModelAdmin):
                     "external_store_id",
                     "document_count",
                     "last_indexed_at",
-                    "use_structural_grading",
                     "created_at",
                     "updated_at",
                     "document_uploader_and_list",
@@ -5488,10 +6356,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
     lookup_value_regex = '[^/]+'  # Allow anything except forward slash in URL segment
     
     def get_queryset(self):
-        """Filter projects by authenticated user"""
+        """Filter projects by authenticated user or staff/superuser status"""
         if getattr(self, 'swagger_fake_view', False):
             return Project.objects.none()
-        return Project.objects.filter(user=self.request.user)
+        user = self.request.user
+        if getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False):
+            return Project.objects.all()
+        return Project.objects.filter(models.Q(user=user) | models.Q(user__isnull=True))
 
     def perform_create(self, serializer):
         """Set the user to the authenticated user on create"""
@@ -6009,6 +6880,116 @@ class Migration(migrations.Migration):
 <!-- END_FILE -->
 
 ---
+<!-- FILE: apps/projects/migrations/0010_remove_project_use_structural_grading_and_more.py -->
+## apps/projects/migrations/0010_remove_project_use_structural_grading_and_more.py
+
+```py
+# Generated by Django 6.0.1 on 2026-07-27 08:20
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('projects', '0009_alter_project_storage_type_and_more'),
+    ]
+
+    operations = [
+        migrations.RemoveField(
+            model_name='project',
+            name='use_structural_grading',
+        ),
+        migrations.AddField(
+            model_name='project',
+            name='response_mode',
+            field=models.CharField(choices=[('compact', 'Compact (Fastest - Stuffs Context into 1 Call)'), ('refine', 'Refine (Iterative - Thorough for Multi-Chunk Deep Analysis)'), ('tree_summarize', 'Tree Summarize (Hierarchical Summary for Broad Queries)')], default='compact', help_text="LlamaIndex response synthesis mode. 'Compact' maximizes speed and cuts LLM API calls.", max_length=50),
+        ),
+        migrations.AddField(
+            model_name='project',
+            name='use_hyde',
+            field=models.BooleanField(default=False, help_text='Enable Adaptive HyDE (Hypothetical Document Embeddings)'),
+        ),
+        migrations.AlterField(
+            model_name='project',
+            name='document_parsing',
+            field=models.CharField(choices=[('markitdown', 'markitdown')], default='markitdown', help_text='Document parsing backend (cannot be changed after first source is indexed).', max_length=50),
+        ),
+        migrations.AlterField(
+            model_name='project',
+            name='embedding_model',
+            field=models.CharField(choices=[('gemini-1', 'Gemini embedding 1')], default='gemini-1', help_text='Embedding model to use (cannot be changed after first source is indexed).', max_length=50),
+        ),
+        migrations.AlterField(
+            model_name='project',
+            name='use_markitdown',
+            field=models.BooleanField(default=False, help_text='Use MarkItDown pipeline (cannot be changed after first source is indexed).'),
+        ),
+    ]
+
+```
+<!-- END_FILE -->
+
+---
+<!-- FILE: apps/projects/migrations/0011_project_llm_model_alter_project_embedding_model.py -->
+## apps/projects/migrations/0011_project_llm_model_alter_project_embedding_model.py
+
+```py
+# Generated by Django 6.0.1 on 2026-07-29 16:15
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('projects', '0010_remove_project_use_structural_grading_and_more'),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name='project',
+            name='llm_model',
+            field=models.CharField(choices=[('gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite (Cloud)'), ('gemma4:12b-mlx', 'Gemma 4 12B MLX (Local Ollama)')], default='gemini-2.5-flash-lite', help_text='LLM model used for synthesis, chat, and evaluation queries.', max_length=100),
+        ),
+        migrations.AlterField(
+            model_name='project',
+            name='embedding_model',
+            field=models.CharField(choices=[('models/gemini-embedding-001', 'Gemini Embedding 001 (768-dim)'), ('gemini-1', 'Gemini embedding 1')], default='models/gemini-embedding-001', help_text='Embedding model to use (cannot be changed after first source is indexed).', max_length=100),
+        ),
+    ]
+
+```
+<!-- END_FILE -->
+
+---
+<!-- FILE: apps/projects/migrations/0012_alter_project_llm_model.py -->
+## apps/projects/migrations/0012_alter_project_llm_model.py
+
+```py
+# Generated by Django 6.0.1 on 2026-08-01 07:52
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('projects', '0011_project_llm_model_alter_project_embedding_model'),
+    ]
+
+    operations = [
+        migrations.AlterField(
+            model_name='project',
+            name='llm_model',
+            field=models.CharField(choices=[('gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite (Cloud)'), ('gemma4:12b-mlx', 'Gemma 4 12B MLX (Local Ollama)'), ('gemma4:e2b-mlx', 'Gemma 4 E2B MLX (Local Ollama - Ultra Fast)'), ('gemma4:e4b-mlx', 'Gemma 4 E4B MLX (Local Ollama - Balanced)')], default='gemini-2.5-flash-lite', help_text='LLM model used for synthesis, chat, and evaluation queries.', max_length=100),
+        ),
+    ]
+
+```
+<!-- END_FILE -->
+
+---
 <!-- FILE: apps/projects/models.py -->
 ## apps/projects/models.py
 
@@ -6107,12 +7088,24 @@ class Project(models.Model):
         help_text="Text chunking strategy"
     )
     embedding_model = models.CharField(
-        max_length=50,
+        max_length=100,
         choices=[
+            ("models/gemini-embedding-001", "Gemini Embedding 001 (768-dim)"),
             ("gemini-1", "Gemini embedding 1"),
         ],
-        default="gemini-1",
+        default="models/gemini-embedding-001",
         help_text="Embedding model to use (cannot be changed after first source is indexed)."
+    )
+    llm_model = models.CharField(
+        max_length=100,
+        choices=[
+            ("gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite (Cloud)"),
+            ("gemma4:12b-mlx", "Gemma 4 12B MLX (Local Ollama)"),
+            ("gemma4:e2b-mlx", "Gemma 4 E2B MLX (Local Ollama - Ultra Fast)"),
+            ("gemma4:e4b-mlx", "Gemma 4 E4B MLX (Local Ollama - Balanced)"),
+        ],
+        default="gemini-2.5-flash-lite",
+        help_text="LLM model used for synthesis, chat, and evaluation queries."
     )
     custom_prompt = models.BooleanField(
         default=False,
@@ -6122,11 +7115,23 @@ class Project(models.Model):
         default=False,
         help_text="Use MarkItDown pipeline (cannot be changed after first source is indexed)."
     )
-    use_structural_grading = models.BooleanField(
-        default=True,
-        help_text="Use structural quality grading"
+    RESPONSE_MODE_CHOICES = [
+        ("compact", "Compact (Fastest - Stuffs Context into 1 Call)"),
+        ("refine", "Refine (Iterative - Thorough for Multi-Chunk Deep Analysis)"),
+        ("tree_summarize", "Tree Summarize (Hierarchical Summary for Broad Queries)"),
+    ]
+
+    response_mode = models.CharField(
+        max_length=50,
+        choices=RESPONSE_MODE_CHOICES,
+        default="compact",
+        help_text="LlamaIndex response synthesis mode. 'Compact' maximizes speed and cuts LLM API calls."
     )
-    
+    use_hyde = models.BooleanField(
+        default=False,
+        help_text="Enable Adaptive HyDE (Hypothetical Document Embeddings)"
+    )
+
     # Statistics (denormalized for performance)
     document_count = models.IntegerField(
         default=0,
@@ -6155,6 +7160,13 @@ class Project(models.Model):
             raise ValidationError({
                 "storage_type": "This functionality has not been implemented yet."
             })
+        if self.pk:
+            original = Project.objects.filter(pk=self.pk).values("embedding_model", "document_count").first()
+            if original and (original["document_count"] > 0 or self.document_count > 0):
+                if original["embedding_model"] != self.embedding_model:
+                    raise ValidationError({
+                        "embedding_model": "Embedding model cannot be changed once documents are indexed."
+                    })
 
     def save(self, *args, **kwargs):
         """
@@ -6242,6 +7254,7 @@ class ProjectSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'project_id', 'display_name', 'storage_type',
             'external_store_id', 'description', 'is_active',
+            'embedding_model', 'llm_model',
             'document_count', 'last_indexed_at', 'created_at',
             'updated_at', 'system_prompt'
         ]
@@ -6253,7 +7266,7 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Project
-        fields = ['project_id', 'display_name', 'storage_type', 'description']
+        fields = ['project_id', 'display_name', 'storage_type', 'description', 'embedding_model', 'llm_model']
         
     def validate_storage_type(self, value):
         """Validate storage type"""
@@ -6269,7 +7282,14 @@ class ProjectUpdateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Project
-        fields = ['display_name', 'description', 'is_active']
+        fields = ['display_name', 'description', 'is_active', 'embedding_model', 'llm_model']
+
+    def validate(self, attrs):
+        if self.instance:
+            new_embedding = attrs.get('embedding_model', self.instance.embedding_model)
+            if self.instance.embedding_model != new_embedding and (self.instance.document_count > 0 or getattr(self.instance, 'documents', None) and self.instance.documents.exists()):
+                raise serializers.ValidationError({"embedding_model": "Embedding model cannot be changed once documents are indexed."})
+        return super().validate(attrs)
 
 
 class ProjectListSerializer(serializers.ModelSerializer):
@@ -6279,6 +7299,7 @@ class ProjectListSerializer(serializers.ModelSerializer):
         model = Project
         fields = [
             'id', 'project_id', 'display_name', 'storage_type',
+            'embedding_model', 'llm_model',
             'document_count', 'created_at', 'is_active'
         ]
 
@@ -6365,13 +7386,23 @@ def _user_can_access_project(project, user):
     if not project or project.user_id is None:
         return True
 
-    return bool(getattr(user, 'is_authenticated', False) and user.id == project.user_id)
+    if bool(getattr(user, 'is_authenticated', False)):
+        if getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False):
+            return True
+        return user.id == project.user_id
+
+    return False
 
 
 def get_combined_stores(request=None):
     """Get list of projects for the current user from Django database"""
-    if request and request.user.is_authenticated:
-        projects = Project.objects.filter(user=request.user).order_by('-created_at')
+    if request and getattr(request.user, 'is_authenticated', False):
+        if getattr(request.user, 'is_superuser', False) or getattr(request.user, 'is_staff', False):
+            projects = Project.objects.all().order_by('-created_at')
+        else:
+            projects = Project.objects.filter(
+                models.Q(user=request.user) | models.Q(user__isnull=True)
+            ).order_by('-created_at')
     else:
         # Show projects without an owner for unauthenticated users (legacy behavior)
         projects = Project.objects.filter(user__isnull=True).order_by('-created_at')

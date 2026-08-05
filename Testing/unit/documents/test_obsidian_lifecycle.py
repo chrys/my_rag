@@ -91,3 +91,38 @@ class TestObsidianLifecycleEngine:
                 assert res_disc['indexed_count'] == 0
                 f_obj = ObsidianFile.objects.get(obsidian_source=source_disc, relative_path="DiscNote.md")
                 assert f_obj.status == 'PENDING'
+
+    def test_discover_obsidian_modified_file_detection(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_path = os.path.join(tmp_dir, "ModifiedNote.md")
+            with open(file_path, "w") as f:
+                f.write("Initial Version")
+
+            project = Project.objects.create(
+                project_id='modified_note_test_proj',
+                display_name='Modified Note Test Project',
+                storage_type='postgres'
+            )
+            source = ObsidianSource.objects.create(
+                project=project,
+                source_type='obsidian',
+                vault_path=tmp_dir
+            )
+
+            # Discover and simulate initial indexing
+            discover_obsidian_vault_files(source)
+            f_obj = ObsidianFile.objects.get(obsidian_source=source, relative_path="ModifiedNote.md")
+            f_obj.status = 'INDEXED'
+            f_obj.save()
+
+            # Modify file on disk with a newer mtime
+            import time
+            time.sleep(0.01)
+            with open(file_path, "a") as f:
+                f.write("\nUpdated text content")
+            os.utime(file_path, (time.time() + 10, time.time() + 10))
+
+            # Re-discover vault
+            discover_obsidian_vault_files(source)
+            f_obj_updated = ObsidianFile.objects.get(obsidian_source=source, relative_path="ModifiedNote.md")
+            assert f_obj_updated.status == 'MODIFIED'

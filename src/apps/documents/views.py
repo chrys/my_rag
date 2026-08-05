@@ -6,9 +6,7 @@ from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
-from django.core.files.storage import default_storage
 from django.utils.text import get_valid_filename
-import sys
 import os
 import tempfile
 
@@ -17,7 +15,7 @@ from src.local_project_storage import get_local_project_storage
 from src.optional_dependencies import LazyModuleProxy
 from urllib.parse import unquote
 
-from .models import Document, ObsidianSource, ObsidianFile
+from .models import Document, ObsidianSource
 from .services import run_obsidian_lifecycle
 from src.apps.projects.models import Project
 from src.apps.projects.db_utils import test_postgres_connection
@@ -487,13 +485,22 @@ def obsidian_index_new(request, store_id):
 @csrf_exempt
 @require_http_methods(["POST"])
 def obsidian_sync(request, store_id):
-    """Discover new files in Obsidian vault without automatically indexing them."""
+    """Find new and updated notes in Obsidian vault without automatically indexing them."""
     project = get_object_or_404(Project, project_id=store_id)
     obs_source = get_object_or_404(ObsidianSource, project=project)
     try:
         result = run_obsidian_lifecycle(obs_source, mode='discover')
-        pending_count = obs_source.files.filter(status='PENDING').count()
-        return render_obsidian_section(request, project, obs_source, message=f"Discovered {result['total_files']} note(s) total ({pending_count} pending indexing).")
+        new_count = obs_source.files.filter(status='PENDING').count()
+        modified_count = obs_source.files.filter(status='MODIFIED').count()
+        
+        parts = []
+        if new_count > 0:
+            parts.append(f"{new_count} new note(s)")
+        if modified_count > 0:
+            parts.append(f"{modified_count} updated note(s)")
+            
+        summary = ", ".join(parts) if parts else "no new or modified notes"
+        return render_obsidian_section(request, project, obs_source, message=f"Vault scanned: Found {summary} ({result['total_files']} notes total).")
     except Exception as e:
         return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
 

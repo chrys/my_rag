@@ -100,7 +100,7 @@
                 hx-disabled-elt="this"
                 class="!bg-emerald-600 hover:!bg-emerald-700 !text-white font-medium px-4 py-2 rounded-lg text-sm transition-all shadow-sm flex items-center gap-1.5 border-0"
                 style="background-color: #059669 !important; color: #ffffff !important;">
-            <span class="!text-white" style="color: #ffffff !important;">Discover new Files</span>
+            <span class="!text-white" style="color: #ffffff !important;">Find Updates</span>
         </button>
         <button hx-post="{% url 'documents:obsidian_index_new' store_id %}"
                 hx-target="#obsidian-section-container"
@@ -117,7 +117,7 @@
     <!-- Unindexed / Pending Obsidian File Status Table -->
     <div class="mt-4 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
         <div class="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
-            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200">Pending / Failed Notes</h3>
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200">Pending / Modified / Failed Notes</h3>
             <span class="text-xs text-gray-500 font-mono">{{ unindexed_files|length }} File(s)</span>
         </div>
         {% if unindexed_files %}
@@ -139,6 +139,8 @@
                         <td class="px-4 py-2.5">
                             {% if file.status == 'PENDING' %}
                             <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">PENDING</span>
+                            {% elif file.status == 'MODIFIED' %}
+                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">MODIFIED</span>
                             {% else %}
                             <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">FAILED</span>
                             {% endif %}

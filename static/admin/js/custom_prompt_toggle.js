@@ -29,7 +29,42 @@ document.addEventListener('DOMContentLoaded', function () {
         updateVisibility();
     }
 
+    function initDisableThinkingToggle() {
+        const select = document.querySelector('select[name="llm_model"]');
+        const disableThinkingInput = document.querySelector('input[name="disable_thinking"]');
+        if (!select || !disableThinkingInput) return;
+
+        let row = disableThinkingInput.closest('.form-row, .field-disable_thinking') || disableThinkingInput.parentElement;
+        while (row && row.parentElement && !row.classList.contains('form-row') && !row.classList.contains('field-disable_thinking') && row.parentElement.tagName !== 'FIELDSET' && row.parentElement.tagName !== 'FORM') {
+            if (row.parentElement.classList.contains('form-row') || row.parentElement.classList.contains('field-disable_thinking') || row.parentElement.querySelector('label[for="id_disable_thinking"]')) {
+                row = row.parentElement;
+                break;
+            }
+            row = row.parentElement;
+        }
+
+        function updateThinkingVisibility() {
+            const val = (select.value || '').toLowerCase();
+            if (val.includes('gemma')) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        }
+
+        select.removeEventListener('change', updateThinkingVisibility);
+        select.addEventListener('change', updateThinkingVisibility);
+        updateThinkingVisibility();
+    }
+
     initCustomPromptToggle();
-    setTimeout(initCustomPromptToggle, 300);
-    setTimeout(initCustomPromptToggle, 1000);
+    initDisableThinkingToggle();
+    setTimeout(function() {
+        initCustomPromptToggle();
+        initDisableThinkingToggle();
+    }, 300);
+    setTimeout(function() {
+        initCustomPromptToggle();
+        initDisableThinkingToggle();
+    }, 1000);
 });

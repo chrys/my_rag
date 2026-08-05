@@ -1,13 +1,11 @@
 import os
 import re
 import logging
-from google import genai
-from google.genai import types
 
 logger = logging.getLogger(__name__)
 
 
-def generate_adaptive_hyde_passage(query: str, model_id: str = "gemini-2.5-flash-lite") -> str:
+def generate_adaptive_hyde_passage(query: str, model_id: str = "gemini-2.5-flash-lite", disable_thinking: bool = False) -> str:
     """
     Single-turn Adaptive HyDE query routing and hypothetical document generation.
     Supports dynamic model selection based on project llm_model (e.g. gemma4:12b-mlx vs gemini-2.5-flash-lite).
@@ -39,7 +37,7 @@ User Query:
 
     try:
         from .llm_router import generate_llm_response
-        response_text = generate_llm_response(prompt=prompt, model_id=model_id)
+        response_text = generate_llm_response(prompt=prompt, model_id=model_id, disable_thinking=disable_thinking)
 
         # Regex extraction
         category_match = re.search(r"CATEGORY:\s*(DIRECT_LOOKUP|CONCEPTUAL)", response_text, re.IGNORECASE)

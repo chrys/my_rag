@@ -1,17 +1,13 @@
-import csv
-import io
 import logging
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
-from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from src.apps.projects.models import Project
-from src.apps.documents.models import Document
 from .models import EvaluationDataset, EvaluationRun, EvaluationResultMetrics
 from .eval_services import (
-    start_async_qa_generation,
     start_async_evaluation_run,
     QA_GEN_STATUS,
 )

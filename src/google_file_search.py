@@ -29,37 +29,6 @@ def _is_permission_error(exc: Exception) -> bool:
     return isinstance(exc, genai_errors.ClientError) and getattr(exc, "code", None) == 403
 
 
-def create_new_file_search_store(store_display_name: str) -> str:
-    """
-    Creates a new, empty File Search Store and returns its unique resource name.
-
-    Args:
-        store_display_name: The human-readable name for the store (e.g., "Finance_Site_Knowledge").
-
-    Returns:
-        The unique store ID (resource name), e.g., 'fileSearchStores/abc-123'.
-    """
-    
-    print(f"Attempting to create store: {store_display_name}...")
-    
-    try:
-        # The .create method is what provisions the new store on Google's backend
-        file_search_store = client.file_search_stores.create(
-            config={'display_name': store_display_name}
-        )
-        
-        # The .name attribute holds the unique, persistent ID
-        store_id = file_search_store.name
-        
-        print(f"✅ Successfully created store: '{store_display_name}'")
-        print(f"   Resource ID: {store_id}\n")
-        
-        return store_id
-        
-    except Exception as e:
-        print(f"❌ Failed to create store: {e}")
-        return ""
-
 def list_all_file_search_stores():
     """Retrieves and prints the list of all File Search Stores."""
     
@@ -341,55 +310,3 @@ def delete_document_from_store(document_resource_name: str):
     except Exception as e:
         print(f"❌ Failed to delete document {document_resource_name}: {e}")
  
-def main():
-    pass
-    # add_document_to_store(store_id = "fileSearchStores/myfirstfilesearchstore-kdvasuq6oqk8", file_path="/Users/chrys/Gemini File Search/data1.txt")
-    # add_document_to_store(store_id = "fileSearchStores/mysecondfilesearchstore-1m3ju15v7hjz", file_path="/Users/chrys/Gemini File Search/data2.txt")    
-
-    # USER_QUESTION1 = "What is Happy Payments?"
-    # USER_QUESTION2 = "What is Sad Payments?"
-    
-    # final_answer1 = ask_store_question("fileSearchStores/myfirstfilesearchstore-kdvasuq6oqk8", USER_QUESTION1)
-    
-    # print("\n--- Answer1 ---")
-    # print(final_answer1)
-    
-    # final_answer2 = ask_store_question("fileSearchStores/mysecondfilesearchstore-1m3ju15v7hjz", USER_QUESTION2)
-    
-    # print("\n--- Answer2 ---")
-    # print(final_answer2)
-   
-   #get all stores and go through their documents and delete them all 
-    # stores = list_all_file_search_stores()
-    # if stores:
-    #     for store in stores:
-    #         store_id = store.name
-    #         print(f"Processing store: {store_id}")
-    #         #list documents in store
-    #         pager = client.file_search_stores.documents.list(parent=store_id)
-    #         documents = list(pager)
-    #         for doc in documents:
-    #             doc_resource_name = doc.name
-    #             delete_document_from_store(doc_resource_name)
-    
-    #get all stores and list ttheir documents
-    stores = list_all_file_search_stores()
-    if stores:
-        for store in stores:
-            store_id = store.name
-            print(f"Processing store: {store_id}")
-            #list documents in store
-            list_documents_in_store(store_id)
-            
-    # delete_document_from_store("fileSearchStores/mysecondfilesearchstore-1m3ju15v7hjz/documents/data2txt-dr72i7yy967c")
-    
-    # stores = list_all_file_search_stores()
-    # if stores:
-    #     for store in stores:
-    #         store_id = store.name
-    #         print(f"Processing store: {store_id}")
-    #         #list documents in store
-    #         list_documents_in_store(store_id)
-
-if __name__ == "__main__":
-    main()

@@ -134,7 +134,11 @@ def discover_obsidian_vault_files(source) -> list:
             if rel in existing_files:
                 obj = existing_files[rel]
                 obj.folder_name = item['folder_name']
-                obj.file_mtime = item['file_mtime']
+                # Detect note modification: if disk mtime is newer than last recorded mtime
+                if item['file_mtime'] > (obj.file_mtime + 0.001):
+                    if obj.status == 'INDEXED':
+                        obj.status = 'MODIFIED'
+                    obj.file_mtime = item['file_mtime']
                 update_objects.append(obj)
             else:
                 new_objects.append(ObsidianFile(
@@ -147,7 +151,7 @@ def discover_obsidian_vault_files(source) -> list:
         if new_objects:
             ObsidianFile.objects.bulk_create(new_objects)
         if update_objects:
-            ObsidianFile.objects.bulk_update(update_objects, fields=['folder_name', 'file_mtime'])
+            ObsidianFile.objects.bulk_update(update_objects, fields=['folder_name', 'file_mtime', 'status'])
 
         source.last_synced_at = timezone.now()
         source.save()
@@ -177,8 +181,18 @@ def process_obsidian_file_indexing(obsidian_file, project_id: str) -> bool:
 
         sanitized_content = sanitize_obsidian_markdown(raw_content)
 
-        # Write sanitized content to temporary file for LlamaIndex parser
-        with tempfile.NamedTemporaryFile('w', suffix='.md', encoding='utf-8', delete=False) as tmp:
+        # Purge previous vector embeddings if note was modified or previously indexed
+        try:
+            from src.postgres_rag import PostgresRAGEngine
+            engine = PostgresRAGEngine(project_id=project_id)
+            engine.delete_document(obsidian_file.relative_path)
+        except Exception as exc:
+            logger.warning(f"Failed deleting previous vector chunks for '{obsidian_file.relative_path}': {exc}")
+
+        # Write sanitized content to a temp file for ingestion
+        with tempfile.NamedTemporaryFile(
+            mode='w', suffix='.md', delete=False, encoding='utf-8'
+        ) as tmp:
             tmp.write(sanitized_content)
             tmp_path = tmp.name
 
@@ -228,9 +242,9 @@ def run_obsidian_lifecycle(source, mode: str = 'full') -> dict:
             if mode == 'full':
                 should_index = True
             elif mode == 'new':
-                should_index = (obsidian_file.status != 'INDEXED')
+                should_index = (obsidian_file.status in ['PENDING', 'MODIFIED', 'FAILED'])
             elif mode == 'sync':
-                should_index = (obsidian_file.status != 'INDEXED') or (obsidian_file.last_indexed_at is None)
+                should_index = (obsidian_file.status in ['PENDING', 'MODIFIED', 'FAILED']) or (obsidian_file.last_indexed_at is None)
 
             if should_index:
                 success = process_obsidian_file_indexing(obsidian_file, project_id)

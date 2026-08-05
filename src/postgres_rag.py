@@ -22,7 +22,6 @@ except ImportError:
 
 # Kept for any code that checks this flag — now satisfied by google-genai alone.
 POSTGRES_RAG_DEPENDENCIES_AVAILABLE = GENAI_AVAILABLE
-TXTAI_AVAILABLE = GENAI_AVAILABLE  # legacy alias
 
 # Per-project index directory: rag_data/indices/<project_id>/
 INDICES_DIR = Path(__file__).parent.parent / "rag_data" / "indices"
@@ -285,15 +284,6 @@ class PostgresRAGEngine:
         except Exception as e:
             print(f"Warning: Failed deleting database chunks: {e}")
 
-        return True
-
-    def delete_project_artifacts(self, document_names: list[str]) -> bool:
-        if self.index_dir.is_dir():
-            shutil.rmtree(self.index_dir)
-        elif self.index_dir.exists():
-            self.index_dir.unlink()
-        self._embeddings = np.empty((0, EMBEDDING_DIM), dtype=np.float32)
-        self._content = []
         return True
 
     def query(self, query_text: str, top_k: int = 3, system_prompt: str = "") -> dict:

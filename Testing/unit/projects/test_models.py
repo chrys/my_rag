@@ -29,6 +29,16 @@ class TestProjectModel:
         assert project.document_count == 0
         assert project.response_mode == 'compact'
         assert project.use_hyde is False
+        assert project.disable_thinking is False
+
+    def test_project_disable_thinking_setting(self):
+        """Test setting disable_thinking field on Project"""
+        project = Project.objects.create(
+            project_id='disable_thinking_test',
+            display_name='Disable Thinking Test',
+            disable_thinking=True
+        )
+        assert project.disable_thinking is True
 
     def test_project_llm_and_embedding_model_defaults(self):
         """Test llm_model and embedding_model defaults and choices"""

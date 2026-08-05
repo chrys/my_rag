@@ -100,6 +100,7 @@ class ProjectAdmin(ModelAdmin):
                     "chunking",
                     "embedding_model",
                     "llm_model",
+                    "disable_thinking",
                     "custom_prompt",
                     "custom_prompt_text",
                     "use_markitdown",

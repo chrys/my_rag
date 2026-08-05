@@ -47,12 +47,6 @@ class PromptStorage:
         """Set system prompt for a store"""
         self.prompts[store_id] = content
         self._save_prompts()
-    
-    def delete_prompt(self, store_id):
-        """Delete system prompt for a store"""
-        if store_id in self.prompts:
-            del self.prompts[store_id]
-            self._save_prompts()
 
 
 # Global instance

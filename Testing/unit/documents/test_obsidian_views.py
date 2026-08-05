@@ -65,7 +65,7 @@ class TestObsidianViews:
             sync_url = reverse('documents:obsidian_sync', kwargs={'store_id': project.project_id})
             resp_sync = client.post(sync_url)
             assert resp_sync.status_code == 200
-            assert b"Discovered" in resp_sync.content
+            assert b"Vault scanned" in resp_sync.content
 
             # Test hx-confirm presence on Index ALL button when files are indexed
             assert b"hx-confirm=" in resp_index.content or b"Index ALL Obsidian files" in resp_index.content
@@ -80,4 +80,4 @@ class TestObsidianViews:
             status_url = reverse('documents:obsidian_status', kwargs={'store_id': project.project_id})
             resp_status = client.get(status_url)
             assert resp_status.status_code == 200
-            assert b"Pending / Failed Notes" in resp_status.content
+            assert b"Pending / Modified / Failed Notes" in resp_status.content

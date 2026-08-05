@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 OLLAMA_ENDPOINT = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434/api/generate")
 
 
-def generate_llm_response(prompt: str, model_id: str = "gemini-2.5-flash-lite", system_prompt: str = "") -> str:
+def generate_llm_response(prompt: str, model_id: str = "gemini-2.5-flash-lite", system_prompt: str = "", disable_thinking: bool = False) -> str:
     """
     Generate response text based on the selected project LLM model.
     - 'gemma4:12b-mlx': Routes to local Ollama API server.
@@ -29,6 +29,9 @@ def generate_llm_response(prompt: str, model_id: str = "gemini-2.5-flash-lite", 
                 "prompt": full_prompt,
                 "stream": False
             }
+            if disable_thinking:
+                payload["thinking"] = False
+                payload["options"] = {"thinking": False}
             response = requests.post(OLLAMA_ENDPOINT, json=payload, timeout=60)
             response.raise_for_status()
             data = response.json()

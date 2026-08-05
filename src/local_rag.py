@@ -4,7 +4,6 @@ from datetime import datetime
 import pypdf
 from pathlib import Path
 import json
-import pickle
 
 try:
     import faiss
@@ -14,10 +13,8 @@ except ImportError:
     FAISS_AVAILABLE = False
 
 try:
-    from llama_index.core import Document, VectorStoreIndex
     from llama_index.embeddings.ollama import OllamaEmbedding
     from llama_index.llms.ollama import Ollama
-    from llama_index.core.node_parser import SimpleNodeParser
     LLAMAINDEX_AVAILABLE = True
 except ImportError:
     LLAMAINDEX_AVAILABLE = False
@@ -338,24 +335,6 @@ class LocalRAGEngine:
             print(f"❌ Error querying documents: {e}")
             raise
     
-    def get_collection_info(self) -> dict:
-        """Get information about the indexed documents"""
-        try:
-            return {
-                "project_id": self.project_id,
-                "index_name": "FAISS",
-                "document_count": self.index.ntotal if self.index else 0,
-                "data_dir": self.data_dir
-            }
-        except Exception as e:
-            print(f"⚠️ Error getting index info: {e}")
-            return {
-                "project_id": self.project_id,
-                "index_name": "FAISS",
-                "document_count": 0,
-                "data_dir": self.data_dir
-            }
-    
     def delete_document(self, document_name: str) -> bool:
         """Delete a document from FAISS IndexIDMap by document name"""
         try:
@@ -417,31 +396,6 @@ class LocalRAGEngine:
             traceback.print_exc()
             return False
     
-    def clear_collection(self) -> bool:
-        """Clear all embeddings from the index"""
-        try:
-            self.index = None
-            self.metadata = {}
-            self.documents = {}
-            
-            # Delete index files
-            if os.path.exists(self.index_path):
-                os.remove(self.index_path)
-            if os.path.exists(self.metadata_path):
-                os.remove(self.metadata_path)
-            
-            print(f"✅ Cleared FAISS index for project: {self.project_id}")
-            return True
-        except Exception as e:
-            print(f"❌ Error clearing index: {e}")
-            return False
-
-
-# Global RAG engines cache - DISABLED for now due to stale data issues
-# Each request will create a fresh instance to load current data from disk
-_rag_engines = {}
-
-
 def get_rag_engine(project_id: str) -> LocalRAGEngine:
     """Get or create a RAG engine for a project
     
@@ -454,9 +408,3 @@ def get_rag_engine(project_id: str) -> LocalRAGEngine:
     engine = LocalRAGEngine(project_id)
     print(f"🔄 Created fresh RAG engine for {project_id} (caching disabled)")
     return engine
-
-def get_rag_engine_cached(project_id: str) -> LocalRAGEngine:
-    """Get or reuse a cached RAG engine for a project"""
-    if project_id not in _rag_engines:
-        _rag_engines[project_id] = LocalRAGEngine(project_id)
-    return _rag_engines[project_id]

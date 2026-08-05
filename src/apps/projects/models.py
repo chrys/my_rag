@@ -111,6 +111,10 @@ class Project(models.Model):
         default="gemini-2.5-flash-lite",
         help_text="LLM model used for synthesis, chat, and evaluation queries."
     )
+    disable_thinking = models.BooleanField(
+        default=False,
+        help_text="Disable reasoning/thinking mode for local Gemma models to accelerate response time."
+    )
     custom_prompt = models.BooleanField(
         default=False,
         help_text="Whether to use a custom prompt"

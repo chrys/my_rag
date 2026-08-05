@@ -1,8 +1,7 @@
 import json
 import os
 from datetime import datetime
-from typing import Dict, List, Optional
-from copy import deepcopy
+from typing import List, Optional
 
 class LocalProjectStorage:
     """Handles loading and saving local projects to a JSON file"""
@@ -124,11 +123,6 @@ class LocalProjectStorage:
                 return True
         return False
     
-    def get_all_projects(self) -> dict:
-        """Get all projects as a deep copy"""
-        return deepcopy(self.projects)
-
-
 # Global instance
 local_project_storage = None
 

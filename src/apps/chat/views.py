@@ -2,18 +2,15 @@
 Chat views for handling conversations
 """
 
-from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.template.loader import render_to_string
 from django.utils.html import escape
 import markdown
-import sys
-import os
 import json
+import time
 
-from src.local_project_storage import get_local_project_storage
 from src.optional_dependencies import LazyModuleProxy
 from src.prompt_storage import get_prompt_storage
 
@@ -96,6 +93,7 @@ def chat(request):
                 pass
 
     try:
+        start_time = time.time()
         data = json.loads(request.body)
         store_id = data.get('store_id')
         query = data.get('query')
@@ -135,15 +133,20 @@ def chat(request):
                 api_key=os.getenv("GOOGLE_API_KEY")
             )
             target_llm = getattr(project, 'llm_model', 'gemini-2.5-flash-lite') if project else 'gemini-2.5-flash-lite'
+            disable_thinking = getattr(project, 'disable_thinking', False) if project else False
             if "gemma" in target_llm.lower() or "mlx" in target_llm.lower() or ":" in target_llm:
                 from llama_index.llms.ollama import Ollama
                 ollama_url = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434/api/generate")
                 base_url = ollama_url.split('/api/generate')[0]
-                llm = Ollama(
-                    model=target_llm,
-                    base_url=base_url,
-                    request_timeout=60.0
-                )
+                ollama_kwargs = {
+                    "model": target_llm,
+                    "base_url": base_url,
+                    "request_timeout": 60.0,
+                }
+                if disable_thinking:
+                    ollama_kwargs["thinking"] = False
+                    ollama_kwargs["additional_kwargs"] = {"thinking": False}
+                llm = Ollama(**ollama_kwargs)
             else:
                 llm = GoogleGenAI(
                     model=target_llm,
@@ -161,7 +164,7 @@ def chat(request):
             query_engine = index.as_query_engine(llm=llm, response_mode=mode)
             
             from .services import generate_adaptive_hyde_passage
-            search_query = generate_adaptive_hyde_passage(query, model_id=target_llm) if (project and getattr(project, 'use_hyde', False)) else query
+            search_query = generate_adaptive_hyde_passage(query, model_id=target_llm, disable_thinking=disable_thinking) if (project and getattr(project, 'use_hyde', False)) else query
 
             prompt = system_prompt or "You are a helpful assistant."
             response = None
@@ -176,7 +179,7 @@ def chat(request):
 
             # If vector store yields no matching nodes (LlamaIndex returns "Empty Response"), fall back to LLM router
             if not bot_response or bot_response.strip().lower() == "empty response":
-                bot_response = generate_llm_response(prompt=query, model_id=target_llm, system_prompt=prompt)
+                bot_response = generate_llm_response(prompt=query, model_id=target_llm, system_prompt=prompt, disable_thinking=disable_thinking)
 
             source_documents = []
             if response and hasattr(response, 'source_nodes'):
@@ -192,6 +195,9 @@ def chat(request):
         
         # Convert markdown to HTML
         bot_response_html = markdown.markdown(bot_response)
+        
+        elapsed_seconds = round(time.time() - start_time, 2)
+        response_time_str = f"{elapsed_seconds:.2f}s"
         
         # Store in database if user is authenticated
         if request.user.is_authenticated:
@@ -214,6 +220,8 @@ def chat(request):
             'bot_response': bot_response,
             'bot_response_html': bot_response_html,
             'source_documents': source_documents,
+            'response_time': response_time_str,
+            'response_time_seconds': elapsed_seconds,
         })
     
     except Exception as e:
@@ -232,6 +240,7 @@ def chat_submit(request):
     Handle HTMX/form chat submissions and return rendered HTML partials.
     Supports local, postgres, and google-backed projects.
     """
+    start_time = time.time()
     # Standard POST or JSON extraction
     if request.content_type == "application/json":
         try:
@@ -281,15 +290,20 @@ def chat_submit(request):
                 api_key=os.getenv("GOOGLE_API_KEY")
             )
             target_llm = getattr(project, 'llm_model', 'gemini-2.5-flash-lite') if project else 'gemini-2.5-flash-lite'
+            disable_thinking = getattr(project, 'disable_thinking', False) if project else False
             if "gemma" in target_llm.lower() or "mlx" in target_llm.lower() or ":" in target_llm:
                 from llama_index.llms.ollama import Ollama
                 ollama_url = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434/api/generate")
                 base_url = ollama_url.split('/api/generate')[0]
-                llm = Ollama(
-                    model=target_llm,
-                    base_url=base_url,
-                    request_timeout=60.0
-                )
+                ollama_kwargs = {
+                    "model": target_llm,
+                    "base_url": base_url,
+                    "request_timeout": 60.0,
+                }
+                if disable_thinking:
+                    ollama_kwargs["thinking"] = False
+                    ollama_kwargs["additional_kwargs"] = {"thinking": False}
+                llm = Ollama(**ollama_kwargs)
             else:
                 llm = GoogleGenAI(
                     model=target_llm,
@@ -307,7 +321,7 @@ def chat_submit(request):
             query_engine = index.as_query_engine(llm=llm, response_mode=mode)
             
             from .services import generate_adaptive_hyde_passage
-            search_query = generate_adaptive_hyde_passage(query, model_id=target_llm) if (project and getattr(project, 'use_hyde', False)) else query
+            search_query = generate_adaptive_hyde_passage(query, model_id=target_llm, disable_thinking=disable_thinking) if (project and getattr(project, 'use_hyde', False)) else query
 
             prompt = system_prompt or "You are a helpful assistant."
             response = None
@@ -322,7 +336,7 @@ def chat_submit(request):
 
             if not bot_response or bot_response.strip().lower() == "empty response":
                 from .llm_router import generate_llm_response
-                bot_response = generate_llm_response(prompt=query, model_id=target_llm, system_prompt=prompt)
+                bot_response = generate_llm_response(prompt=query, model_id=target_llm, system_prompt=prompt, disable_thinking=disable_thinking)
 
             source_documents = []
             if response and hasattr(response, "source_nodes"):
@@ -339,10 +353,15 @@ def chat_submit(request):
         # Convert markdown to HTML
         bot_response_html = markdown.markdown(bot_response)
 
+        elapsed_seconds = round(time.time() - start_time, 2)
+        response_time_str = f"{elapsed_seconds:.2f}s"
+
         # Append source attribution if we have sources
+        sources_meta = ""
         if source_documents:
-            sources_html = f'<div class="mt-2 text-xs text-gray-500"><strong>Sources:</strong> {", ".join(source_documents)}</div>'
-            bot_response_html += sources_html
+            sources_meta += f'<div class="mt-2 text-xs text-gray-500"><strong>Sources:</strong> {", ".join(source_documents)}</div>'
+        sources_meta += f'<div class="mt-1 text-xs text-gray-400 font-mono">⏱️ Response Time: {response_time_str}</div>'
+        bot_response_html += sources_meta
 
         # Store in database if user is authenticated
         if request.user.is_authenticated:

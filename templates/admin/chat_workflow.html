@@ -262,14 +262,32 @@ document.addEventListener("DOMContentLoaded", function() {
             const botBubble = document.createElement("div");
             botBubble.className = "flex gap-4 max-w-[85%]";
             
-            // Build source list if available
+            // Build source list & response time badge
             let sourcesHtml = "";
+            let timeBadge = data.response_time ? `
+                <div class="mt-2.5 pt-2 border-t border-gray-100 dark:border-gray-700/60 flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
+                    <span class="flex items-center gap-1.5 font-mono text-[11px]">
+                        <svg class="w-3.5 h-3.5 text-blue-500 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 9 0 0118 0z"></path>
+                        </svg>
+                        Response Time: <strong class="font-semibold text-gray-700 dark:text-gray-300">${escapeHtml(data.response_time)}</strong>
+                    </span>
+                </div>
+            ` : "";
+
             if (data.source_documents && data.source_documents.length > 0) {
                 let sourceItems = data.source_documents.map(doc => `<li class="text-xs text-gray-500 dark:text-gray-400 font-mono">• ${escapeHtml(doc)}</li>`).join("");
                 sourcesHtml = `
                     <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
                         <span class="text-xs font-bold text-gray-400 dark:text-gray-500 block uppercase tracking-wider mb-1">Source Nodes</span>
                         <ul class="space-y-1">${sourceItems}</ul>
+                        ${timeBadge}
+                    </div>
+                `;
+            } else if (timeBadge) {
+                sourcesHtml = `
+                    <div class="mt-2">
+                        ${timeBadge}
                     </div>
                 `;
             }

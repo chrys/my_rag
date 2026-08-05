@@ -2,17 +2,12 @@
 Project views for managing file search stores and projects
 """
 
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.db import models
-from rest_framework import viewsets, status
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-import sys
-import os
 
 # Add src to path to import Flask modules (temporarily)
 from src.local_project_storage import get_local_project_storage
@@ -20,7 +15,6 @@ from src.optional_dependencies import LazyModuleProxy
 from src.prompt_storage import get_prompt_storage
 
 from .models import Project, SystemPrompt
-from .serializers import ProjectSerializer, SystemPromptSerializer
 from .db_utils import test_postgres_connection
 
 

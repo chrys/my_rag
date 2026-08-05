@@ -170,6 +170,7 @@ class ObsidianFile(models.Model):
     """
     FILE_STATES = [
         ('PENDING', 'Pending Indexing'),
+        ('MODIFIED', 'Modified on Disk'),
         ('INDEXED', 'Successfully Indexed'),
         ('FAILED', 'Indexing Failed'),
     ]

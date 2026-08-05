@@ -22,6 +22,8 @@ rag_data/*
 live_configuration/
 config.py 
 .coverage 
+src/codebundle.md
+
 # Editor / IDE
 .vscode/
 .idea/
