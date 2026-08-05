@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# Set variables
+WORK_TREE="/srv/rag-dashboard"
+GIT_DIR="/srv/git/rag-dashboard.git"
+
+# 1. Update working directory with pushed main branch
+cd $WORK_TREE
+git --git-dir=$GIT_DIR --work-tree=$WORK_TREE checkout -f main
+
+# 2. Activate virtual environment
+if [ -f "$WORK_TREE/.venv/bin/activate" ]; then
+    source "$WORK_TREE/.venv/bin/activate"
+elif [ -f "$WORK_TREE/venv/bin/activate" ]; then
+    source "$WORK_TREE/venv/bin/activate"
+fi
+
+# 3. Install/update Python dependencies
+echo "📦 Installing/updating Python dependencies..."
+pip install -q -r requirements/requirements.txt -r requirements/requirements-ai.txt
+
+# 4. Run database migrations
+echo "🗄️ Running database migrations..."
+python manage.py migrate --noinput
+
+# 5. Collect static files
+echo "🎨 Collecting static files..."
+python manage.py collectstatic --noinput
+
+# 6. Restart web application server
+echo "🔄 Restarting application service..."
+if command -v systemctl &> /dev/null; then
+    sudo systemctl restart rag-dashboard || sudo systemctl restart gunicorn || true
+fi
+
+echo "✅ RAG Dashboard deployment completed successfully!"
