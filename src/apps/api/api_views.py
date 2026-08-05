@@ -104,7 +104,7 @@ class APIUsageViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['get'])
     def summary(self, request):
         """Get usage summary statistics"""
-        from django.db.models import Count, Avg, Q
+        from django.db.models import Count, Avg
         from datetime import timedelta
         from django.utils import timezone
         

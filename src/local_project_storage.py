@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 class LocalProjectStorage:
     """Handles loading and saving local projects to a JSON file"""
@@ -85,9 +85,6 @@ class LocalProjectStorage:
             print(f"❌ Error creating local project: {e}")
             raise
     
-    def get_project(self, project_id: str) -> Optional[dict]:
-        """Get a project by ID"""
-        return self.projects.get(project_id)
     
     def list_projects(self) -> List[dict]:
         """Get all local projects"""

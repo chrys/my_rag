@@ -29,41 +29,6 @@ def _is_permission_error(exc: Exception) -> bool:
     return isinstance(exc, genai_errors.ClientError) and getattr(exc, "code", None) == 403
 
 
-def list_all_file_search_stores():
-    """Retrieves and prints the list of all File Search Stores."""
-    
-    print("Fetching list of all File Search Stores...")
-    
-    try:
-        # The list() method returns a PagedList (an iterable object)
-        pager = client.file_search_stores.list()
-        
-        stores = list(pager)
-        
-        if not stores:
-            print("No File Search Stores found for this project.")
-            return []
-
-        print(f"\nFound {len(stores)} File Search Store(s):")
-        print("=" * 40)
-
-        for store in stores:
-            # 🔑 .name is the unique ID you need for API calls
-            store_id = store.name
-            
-            # 🔑 .display_name is the human-readable name you set during creation
-            display_name = store.display_name
-            
-            print(f"Chatbot Name:    {display_name}")
-            print(f"Resource ID:     {store_id}")
-            print(f"Created On:      {store.create_time.date()}")
-            print("-" * 40)
-            
-        return stores
-
-    except Exception as e:
-        print(f"An error occurred while listing stores: {e}")
-        return []
 
 def delete_file_search_store(store_id_to_delete: str):
     """
@@ -166,7 +131,7 @@ def ask_store_question(store_id: str, query: str, system_prompt: str = None) -> 
     
     print(f"Querying store '{store_id}' with model {MODEL}...")
     if system_prompt:
-        print(f"Using custom system prompt...")
+        print("Using custom system prompt...")
     
     try:
         # --- 1. Configure the FileSearch Tool ---

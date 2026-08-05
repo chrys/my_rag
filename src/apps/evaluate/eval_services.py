@@ -2,7 +2,6 @@ import os
 import json
 import logging
 import threading
-import traceback
 from django.conf import settings
 from django.utils import timezone
 from src.apps.evaluate.models import (

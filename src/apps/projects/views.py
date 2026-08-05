@@ -3,7 +3,7 @@ Project views for managing file search stores and projects
 """
 
 from django.shortcuts import render
-from django.http import JsonResponse, HttpResponse
+from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
@@ -12,9 +12,8 @@ from django.db import models
 # Add src to path to import Flask modules (temporarily)
 from src.local_project_storage import get_local_project_storage
 from src.optional_dependencies import LazyModuleProxy
-from src.prompt_storage import get_prompt_storage
 
-from .models import Project, SystemPrompt
+from .models import Project
 from .db_utils import test_postgres_connection
 
 
@@ -93,10 +92,10 @@ def create_project(request):
     if display_name:
         if storage_type in ['local', 'google']:
             error_html = (
-                f'<div id="project-error-container" hx-swap-oob="true" '
-                f'class="mb-4 p-3 bg-red-50 text-red-700 rounded-md border border-red-200 text-sm">'
-                f'<strong>Error:</strong> This functionality has not been implemented yet.'
-                f'</div>'
+                '<div id="project-error-container" hx-swap-oob="true" '
+                'class="mb-4 p-3 bg-red-50 text-red-700 rounded-md border border-red-200 text-sm">'
+                '<strong>Error:</strong> This functionality has not been implemented yet.'
+                '</div>'
             )
             return HttpResponse(error_html)
         elif storage_type == 'postgres':
@@ -172,35 +171,3 @@ def delete_project(request, store_id):
     return render(request, 'partials/project_list.html', {'stores': stores})
 
 
-@require_http_methods(["GET", "POST"])
-@csrf_exempt
-def manage_prompt(request, store_id):
-    """Get or set system prompt for a project"""
-    project = Project.objects.filter(project_id=store_id).first()
-
-    if not _user_can_access_project(project, getattr(request, 'user', None)):
-        return JsonResponse({'error': 'Forbidden'}, status=403)
-
-    if project and project.storage_type == 'postgres':
-        if request.method == 'GET':
-            prompt = getattr(project.system_prompt, 'content', '') if hasattr(project, 'system_prompt') else ''
-            return JsonResponse({'prompt': prompt})
-
-        content = request.POST.get('content', '')
-        SystemPrompt.objects.update_or_create(
-            project=project,
-            defaults={'content': content}
-        )
-        return JsonResponse({'status': 'success', 'prompt': content})
-
-    prompt_storage = get_prompt_storage()
-    
-    if request.method == 'GET':
-        prompt = prompt_storage.get_prompt(store_id)
-        return JsonResponse({'prompt': prompt})
-    
-    # POST - set prompt
-    content = request.POST.get('content', '')
-    prompt_storage.set_prompt(store_id, content)
-    
-    return JsonResponse({'status': 'success', 'prompt': content})

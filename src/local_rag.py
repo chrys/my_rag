@@ -1,5 +1,4 @@
 import os
-from typing import List, Optional, Dict
 from datetime import datetime
 import pypdf
 from pathlib import Path
@@ -79,7 +78,7 @@ class LocalRAGEngine:
         """Load FAISS IndexIDMap from disk if it exists"""
         if os.path.exists(self.index_path) and os.path.exists(self.metadata_path):
             try:
-                print(f"📂 Loading FAISS index from disk...")
+                print("📂 Loading FAISS index from disk...")
                 # Load metadata first to get ID counter and data
                 with open(self.metadata_path, 'r') as f:
                     data = json.load(f)
@@ -100,11 +99,11 @@ class LocalRAGEngine:
                 # If it's already an IndexIDMap, use it directly; otherwise, we have a problem
                 if isinstance(loaded_index, faiss.IndexIDMap):
                     self.index = loaded_index
-                    print(f"✅ Index is already IndexIDMap with IDs intact")
+                    print("✅ Index is already IndexIDMap with IDs intact")
                 else:
                     # This shouldn't happen if we saved correctly, but warn user
                     print(f"⚠️ WARNING: Loaded index is not IndexIDMap! Type: {type(loaded_index).__name__}")
-                    print(f"⚠️ This indicates the save didn't preserve the IndexIDMap wrapper!")
+                    print("⚠️ This indicates the save didn't preserve the IndexIDMap wrapper!")
                     # Try to rewrap it, but this will lose the original IDs
                     self.index = faiss.IndexIDMap(loaded_index)
                     print(f"⚠️ Rewrapped as IndexIDMap, but IDs may be lost. Document count: {self.index.ntotal}")
@@ -114,7 +113,7 @@ class LocalRAGEngine:
                 # Sanity check: index vector count should match metadata count
                 if self.index.ntotal != len(self.metadata):
                     print(f"⚠️ MISMATCH: Index has {self.index.ntotal} vectors but metadata has {len(self.metadata)} documents!")
-                    print(f"⚠️ This could cause inconsistency issues!")
+                    print("⚠️ This could cause inconsistency issues!")
                     
             except Exception as e:
                 print(f"⚠️ Error loading index: {e}")
@@ -231,7 +230,7 @@ class LocalRAGEngine:
             elif embedding_dim != self.embedding_dim:
                 # Dimension mismatch - this shouldn't happen but let's handle it
                 print(f"⚠️ Embedding dimension mismatch! Expected {self.embedding_dim}, got {embedding_dim}")
-                print(f"⚠️ Recreating index with correct dimension...")
+                print("⚠️ Recreating index with correct dimension...")
                 self.embedding_dim = embedding_dim
                 quantizer = faiss.IndexFlatL2(self.embedding_dim)
                 self.index = faiss.IndexIDMap(quantizer)
@@ -282,7 +281,7 @@ class LocalRAGEngine:
         try:
             # Check if index exists and has documents
             if self.index is None or self.index.ntotal == 0:
-                print(f"⚠️ [QUERY] No documents in index")
+                print("⚠️ [QUERY] No documents in index")
                 return {
                     "response": "I don't have any indexed documents to answer this question. Please upload documents first.",
                     "source_nodes": []
@@ -358,7 +357,7 @@ class LocalRAGEngine:
                 # Rebuild the FAISS index with remaining documents
                 # This ensures embeddings are actually removed (remove_ids can leave orphaned vectors)
                 if len(self.metadata) > 0:
-                    print(f"🔄 Rebuilding FAISS index with remaining documents...")
+                    print("🔄 Rebuilding FAISS index with remaining documents...")
                     embeddings_list = []
                     id_list = []
                     
@@ -380,10 +379,10 @@ class LocalRAGEngine:
                     print(f"✅ Rebuilt FAISS index with {len(self.metadata)} documents")
                 else:
                     # No documents left - create empty index
-                    print(f"🔄 Clearing FAISS index (no documents left)...")
+                    print("🔄 Clearing FAISS index (no documents left)...")
                     quantizer = faiss.IndexFlatL2(self.embedding_dim)
                     self.index = faiss.IndexIDMap(quantizer)
-                    print(f"✅ FAISS index cleared")
+                    print("✅ FAISS index cleared")
                 
                 self._save_index()
                 return True
