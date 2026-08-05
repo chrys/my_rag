@@ -201,19 +201,21 @@ def chat(request):
         
         # Store in database if user is authenticated
         if request.user.is_authenticated:
-            ChatMessage.objects.create(
-                project=project,
-                user=request.user,
-                message_type='user',
-                content=query
-            )
-            ChatMessage.objects.create(
-                project=project,
-                user=request.user,
-                message_type='assistant',
-                content=bot_response,
-                response_html=bot_response_html
-            )
+            from django.db import transaction
+            with transaction.atomic():
+                ChatMessage.objects.create(
+                    project=project,
+                    user=request.user,
+                    message_type='user',
+                    content=query
+                )
+                ChatMessage.objects.create(
+                    project=project,
+                    user=request.user,
+                    message_type='assistant',
+                    content=bot_response,
+                    response_html=bot_response_html
+                )
         
         return JsonResponse({
             'user_message': query,
@@ -365,19 +367,21 @@ def chat_submit(request):
 
         # Store in database if user is authenticated
         if request.user.is_authenticated:
-            ChatMessage.objects.create(
-                project=project,
-                user=request.user,
-                message_type="user",
-                content=query
-            )
-            ChatMessage.objects.create(
-                project=project,
-                user=request.user,
-                message_type="assistant",
-                content=bot_response,
-                response_html=bot_response_html
-            )
+            from django.db import transaction
+            with transaction.atomic():
+                ChatMessage.objects.create(
+                    project=project,
+                    user=request.user,
+                    message_type="user",
+                    content=query
+                )
+                ChatMessage.objects.create(
+                    project=project,
+                    user=request.user,
+                    message_type="assistant",
+                    content=bot_response,
+                    response_html=bot_response_html
+                )
 
         from django.http import HttpResponse
         

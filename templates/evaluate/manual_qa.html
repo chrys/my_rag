@@ -110,7 +110,7 @@
             <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs text-slate-500 flex items-center gap-2">
                 <span>💡 Type reference questions and gold-standard answers. These are saved at the project level.</span>
             </div>
-            <form hx-post="{% url 'custom_admin:qa-setup-workflow' project.project_id %}" hx-target="#form-message" class="space-y-4">
+            <form hx-post="{% url 'custom_admin:qa-setup-workflow' project.project_id %}" hx-target="#form-message" class="space-y-4" hx-disabled-elt="find button[type='submit']">
                 {% csrf_token %}
                 <input type="hidden" name="input_method" value="manual">
                 
@@ -144,7 +144,7 @@
                 <p>💡 Upload a standard <code>.csv</code> file containing reference QA pairs.</p>
                 <p class="font-bold text-slate-600">Expected CSV Headers: <code>Question</code>, <code>Answer</code></p>
             </div>
-            <form hx-post="{% url 'custom_admin:qa-setup-workflow' project.project_id %}" hx-encoding="multipart/form-data" hx-target="#form-message" class="space-y-4">
+            <form hx-post="{% url 'custom_admin:qa-setup-workflow' project.project_id %}" hx-encoding="multipart/form-data" hx-target="#form-message" class="space-y-4" hx-disabled-elt="find button[type='submit']">
                 {% csrf_token %}
                 <input type="hidden" name="input_method" value="csv">
                 
@@ -165,7 +165,7 @@
             <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs text-slate-500">
                 <span>🤖 Automatically synthesize reference questions and ideal answers from your project's vector chunks using <strong>gemini-2.5-flash-lite</strong>.</span>
             </div>
-            <form hx-post="{% url 'custom_admin:qa-setup-workflow' project.project_id %}" hx-target="#form-message" class="space-y-4">
+            <form hx-post="{% url 'custom_admin:qa-setup-workflow' project.project_id %}" hx-target="#form-message" class="space-y-4" hx-disabled-elt="find button[type='submit']">
                 {% csrf_token %}
                 <input type="hidden" name="input_method" value="generate">
                 
@@ -210,7 +210,7 @@
                             </span>
                             <button type="button" 
                                     class="text-red-500 hover:text-red-700 font-semibold text-xs transition-colors cursor-pointer"
-                                    hx-delete="{% url 'evaluate:delete_qa_item' item.id %}"
+                                    hx-delete="{% url 'evaluate:delete_qa_item' item.id %}" hx-disabled-elt="this"
                                     hx-confirm="Are you sure you want to delete this QA item?"
                                     hx-target="#form-message">
                                 ✕ Delete

@@ -120,17 +120,19 @@ class QaSetupWorkflowView(UnfoldModelAdminViewMixin, TemplateView):
             questions = request.POST.getlist("question[]")
             answers = request.POST.getlist("answer[]")
 
+            from django.db import transaction
             count = 0
-            for q, a in zip(questions, answers):
-                if q.strip() and a.strip():
-                    EvaluationDataset.objects.create(
-                        project=project,
-                        document=None,
-                        question=q.strip(),
-                        ground_truth=a.strip(),
-                        source="MANUAL"
-                    )
-                    count += 1
+            with transaction.atomic():
+                for q, a in zip(questions, answers):
+                    if q.strip() and a.strip():
+                        EvaluationDataset.objects.create(
+                            project=project,
+                            document=None,
+                            question=q.strip(),
+                            ground_truth=a.strip(),
+                            source="MANUAL"
+                        )
+                        count += 1
 
             if request.headers.get("HX-Request"):
                 dataset_items = EvaluationDataset.objects.filter(project=project)
@@ -163,19 +165,21 @@ class QaSetupWorkflowView(UnfoldModelAdminViewMixin, TemplateView):
                         return HttpResponse(f'<div class="p-4 bg-red-50 text-red-700 rounded-lg">✗ {err_msg}</div>')
                     return HttpResponseBadRequest(err_msg)
 
+                from django.db import transaction
                 count = 0
-                for row in reader:
-                    q_val = row.get(q_col, "").strip()
-                    a_val = row.get(a_col, "").strip()
-                    if q_val and a_val:
-                        EvaluationDataset.objects.create(
-                            project=project,
-                            document=None,
-                            question=q_val,
-                            ground_truth=a_val,
-                            source="CSV_UPLOAD"
-                        )
-                        count += 1
+                with transaction.atomic():
+                    for row in reader:
+                        q_val = row.get(q_col, "").strip()
+                        a_val = row.get(a_col, "").strip()
+                        if q_val and a_val:
+                            EvaluationDataset.objects.create(
+                                project=project,
+                                document=None,
+                                question=q_val,
+                                ground_truth=a_val,
+                                source="CSV_UPLOAD"
+                            )
+                            count += 1
 
                 if request.headers.get("HX-Request"):
                     dataset_items = EvaluationDataset.objects.filter(project=project)
@@ -223,25 +227,33 @@ class RunEvaluationView(UnfoldModelAdminViewMixin, View):
         if not project_id or not document_id:
             return HttpResponse('<div class="p-4 bg-red-50 text-red-700 rounded-md border border-red-100">Error: Missing project or document configuration.</div>')
 
-        project = get_object_or_404(Project, project_id=project_id)
-
-        from src.apps.documents.models import Document
+        from django.db import transaction
+        from django.db.utils import OperationalError
         try:
-            document = Document.objects.get(project=project, id=document_id)
-        except (Document.DoesNotExist, ValueError):
-            document = get_object_or_404(Document, project=project, document_name=document_id)
+            with transaction.atomic():
+                project = Project.objects.select_for_update(nowait=True).get(project_id=project_id)
 
-        from src.apps.evaluate.eval_services import SyntheticQAEvaluator
-        evaluator = SyntheticQAEvaluator(project.project_id)
-        results = evaluator.evaluate_retrieval_recall(document.document_name)
+                from src.apps.documents.models import Document
+                try:
+                    document = Document.objects.get(project=project, id=document_id)
+                except (Document.DoesNotExist, ValueError):
+                    document = get_object_or_404(Document, project=project, document_name=document_id)
 
-        context = {
-            "results": results,
-            "project": project,
-            "document": document,
-            "url_prefix": "/rag",
-        }
-        return render(request, "admin/evaluation_scorecard.html", context)
+                from src.apps.evaluate.eval_services import SyntheticQAEvaluator
+                evaluator = SyntheticQAEvaluator(project.project_id)
+                results = evaluator.evaluate_retrieval_recall(document.document_name)
+
+                context = {
+                    "results": results,
+                    "project": project,
+                    "document": document,
+                    "url_prefix": "/rag",
+                }
+                return render(request, "admin/evaluation_scorecard.html", context)
+        except OperationalError:
+            return HttpResponse('<div class="p-4 bg-red-50 text-red-700 rounded-md border border-red-100">Error: Evaluation is already running for this project.</div>')
+        except Project.DoesNotExist:
+            raise Http404("No Project matches the given query.")
 
 
 def get_manual_workspace_context(run: ManualEvaluationRun) -> dict:
@@ -318,17 +330,19 @@ class CreateManualEvaluationRunView(UnfoldModelAdminViewMixin, View):
         if not questions:
             return HttpResponse('<div class="p-4 bg-yellow-50 text-yellow-800 rounded-lg">⚠️ Please provide at least one valid question to evaluate.</div>', status=400)
 
-        run = ManualEvaluationRun.objects.create(
-            project=project,
-            source_type=source_type
-        )
-        for q in questions:
-            ManualEvaluationItem.objects.create(
-                run=run,
-                question=q,
-                status="PENDING",
-                rating="UNRATED"
+        from django.db import transaction
+        with transaction.atomic():
+            run = ManualEvaluationRun.objects.create(
+                project=project,
+                source_type=source_type
             )
+            for q in questions:
+                ManualEvaluationItem.objects.create(
+                    run=run,
+                    question=q,
+                    status="PENDING",
+                    rating="UNRATED"
+                )
 
         context = get_manual_workspace_context(run)
         return render(request, "evaluate/manual_eval_workspace.html", context)
@@ -356,10 +370,18 @@ class BatchGenerateManualAnswersView(UnfoldModelAdminViewMixin, View):
     permission_required = ()
 
     def post(self, request, run_id, *args, **kwargs):
-        run = get_object_or_404(ManualEvaluationRun, id=run_id)
-        batch_generate_manual_answers(str(run.id))
-        context = get_manual_workspace_context(run)
-        return render(request, "evaluate/manual_eval_workspace.html", context)
+        from django.db import transaction
+        from django.db.utils import OperationalError
+        try:
+            with transaction.atomic():
+                run = ManualEvaluationRun.objects.select_for_update(nowait=True).get(id=run_id)
+                batch_generate_manual_answers(str(run.id))
+                context = get_manual_workspace_context(run)
+                return render(request, "evaluate/manual_eval_workspace.html", context)
+        except OperationalError:
+            return HttpResponse('<div class="p-4 bg-yellow-50 text-yellow-800 rounded-lg">⚠️ Batch generation is already running. Please wait.</div>')
+        except ManualEvaluationRun.DoesNotExist:
+            raise Http404("No ManualEvaluationRun matches the given query.")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
