@@ -123,7 +123,6 @@ def list_documents(request, store_id):
 
     obsidian_source = getattr(project, 'obsidian_source', None) if project else None
     source_type = obsidian_source.source_type if obsidian_source else 'document'
-    obsidian_ctx = get_obsidian_context(obsidian_source)
 
     ctx = {
         'documents': documents,
@@ -134,9 +133,7 @@ def list_documents(request, store_id):
         'project': project,
         'source_type': source_type,
     }
-    ctx.update(obsidian_ctx)
-
-    return render(request, 'partials/document_list.html', ctx)
+    return render(request, "partials/document_list.html", ctx)
 
 
 @require_http_methods(["POST"])

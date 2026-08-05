@@ -16,9 +16,10 @@ if not API_KEY:
 else:
     os.environ["GOOGLE_API_KEY"] = API_KEY
 
-os.environ["GEMINI_API_KEY"] = API_KEY
+if API_KEY:
+    os.environ["GEMINI_API_KEY"] = API_KEY
 
-client = genai.Client(api_key=API_KEY) if API_KEY else genai.Client()
+client = genai.Client(api_key=API_KEY) if API_KEY else None
 
 
 class GoogleFileSearchPermissionError(RuntimeError):
