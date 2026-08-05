@@ -11,7 +11,7 @@ load_dotenv()
 
 class Config:
     """Base configuration - shared across all environments"""
-    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+    SECRET_KEY = os.environ['SECRET_KEY']  # Will fail if not set
     DEBUG = False
     TESTING = False
     
@@ -45,7 +45,7 @@ class ProductionConfig(Config):
     
     # Get SECRET_KEY from environment or use default
     # Validation happens at runtime in the app, not at import time
-    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+    SECRET_KEY = os.environ['SECRET_KEY']  # Will fail if not set
     
     @classmethod
     def validate(cls):

@@ -26,6 +26,14 @@ class DocumentCreateSerializer(serializers.ModelSerializer):
         model = Document
         fields = ['project', 'document_name', 'display_name', 'mime_type', 'file_size']
     
+
+    def validate_document_name(self, value):
+        """Sanitize document name"""
+        import re
+        if value:
+            value = re.sub(r'[^a-zA-Z0-9_.-]', '_', value)
+        return value
+
     def validate_state(self, value):
         """Document starts in PENDING state"""
         return 'PENDING'

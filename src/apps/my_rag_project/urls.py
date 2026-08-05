@@ -24,3 +24,18 @@ urlpatterns = [
     path('rag/', include('src.apps.chat.urls')),
     path('rag/', include('src.apps.evaluate.urls')),
 ]
+
+from django.http import JsonResponse
+
+def custom_error_403(request, exception=None):
+    return JsonResponse({'error': 'Forbidden'}, status=403)
+
+def custom_error_404(request, exception=None):
+    return JsonResponse({'error': 'Not Found'}, status=404)
+
+def custom_error_500(request):
+    return JsonResponse({'error': 'Internal Server Error'}, status=500)
+
+handler403 = custom_error_403
+handler404 = custom_error_404
+handler500 = custom_error_500

@@ -9,6 +9,12 @@ from .models import Project, SystemPrompt
 class SystemPromptSerializer(serializers.ModelSerializer):
     """Serializer for SystemPrompt model"""
     
+    def validate_content(self, value):
+        """Sanitize prompt content"""
+        if value and len(value) > 10000:
+            raise serializers.ValidationError("System prompt is too long. Max 10000 characters.")
+        return value
+
     class Meta:
         model = SystemPrompt
         fields = ['id', 'project', 'content', 'created_at', 'updated_at']
@@ -24,7 +30,7 @@ class ProjectSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'project_id', 'display_name', 'storage_type',
             'external_store_id', 'description', 'is_active',
-            'embedding_model', 'llm_model', 'disable_thinking',
+            'embedding_model', 'llm_model',
             'document_count', 'last_indexed_at', 'created_at',
             'updated_at', 'system_prompt'
         ]
@@ -36,7 +42,7 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Project
-        fields = ['project_id', 'display_name', 'storage_type', 'description', 'embedding_model', 'llm_model', 'disable_thinking']
+        fields = ['project_id', 'display_name', 'storage_type', 'description', 'embedding_model', 'llm_model']
         
     def validate_storage_type(self, value):
         """Validate storage type"""
@@ -52,7 +58,7 @@ class ProjectUpdateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Project
-        fields = ['display_name', 'description', 'is_active', 'embedding_model', 'llm_model', 'disable_thinking']
+        fields = ['display_name', 'description', 'is_active', 'embedding_model', 'llm_model']
 
     def validate(self, attrs):
         if self.instance:
@@ -67,8 +73,4 @@ class ProjectListSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Project
-        fields = [
-            'id', 'project_id', 'display_name', 'storage_type',
-            'embedding_model', 'llm_model', 'disable_thinking',
-            'document_count', 'created_at', 'is_active'
-        ]
+        fields = ['id', 'project_id', 'display_name', 'storage_type', 'is_active', 'document_count', 'created_at']

@@ -50,7 +50,7 @@ APPS_DIR = BASE_DIR / 'src' / 'apps'
 sys.path.insert(0, str(APPS_DIR))
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-dev-key-change-in-production')
+SECRET_KEY = os.environ['SECRET_KEY']  # Will fail if not set
 
 # Application definition
 INSTALLED_APPS = [

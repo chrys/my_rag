@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from .models import EvaluationDataset, EvaluationRun, EvaluationResultMetrics
 from .serializers import (
     EvaluationDatasetSerializer,
@@ -11,12 +11,26 @@ from .serializers import (
 
 
 class EvaluationDatasetViewSet(viewsets.ModelViewSet):
+    def perform_create(self, serializer):
+        project = serializer.validated_data.get('project')
+        if project and project.user and project.user != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You do not have permission to add to this project.")
+        serializer.save()
+
     """
     API ViewSet for EvaluationDataset model
     """
     queryset = EvaluationDataset.objects.all()
     serializer_class = EvaluationDatasetSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
+
+
+    def get_queryset(self):
+        """Filter by authenticated user"""
+        if getattr(self, 'swagger_fake_view', False):
+            return EvaluationDataset.objects.none()
+        return EvaluationDataset.objects.filter(project__user=self.request.user)
 
     @action(detail=False, methods=["get"])
     def by_project(self, request):
@@ -36,8 +50,15 @@ class EvaluationRunViewSet(viewsets.ModelViewSet):
     """
     queryset = EvaluationRun.objects.all()
     serializer_class = EvaluationRunSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
+
+
+    def get_queryset(self):
+        """Filter by authenticated user"""
+        if getattr(self, 'swagger_fake_view', False):
+            return EvaluationRun.objects.none()
+        return EvaluationRun.objects.filter(project__user=self.request.user)
 
 class EvaluationResultMetricsViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -45,4 +66,11 @@ class EvaluationResultMetricsViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = EvaluationResultMetrics.objects.all()
     serializer_class = EvaluationResultMetricsSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
+
+
+    def get_queryset(self):
+        """Filter by authenticated user"""
+        if getattr(self, 'swagger_fake_view', False):
+            return EvaluationResultMetrics.objects.none()
+        return EvaluationResultMetrics.objects.filter(evaluation_run__project__user=self.request.user)

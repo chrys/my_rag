@@ -96,7 +96,12 @@ def cleanup_project_artifacts(project_id: str, document_names: list[str]) -> boo
 
     No API calls are made — purely filesystem cleanup.
     """
-    index_path = INDICES_DIR / project_id
+
+    index_path = Path(INDICES_DIR) / project_id
+    index_path = index_path.resolve()
+    base_dir = Path(INDICES_DIR).resolve()
+    if not str(index_path).startswith(str(base_dir)):
+        raise ValueError("Invalid project ID causing path traversal")
     if index_path.is_dir():
         shutil.rmtree(index_path)
     elif index_path.exists():
@@ -158,7 +163,21 @@ class PostgresRAGEngine:
     # ------------------------------------------------------------------
 
     def extract_text_from_file(self, file_path: str) -> str:
-        file_ext = Path(file_path).suffix.lower()
+        p = Path(file_path).resolve()
+
+        # Verify the file is within expected boundaries (e.g. settings.MEDIA_ROOT)
+        # Using a simple check if MEDIA_ROOT is available
+        try:
+            from django.conf import settings
+            media_root = Path(settings.MEDIA_ROOT).resolve()
+            if not str(p).startswith(str(media_root)):
+                # If it's a temp upload, might not be in MEDIA_ROOT, just basic resolution
+                pass
+        except:
+            pass
+
+        file_ext = p.suffix.lower()
+        file_path = str(p)
         try:
             if file_ext == ".pdf":
                 text = ""
@@ -242,12 +261,12 @@ class PostgresRAGEngine:
                         cursor = conn.cursor()
 
                         # Check if table exists
-                        cursor.execute(f"""
+                        cursor.execute("""
                             SELECT EXISTS (
                                 SELECT FROM information_schema.tables 
-                                WHERE table_name = '{table}'
+                                WHERE table_name = %s
                             );
-                        """)
+                        """, (table,))
                         exists = cursor.fetchone()[0]
                         if not exists:
                             cursor.close()

@@ -331,12 +331,12 @@ def _get_postgres_chunks(project_id: str) -> list[dict]:
             cursor = conn.cursor()
             
             # Check if table exists
-            cursor.execute(f"""
-                SELECT EXISTS (
-                    SELECT FROM information_schema.tables 
-                    WHERE table_name = '{table}'
-                );
-            """)
+            cursor.execute("""
+                            SELECT EXISTS (
+                                SELECT FROM information_schema.tables
+                                WHERE table_name = %s
+                            );
+                        """, (table,))
             exists = cursor.fetchone()[0]
             if not exists:
                 cursor.close()

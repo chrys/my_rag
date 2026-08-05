@@ -18,8 +18,8 @@ class LocalProjectStorage:
             project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             data_dir = os.path.join(project_root, 'configuration')
         
-        self.data_dir = data_dir
-        self.projects_file = os.path.join(data_dir, 'local_projects.json')
+        self.data_dir = os.path.abspath(data_dir)
+        self.projects_file = os.path.join(self.data_dir, 'local_projects.json')
         self.projects = self._load_projects()
     
     def _load_projects(self) -> dict:

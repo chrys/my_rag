@@ -4325,12 +4325,12 @@ password=***REDACTED***
             cursor = conn.cursor()
             
             # Check if table exists
-            cursor.execute(f"""
-                SELECT EXISTS (
-                    SELECT FROM information_schema.tables 
-                    WHERE table_name = '{table}'
-                );
-            """)
+            cursor.execute("""
+                            SELECT EXISTS (
+                                SELECT FROM information_schema.tables
+                                WHERE table_name = %s
+                            );
+                        """, (table,))
             exists = cursor.fetchone()[0]
             if not exists:
                 cursor.close()
@@ -8869,12 +8869,12 @@ password=***REDACTED***
                         cursor = conn.cursor()
 
                         # Check if table exists
-                        cursor.execute(f"""
+                        cursor.execute("""
                             SELECT EXISTS (
                                 SELECT FROM information_schema.tables 
-                                WHERE table_name = '{table}'
+                                WHERE table_name = %s
                             );
-                        """)
+                        """, (table,))
                         exists = cursor.fetchone()[0]
                         if not exists:
                             cursor.close()

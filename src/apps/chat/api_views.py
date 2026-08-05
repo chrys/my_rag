@@ -5,7 +5,7 @@ DRF API Views for chat app
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from .models import ChatMessage
 from src.apps.projects.models import Project
@@ -26,8 +26,15 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
     - GET /api/messages/{id}/ - Get message
     """
     queryset = ChatMessage.objects.all()
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
+
+    def get_queryset(self):
+        """Filter by authenticated user"""
+        if getattr(self, 'swagger_fake_view', False):
+            return ChatMessage.objects.none()
+        return ChatMessage.objects.filter(project__user=self.request.user)
+
     def get_serializer_class(self):
         """Return appropriate serializer based on action"""
         if self.action == 'create':
@@ -45,6 +52,9 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
         store_id = data.get('store_id')
         if store_id:
             project = get_object_or_404(Project, project_id=store_id)
+            if project.user and project.user != request.user:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("You do not have permission to add messages to this project.")
             data['project'] = project.id
         
         # Convert query to content

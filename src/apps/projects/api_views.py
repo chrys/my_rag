@@ -6,7 +6,7 @@ from django.db import models
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated
 from .models import Project, SystemPrompt
 from .serializers import (
     ProjectSerializer,
@@ -170,8 +170,15 @@ class SystemPromptViewSet(viewsets.ModelViewSet):
     """
     queryset = SystemPrompt.objects.all()
     serializer_class = SystemPromptSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
+
+    def get_queryset(self):
+        """Filter by authenticated user"""
+        if getattr(self, 'swagger_fake_view', False):
+            return SystemPrompt.objects.none()
+        return SystemPrompt.objects.filter(project__user=self.request.user)
+
     def perform_create(self, serializer):
         """Ensure only one prompt per project"""
         project = serializer.validated_data.get('project')
