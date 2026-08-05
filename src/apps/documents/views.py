@@ -460,12 +460,25 @@ def obsidian_save_path(request, store_id):
 @require_http_methods(["POST"])
 def obsidian_index(request, store_id):
     """Run full Obsidian vault index."""
-    project = get_object_or_404(Project, project_id=store_id)
-    obs_source = get_object_or_404(ObsidianSource, project=project)
+    from django.db import transaction
     try:
-        result = run_obsidian_lifecycle(obs_source, mode='full')
-        return render_obsidian_section(request, project, obs_source, message=f"Indexed {result['indexed_count']} note(s).")
+        with transaction.atomic():
+            project = get_object_or_404(Project, project_id=store_id)
+            # Acquire lock to prevent concurrent indexing operations
+            obs_source = ObsidianSource.objects.select_for_update(nowait=True).get(project=project)
+            result = run_obsidian_lifecycle(obs_source, mode='full')
+            return render_obsidian_section(request, project, obs_source, message=f"Indexed {result['indexed_count']} note(s).")
     except Exception as e:
+        if isinstance(e, type(get_object_or_404(Project, project_id=store_id))):
+            pass # ignore
+        from django.db.utils import OperationalError
+        if isinstance(e, OperationalError):
+            project = get_object_or_404(Project, project_id=store_id)
+            obs_source = get_object_or_404(ObsidianSource, project=project)
+            return render_obsidian_section(request, project, obs_source, message="Operation already in progress.", is_error=True)
+
+        project = get_object_or_404(Project, project_id=store_id)
+        obs_source = get_object_or_404(ObsidianSource, project=project)
         return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
 
 
@@ -473,12 +486,23 @@ def obsidian_index(request, store_id):
 @require_http_methods(["POST"])
 def obsidian_index_new(request, store_id):
     """Run incremental Obsidian vault index for unindexed notes."""
-    project = get_object_or_404(Project, project_id=store_id)
-    obs_source = get_object_or_404(ObsidianSource, project=project)
+    from django.db import transaction
     try:
-        result = run_obsidian_lifecycle(obs_source, mode='new')
-        return render_obsidian_section(request, project, obs_source, message=f"Indexed {result['indexed_count']} new note(s).")
+        with transaction.atomic():
+            project = get_object_or_404(Project, project_id=store_id)
+            # Acquire lock to prevent concurrent indexing operations
+            obs_source = ObsidianSource.objects.select_for_update(nowait=True).get(project=project)
+            result = run_obsidian_lifecycle(obs_source, mode='new')
+            return render_obsidian_section(request, project, obs_source, message=f"Indexed {result['indexed_count']} new note(s).")
     except Exception as e:
+        from django.db.utils import OperationalError
+        if isinstance(e, OperationalError):
+            project = get_object_or_404(Project, project_id=store_id)
+            obs_source = get_object_or_404(ObsidianSource, project=project)
+            return render_obsidian_section(request, project, obs_source, message="Operation already in progress.", is_error=True)
+
+        project = get_object_or_404(Project, project_id=store_id)
+        obs_source = get_object_or_404(ObsidianSource, project=project)
         return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
 
 
@@ -486,22 +510,33 @@ def obsidian_index_new(request, store_id):
 @require_http_methods(["POST"])
 def obsidian_sync(request, store_id):
     """Find new and updated notes in Obsidian vault without automatically indexing them."""
-    project = get_object_or_404(Project, project_id=store_id)
-    obs_source = get_object_or_404(ObsidianSource, project=project)
+    from django.db import transaction
     try:
-        result = run_obsidian_lifecycle(obs_source, mode='discover')
-        new_count = obs_source.files.filter(status='PENDING').count()
-        modified_count = obs_source.files.filter(status='MODIFIED').count()
-        
-        parts = []
-        if new_count > 0:
-            parts.append(f"{new_count} new note(s)")
-        if modified_count > 0:
-            parts.append(f"{modified_count} updated note(s)")
+        with transaction.atomic():
+            project = get_object_or_404(Project, project_id=store_id)
+            # Acquire lock to prevent concurrent sync operations
+            obs_source = ObsidianSource.objects.select_for_update(nowait=True).get(project=project)
+            result = run_obsidian_lifecycle(obs_source, mode='discover')
+            new_count = obs_source.files.filter(status='PENDING').count()
+            modified_count = obs_source.files.filter(status='MODIFIED').count()
             
-        summary = ", ".join(parts) if parts else "no new or modified notes"
-        return render_obsidian_section(request, project, obs_source, message=f"Vault scanned: Found {summary} ({result['total_files']} notes total).")
+            parts = []
+            if new_count > 0:
+                parts.append(f"{new_count} new note(s)")
+            if modified_count > 0:
+                parts.append(f"{modified_count} updated note(s)")
+
+            summary = ", ".join(parts) if parts else "no new or modified notes"
+            return render_obsidian_section(request, project, obs_source, message=f"Vault scanned: Found {summary} ({result['total_files']} notes total).")
     except Exception as e:
+        from django.db.utils import OperationalError
+        if isinstance(e, OperationalError):
+            project = get_object_or_404(Project, project_id=store_id)
+            obs_source = get_object_or_404(ObsidianSource, project=project)
+            return render_obsidian_section(request, project, obs_source, message="Operation already in progress.", is_error=True)
+
+        project = get_object_or_404(Project, project_id=store_id)
+        obs_source = get_object_or_404(ObsidianSource, project=project)
         return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
 
 

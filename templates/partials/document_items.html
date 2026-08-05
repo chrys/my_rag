@@ -30,7 +30,7 @@
         </span>
         {% endif %}
         <span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">{{ doc.state.name }}</span>
-        <button hx-delete="{{ url_prefix }}/api/documents/{{ doc.name }}?store_id={{ store_id }}"
+        <button hx-delete="{{ url_prefix }}/api/documents/{{ doc.name }}?store_id={{ store_id }}" hx-disabled-elt="this"
             hx-target="closest .document-item"
             hx-swap="outerHTML"
             hx-confirm="Are you sure you want to delete this document?"

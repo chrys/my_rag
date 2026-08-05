@@ -171,7 +171,7 @@
 
                     <!-- Evaluate button for Synthetic QA -->
                     <button id="run-synthetic-eval-btn" disabled
-                        hx-post="{% url 'custom_admin:run-evaluation' %}"
+                        hx-post="{% url 'custom_admin:run-evaluation' %}" hx-disabled-elt="this"
                         hx-target="#evaluation-content-pane"
                         hx-include="#hidden-project-id,#selected-document-id,#hidden-eval-method"
                         class="btn-primary-forced w-full disabled:opacity-60 disabled:cursor-not-allowed">
@@ -194,7 +194,7 @@
                     </div>
 
                     <form id="manual-eval-form" 
-                          hx-post="{% url 'custom_admin:manual-eval-create' %}" 
+                          hx-post="{% url 'custom_admin:manual-eval-create' %}" hx-disabled-elt="find button[type='submit']"
                           hx-target="#evaluation-content-pane" 
                           hx-swap="innerHTML"
                           enctype="multipart/form-data">
@@ -329,6 +329,7 @@
             configBtn.classList.remove("opacity-50", "pointer-events-none");
 
             runBtn.setAttribute("hx-post", runEvalBaseUrl.replace("PLACEHOLDER", projectId));
+            runBtn.setAttribute("hx-disabled-elt", "this");
             htmx.process(runBtn);
         } else if (method === "synthetic_qa") {
             ragasControls.classList.add("hidden");

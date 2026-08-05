@@ -16,7 +16,7 @@
         <div class="flex items-center gap-3">
             {% if pending_gen_count > 0 %}
             <button 
-                hx-post="{% url 'custom_admin:manual-eval-generate-all' run.id %}"
+                hx-post="{% url 'custom_admin:manual-eval-generate-all' run.id %}" hx-disabled-elt="this"
                 hx-target="#evaluation-content-pane"
                 hx-swap="innerHTML"
                 class="btn-primary-forced flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all">
@@ -98,7 +98,7 @@
                 <div class="flex items-center justify-between">
                     <span class="text-xs text-gray-400 italic">Answer not generated yet.</span>
                     <button 
-                        hx-post="{% url 'custom_admin:manual-eval-generate-answer' item.id %}"
+                        hx-post="{% url 'custom_admin:manual-eval-generate-answer' item.id %}" hx-disabled-elt="this"
                         hx-target="#evaluation-content-pane"
                         hx-swap="innerHTML"
                         class="btn-secondary-forced text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-purple-50 transition-colors">
@@ -117,7 +117,7 @@
                 <div class="flex items-center justify-between">
                     <span class="text-xs text-rose-600 dark:text-rose-400">✗ Generation error: {{ item.error_message }}</span>
                     <button 
-                        hx-post="{% url 'custom_admin:manual-eval-generate-answer' item.id %}"
+                        hx-post="{% url 'custom_admin:manual-eval-generate-answer' item.id %}" hx-disabled-elt="this"
                         hx-target="#evaluation-content-pane"
                         hx-swap="innerHTML"
                         class="btn-secondary-forced text-xs font-semibold px-3 py-1.5 rounded-lg">
@@ -157,7 +157,7 @@
                 <div class="flex items-center gap-2">
                     <!-- Red / Bad -->
                     <button 
-                        hx-post="{% url 'custom_admin:manual-eval-rate' item.id %}"
+                        hx-post="{% url 'custom_admin:manual-eval-rate' item.id %}" hx-disabled-elt="this"
                         hx-target="#evaluation-content-pane"
                         hx-swap="innerHTML"
                         hx-vals='{"rating": "RED"}'
@@ -167,7 +167,7 @@
 
                     <!-- Orange / Needs Improvement -->
                     <button 
-                        hx-post="{% url 'custom_admin:manual-eval-rate' item.id %}"
+                        hx-post="{% url 'custom_admin:manual-eval-rate' item.id %}" hx-disabled-elt="this"
                         hx-target="#evaluation-content-pane"
                         hx-swap="innerHTML"
                         hx-vals='{"rating": "ORANGE"}'
@@ -177,7 +177,7 @@
 
                     <!-- Green / Good -->
                     <button 
-                        hx-post="{% url 'custom_admin:manual-eval-rate' item.id %}"
+                        hx-post="{% url 'custom_admin:manual-eval-rate' item.id %}" hx-disabled-elt="this"
                         hx-target="#evaluation-content-pane"
                         hx-swap="innerHTML"
                         hx-vals='{"rating": "GREEN"}'
@@ -188,7 +188,7 @@
                     <!-- Clear Rating -->
                     {% if item.rating != 'UNRATED' %}
                     <button 
-                        hx-post="{% url 'custom_admin:manual-eval-rate' item.id %}"
+                        hx-post="{% url 'custom_admin:manual-eval-rate' item.id %}" hx-disabled-elt="this"
                         hx-target="#evaluation-content-pane"
                         hx-swap="innerHTML"
                         hx-vals='{"rating": "UNRATED"}'
