@@ -9,6 +9,12 @@ from .models import Project, SystemPrompt
 class SystemPromptSerializer(serializers.ModelSerializer):
     """Serializer for SystemPrompt model"""
     
+    def validate_content(self, value):
+        """Sanitize prompt content"""
+        if value and len(value) > 10000:
+            raise serializers.ValidationError("System prompt is too long. Max 10000 characters.")
+        return value
+
     class Meta:
         model = SystemPrompt
         fields = ['id', 'project', 'content', 'created_at', 'updated_at']
@@ -67,8 +73,4 @@ class ProjectListSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Project
-        fields = [
-            'id', 'project_id', 'display_name', 'storage_type',
-            'embedding_model', 'llm_model', 'disable_thinking',
-            'document_count', 'created_at', 'is_active'
-        ]
+        fields = ['id', 'project_id', 'display_name', 'storage_type', 'is_active', 'document_count', 'created_at']

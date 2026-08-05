@@ -5,7 +5,7 @@ DRF API Views for documents app
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from .models import Document
 from .serializers import (
     DocumentSerializer,
@@ -16,6 +16,13 @@ from .serializers import (
 
 
 class DocumentViewSet(viewsets.ModelViewSet):
+    def perform_create(self, serializer):
+        project = serializer.validated_data.get('project')
+        if project and project.user and project.user != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You do not have permission to add to this project.")
+        serializer.save()
+
     """
     API ViewSet for Document model
     
@@ -27,10 +34,17 @@ class DocumentViewSet(viewsets.ModelViewSet):
     - DELETE /api/documents/{id}/ - Delete document
     """
     queryset = Document.objects.all()
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     lookup_field = 'pk'
     lookup_value_regex = '.+'  # Allow any character including dots
     
+
+    def get_queryset(self):
+        """Filter by authenticated user"""
+        if getattr(self, 'swagger_fake_view', False):
+            return Document.objects.none()
+        return Document.objects.filter(project__user=self.request.user)
+
     def get_serializer_class(self):
         """Return appropriate serializer based on action"""
         if self.action == 'create':

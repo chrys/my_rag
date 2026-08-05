@@ -66,7 +66,7 @@ DATABASES = {
 }
 
 # SECRET_KEY must be set in environment for production
-if not os.getenv('SECRET_KEY') or os.getenv('SECRET_KEY') == 'django-insecure-dev-key-change-in-production':
+if not os.getenv('SECRET_KEY') or os.getenv('SECRET_KEY') == 'django-insecure-dev-key-fallback':
     raise ValueError("SECRET_KEY environment variable must be set and changed in production")
 
 # Static files - use whitenoise for serving static files

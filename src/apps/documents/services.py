@@ -13,6 +13,8 @@ def get_safe_table_name(project_id: str) -> str:
     and automatically generated index names (e.g. {table_name}_idx_1) under 63 bytes.
     Uses MD5 hash to ensure uniqueness while preserving a readable prefix.
     """
+    # Ensure project_id is safe before doing string operations
+    project_id = "".join(c for c in project_id if c.isalnum() or c == '_')
     base_name = f"rag_project_{project_id}"
     if len(base_name) > 48:
         import hashlib
