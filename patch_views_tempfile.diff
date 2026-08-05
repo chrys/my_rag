@@ -1,0 +1,10 @@
+--- src/apps/documents/views.py
++++ src/apps/documents/views.py
+@@ -193,7 +193,6 @@
+                 if success:
+                     storage.add_document(store_id, filename)
+                 else:
+-                    os.unlink(filepath)
+                     return JsonResponse({'error': 'Failed to index document'}, status=500)
+             elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
+                 project = Project.objects.filter(project_id=store_id).first()

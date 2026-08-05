@@ -1,0 +1,27 @@
+--- src/apps/evaluate/admin_views.py
++++ src/apps/evaluate/admin_views.py
+@@ -51,14 +51,14 @@
+ @require_http_methods(["GET"])
+ def evaluate_index(request):
+     """Admin view mapping all projects and their latest eval status."""
+-        projects_qs = Project.objects.filter(is_active=True)
++        projects_qs = Project.objects.filter(is_active=True).select_related('user')
+     projects_data = []
+
+     for project in projects_qs:
+         qa_count = EvaluationDataset.objects.filter(project=project).count()
+         latest_run = EvaluationRun.objects.filter(project=project).order_by("-started_at").first()
+         metrics_data = None
+         if latest_run and latest_run.status == "SUCCESS":
+             metrics = EvaluationResultMetrics.objects.filter(run=latest_run)
+             if metrics.exists():
+                 from django.db.models import Avg
+@@ -100,7 +100,7 @@
+ @require_http_methods(["GET"])
+ def evaluate_project_detail(request, store_id):
+     project = get_object_or_404(Project, project_id=store_id)
+-        dataset_items = EvaluationDataset.objects.filter(project=project)
++        dataset_items = EvaluationDataset.objects.filter(project=project).select_related('document')
+
+     context = {
+         "project": project,

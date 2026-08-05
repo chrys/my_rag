@@ -1,0 +1,42 @@
+--- src/apps/documents/views.py
++++ src/apps/documents/views.py
+@@ -453,7 +453,8 @@
+         result = run_obsidian_lifecycle(obs_source, mode='full')
+         return render_obsidian_section(request, project, obs_source, message=f"Vault path saved. Indexed {result['indexed_count']} note(s).")
+     except Exception as e:
+-        return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
++        error_message = str(e) if str(e) else "An unexpected error occurred"
++        return render_obsidian_section(request, project, obs_source, message=error_message, is_error=True)
+
+
+ @csrf_exempt
+@@ -465,7 +466,8 @@
+         result = run_obsidian_lifecycle(obs_source, mode='full')
+         return render_obsidian_section(request, project, obs_source, message=f"Indexed {result['indexed_count']} note(s).")
+     except Exception as e:
+-        return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
++        error_message = str(e) if str(e) else "An unexpected error occurred"
++        return render_obsidian_section(request, project, obs_source, message=error_message, is_error=True)
+
+
+ @csrf_exempt
+@@ -477,7 +479,8 @@
+         result = run_obsidian_lifecycle(obs_source, mode='new')
+         return render_obsidian_section(request, project, obs_source, message=f"Indexed {result['indexed_count']} new note(s).")
+     except Exception as e:
+-        return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
++        error_message = str(e) if str(e) else "An unexpected error occurred"
++        return render_obsidian_section(request, project, obs_source, message=error_message, is_error=True)
+
+
+ @csrf_exempt
+@@ -501,7 +504,8 @@
+         summary = ", ".join(parts) if parts else "no new or modified notes"
+         return render_obsidian_section(request, project, obs_source, message=f"Vault scanned: Found {summary} ({result['total_files']} notes total).")
+     except Exception as e:
+-        return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
++        error_message = str(e) if str(e) else "An unexpected error occurred"
++        return render_obsidian_section(request, project, obs_source, message=error_message, is_error=True)
+
+
+ @require_http_methods(["GET"])

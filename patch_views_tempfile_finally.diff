@@ -1,0 +1,156 @@
+--- src/apps/documents/views.py
++++ src/apps/documents/views.py
+@@ -178,57 +178,58 @@
+                 status=400,
+             )
+
+         # Save to temporary location
+         with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
+             for chunk in file.chunks():
+                 tmp.write(chunk)
+             filepath = tmp.name
+
+         try:
+             if store_id.startswith('local_'):
+                 # Local project indexing
+                 rag_engine = get_rag_engine(store_id)
+                 success = rag_engine.index_document(filepath, filename)
+
+                 if success:
+                     storage.add_document(store_id, filename)
+                 else:
+                     return JsonResponse({'error': 'Failed to index document'}, status=500)
+             elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
+                 project = Project.objects.filter(project_id=store_id).first()
+
+                 if store_id.startswith('postgres_'):
+                     conn_success, conn_error = test_postgres_connection()
+                     if not conn_success:
+                         error_msg = f"PostgreSQL VPS Connection failed: {conn_error}"
+                         if project:
+                             Document.objects.update_or_create(
+                                 project=project,
+                                 document_name=filename,
+                                 defaults={
+                                     'display_name': filename,
+                                     'state': 'FAILED',
+                                     'error_message': error_msg,
+                                     'indexed_at': None,
+                                     'is_expired_checked': is_expired_checked,
+                                     'expiration_date': expiration_date,
+                                 }
+                             )
+                         docs_qs = Document.objects.filter(project=project)
+                         documents = [_doc_adapter(d) for d in docs_qs]
+                         return render(request, 'partials/document_items.html', {
+                             'documents': documents,
+                             'store_id': store_id,
+                             'url_prefix': '/rag',
+                         })
+
+                 from src.postgres_rag import PostgresRAGEngine
+                 rag_engine = PostgresRAGEngine(store_id)
+
+                 try:
+                     success = rag_engine.index_document(filepath, filename)
+                 except EmbeddingRateLimitError as exc:
+                     if project:
+                         Document.objects.update_or_create(
+                             project=project,
+                             document_name=filename,
+                             defaults={
+                                 'display_name': filename,
+                                 'state': 'FAILED',
+                                 'error_message': str(exc),
+                                 'indexed_at': None,
+                                 'is_expired_checked': is_expired_checked,
+                                 'expiration_date': expiration_date,
+                             }
+                         )
+                     return JsonResponse({'error': str(exc)}, status=429)
+                 except Exception as exc:
+                     if project:
+                         Document.objects.update_or_create(
+                             project=project,
+                             document_name=filename,
+                             defaults={
+                                 'display_name': filename,
+                                 'state': 'FAILED',
+                                 'error_message': f"Unexpected error during indexing: {exc}",
+                                 'indexed_at': None,
+                                 'is_expired_checked': is_expired_checked,
+                                 'expiration_date': expiration_date,
+                             }
+                         )
+                     docs_qs = Document.objects.filter(project=project)
+                     documents = [_doc_adapter(d) for d in docs_qs]
+                     return render(request, 'partials/document_items.html', {
+                         'documents': documents,
+                         'store_id': store_id,
+                         'url_prefix': '/rag',
+                     })
+
+                 if success and project:
+                     # Add to explicit tracking model
+                     from django.utils import timezone
+                     Document.objects.update_or_create(
+                         project=project,
+                         document_name=filename,
+                         defaults={
+                             'display_name': filename,
+                             'state': 'INDEXED',
+                             'error_message': '',
+                             'indexed_at': timezone.now(),
+                             'is_expired_checked': is_expired_checked,
+                             'expiration_date': expiration_date,
+                         }
+                     )
+
+                     # Update project total document count
+                     project.document_count = Document.objects.filter(project=project, state='INDEXED').count()
+                     project.last_indexed_at = timezone.now()
+                     project.save()
+                 elif not success and project:
+                     Document.objects.update_or_create(
+                         project=project,
+                         document_name=filename,
+                         defaults={
+                             'display_name': filename,
+                             'state': 'FAILED',
+                             'error_message': 'Index returned false',
+                             'indexed_at': None,
+                             'is_expired_checked': is_expired_checked,
+                             'expiration_date': expiration_date,
+                         }
+                     )
+                     docs_qs = Document.objects.filter(project=project)
+                     documents = [_doc_adapter(d) for d in docs_qs]
+                     return render(request, 'partials/document_items.html', {
+                         'documents': documents,
+                         'store_id': store_id,
+                         'url_prefix': '/rag',
+                     })
+
+             else:
+                 # Google File Search indexing
+                 # Look up the project to get the external_store_id if available
+                 project = Project.objects.filter(project_id=store_id).first()
+                 from src.google_file_search import GoogleFileSearchPermissionError
+
+                 if project and project.external_store_id:
+                     # Use the actual Google store ID
+                     google_store_id = project.external_store_id
+                 else:
+                     # Fallback to store_id (for backward compatibility)
+                     google_store_id = store_id
+
+                 try:
+                     document_resource_name = gfs.add_document_to_store(google_store_id, filepath)
+                 except GoogleFileSearchPermissionError as exc:
+                     return JsonResponse({'error': str(exc)}, status=403)
+
+                 if not document_resource_name:
+                     return JsonResponse({'error': 'Failed to upload document to Google File Search store'}, status=502)
+         finally:
+             if os.path.exists(filepath):
+                 os.unlink(filepath)

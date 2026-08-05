@@ -159,9 +159,13 @@ def chat(request):
             if isinstance(llm, LLM):
                 Settings.llm = llm
             
+            from llama_index.core.vector_stores import MetadataFilters, ExactMatchFilter
+            filters = MetadataFilters(
+                filters=[ExactMatchFilter(key="project_id", value=project.project_id if project else store_id)]
+            )
             index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
             mode = getattr(project, 'response_mode', 'compact') if project else 'compact'
-            query_engine = index.as_query_engine(llm=llm, response_mode=mode)
+            query_engine = index.as_query_engine(llm=llm, response_mode=mode, filters=filters)
             
             from .services import generate_adaptive_hyde_passage
             search_query = generate_adaptive_hyde_passage(query, model_id=target_llm, disable_thinking=disable_thinking) if (project and getattr(project, 'use_hyde', False)) else query
@@ -316,9 +320,13 @@ def chat_submit(request):
             if isinstance(llm, LLM):
                 Settings.llm = llm
             
+            from llama_index.core.vector_stores import MetadataFilters, ExactMatchFilter
+            filters = MetadataFilters(
+                filters=[ExactMatchFilter(key="project_id", value=project.project_id if project else store_id)]
+            )
             index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
             mode = getattr(project, 'response_mode', 'compact') if project else 'compact'
-            query_engine = index.as_query_engine(llm=llm, response_mode=mode)
+            query_engine = index.as_query_engine(llm=llm, response_mode=mode, filters=filters)
             
             from .services import generate_adaptive_hyde_passage
             search_query = generate_adaptive_hyde_passage(query, model_id=target_llm, disable_thinking=disable_thinking) if (project and getattr(project, 'use_hyde', False)) else query

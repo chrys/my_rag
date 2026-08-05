@@ -1,0 +1,22 @@
+--- src/apps/chat/api_views.py
++++ src/apps/chat/api_views.py
+@@ -25,7 +25,7 @@
+     - POST /api/messages/ - Create message
+     - GET /api/messages/{id}/ - Get message
+     """
+-    queryset = ChatMessage.objects.all()
++    queryset = ChatMessage.objects.all().select_related('project', 'user')
+     permission_classes = [AllowAny]
+
+     def get_serializer_class(self):
+--- src/apps/documents/api_views.py
++++ src/apps/documents/api_views.py
+@@ -27,7 +27,7 @@
+     - GET /api/documents/{id}/ - Get document details
+     - DELETE /api/documents/{id}/ - Delete document
+     """
+-    queryset = Document.objects.all()
++    queryset = Document.objects.all().select_related('project')
+     permission_classes = [AllowAny]
+
+     def get_serializer_class(self):

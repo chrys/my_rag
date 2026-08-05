@@ -1,0 +1,13 @@
+--- src/apps/evaluate/eval_services.py
++++ src/apps/evaluate/eval_services.py
+@@ -531,9 +531,9 @@
+         QA_GEN_STATUS[project_id] = {"status": "SUCCESS", "error": "", "count": len(chunks) * 3}
+         logger.info(f"Successfully generated {len(chunks) * 3} QA pairs for project {project_id}.")
+
+     except Exception as exc:
+         logger.error(f"Error generating QA pairs for project {project_id}: {exc}")
+-        QA_GEN_STATUS[project_id] = {"status": "FAILED", "error": str(exc), "count": 0}
++        QA_GEN_STATUS[project_id] = {"status": "FAILED", "error": str(exc) if str(exc) else "An unexpected error occurred", "count": 0}
+
+
+ def execute_evaluation_run(run_id: str) -> None:

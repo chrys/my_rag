@@ -14,7 +14,7 @@ class EvaluationDatasetViewSet(viewsets.ModelViewSet):
     """
     API ViewSet for EvaluationDataset model
     """
-    queryset = EvaluationDataset.objects.all().select_related('project', 'document')
+    queryset = EvaluationDataset.objects.all()
     serializer_class = EvaluationDatasetSerializer
     permission_classes = [AllowAny]
 
@@ -24,7 +24,7 @@ class EvaluationDatasetViewSet(viewsets.ModelViewSet):
         project_id = request.query_params.get("project_id")
         if not project_id:
             return Response({"error": "project_id required"}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         queryset = self.get_queryset().filter(project_id=project_id)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
@@ -34,7 +34,7 @@ class EvaluationRunViewSet(viewsets.ModelViewSet):
     """
     API ViewSet for EvaluationRun model
     """
-    queryset = EvaluationRun.objects.all().select_related('project')
+    queryset = EvaluationRun.objects.all()
     serializer_class = EvaluationRunSerializer
     permission_classes = [AllowAny]
 
@@ -43,6 +43,6 @@ class EvaluationResultMetricsViewSet(viewsets.ReadOnlyModelViewSet):
     """
     API ViewSet for EvaluationResultMetrics model (Read-only)
     """
-    queryset = EvaluationResultMetrics.objects.all().select_related('run', 'dataset_item')
+    queryset = EvaluationResultMetrics.objects.all()
     serializer_class = EvaluationResultMetricsSerializer
     permission_classes = [AllowAny]

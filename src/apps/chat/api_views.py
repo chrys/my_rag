@@ -25,7 +25,7 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
     - POST /api/messages/ - Create message
     - GET /api/messages/{id}/ - Get message
     """
-    queryset = ChatMessage.objects.all()
+    queryset = ChatMessage.objects.all().select_related('project', 'user')
     permission_classes = [AllowAny]
     
     def get_serializer_class(self):

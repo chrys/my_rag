@@ -1,0 +1,76 @@
+--- src/apps/evaluate/eval_services.py
++++ src/apps/evaluate/eval_services.py
+@@ -225,7 +225,12 @@
+             vector_store=vector_store,
+             embed_model=self.embed_model
+         )
+-        retriever = index.as_retriever(similarity_top_k=5)
++
++        from llama_index.core.vector_stores import MetadataFilters, ExactMatchFilter
++        filters = MetadataFilters(
++            filters=[ExactMatchFilter(key="project_id", value=self.project_id)]
++        )
++        retriever = index.as_retriever(similarity_top_k=5, filters=filters)
+
+         # Step 4: Run Tests & Calculate Recall
+         matches = 0
+@@ -603,7 +608,12 @@
+         # Set up LlamaIndex PostgreSQL Retriever
+         vector_store = get_vector_store(project.project_id)
+         index = VectorStoreIndex.from_vector_store(vector_store)
+-        retriever = index.as_retriever(similarity_top_k=3)
++
++        from llama_index.core.vector_stores import MetadataFilters, ExactMatchFilter
++        filters = MetadataFilters(
++            filters=[ExactMatchFilter(key="project_id", value=project.project_id)]
++        )
++        retriever = index.as_retriever(similarity_top_k=3, filters=filters)
+
+         # Ragas dynamic import check
+         ragas_available = False
+@@ -774,7 +784,12 @@
+         try:
+             vector_store = get_vector_store(project.project_id)
+             index = VectorStoreIndex.from_vector_store(vector_store)
+-            retriever = index.as_retriever(similarity_top_k=3)
++
++            from llama_index.core.vector_stores import MetadataFilters, ExactMatchFilter
++            filters = MetadataFilters(
++                filters=[ExactMatchFilter(key="project_id", value=project.project_id)]
++            )
++            retriever = index.as_retriever(similarity_top_k=3, filters=filters)
+             nodes = retriever.retrieve(item.question)
+             contexts = [n.text for n in nodes if hasattr(n, 'text') and n.text]
+         except Exception as ret_err:
+--- src/apps/chat/views.py
++++ src/apps/chat/views.py
+@@ -159,9 +159,13 @@
+             if isinstance(llm, LLM):
+                 Settings.llm = llm
+
++            from llama_index.core.vector_stores import MetadataFilters, ExactMatchFilter
++            filters = MetadataFilters(
++                filters=[ExactMatchFilter(key="project_id", value=project.project_id if project else store_id)]
++            )
+             index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
+             mode = getattr(project, 'response_mode', 'compact') if project else 'compact'
+-            query_engine = index.as_query_engine(llm=llm, response_mode=mode)
++            query_engine = index.as_query_engine(llm=llm, response_mode=mode, filters=filters)
+
+             from .services import generate_adaptive_hyde_passage
+             search_query = generate_adaptive_hyde_passage(query, model_id=target_llm, disable_thinking=disable_thinking) if (project and getattr(project, 'use_hyde', False)) else query
+@@ -316,9 +320,13 @@
+             if isinstance(llm, LLM):
+                 Settings.llm = llm
+
++            from llama_index.core.vector_stores import MetadataFilters, ExactMatchFilter
++            filters = MetadataFilters(
++                filters=[ExactMatchFilter(key="project_id", value=project.project_id if project else store_id)]
++            )
+             index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
+             mode = getattr(project, 'response_mode', 'compact') if project else 'compact'
+-            query_engine = index.as_query_engine(llm=llm, response_mode=mode)
++            query_engine = index.as_query_engine(llm=llm, response_mode=mode, filters=filters)
+
+             from .services import generate_adaptive_hyde_passage
+             search_query = generate_adaptive_hyde_passage(query, model_id=target_llm, disable_thinking=disable_thinking) if (project and getattr(project, 'use_hyde', False)) else query

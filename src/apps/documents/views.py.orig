@@ -88,9 +88,9 @@ def list_documents(request, store_id):
                 documents = []
         else:
             # For local projects, use Django ORM
-            docs_qs = Document.objects.filter(project=project).select_related('project')
+            docs_qs = Document.objects.filter(project=project)
             documents = [_doc_adapter(d) for d in docs_qs]
-        
+
         project_name = project.display_name
         storage_type = project.storage_type
     else:
@@ -145,14 +145,14 @@ def list_documents(request, store_id):
 def upload_document(request, store_id):
     """Upload and index a document"""
     storage = get_local_project_storage()
-    
+
     if 'file' not in request.FILES:
         return JsonResponse({'error': 'No file provided'}, status=400)
-    
+
     file = request.FILES['file']
     if not file or file.name == '':
         return JsonResponse({'error': 'Invalid file'}, status=400)
-        
+
     is_expired_checked = request.POST.get('is_expired') == 'on'
     expiration_date = None
     if is_expired_checked:
@@ -166,7 +166,7 @@ def upload_document(request, store_id):
                     expiration_date = timezone.make_aware(parsed_dt)
                 else:
                     expiration_date = parsed_dt
-    
+
     try:
         filename = _sanitize_uploaded_filename(file.name)
         file_ext = os.path.splitext(filename)[1].lower()
@@ -177,22 +177,23 @@ def upload_document(request, store_id):
                 {'error': f'Unsupported file type: {file_ext or "[none]"}. Supported file types are: {supported_str}'},
                 status=400,
             )
-        
+
         # Save to temporary location
         with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
             for chunk in file.chunks():
                 tmp.write(chunk)
             filepath = tmp.name
-        
+
         try:
             if store_id.startswith('local_'):
                 # Local project indexing
                 rag_engine = get_rag_engine(store_id)
                 success = rag_engine.index_document(filepath, filename)
-                
+
                 if success:
                     storage.add_document(store_id, filename)
                 else:
+                    os.unlink(filepath)
                     return JsonResponse({'error': 'Failed to index document'}, status=500)
             elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
                 project = Project.objects.filter(project_id=store_id).first()
@@ -272,7 +273,7 @@ def upload_document(request, store_id):
                         'store_id': store_id,
                         'url_prefix': '/rag',
                     })
-                
+
                 if success:
                     if project:
                         Document.objects.update_or_create(
@@ -331,7 +332,7 @@ def upload_document(request, store_id):
         finally:
             if os.path.exists(filepath):
                 os.unlink(filepath)
-        
+
         # Return updated documents list
         project = Project.objects.filter(project_id=store_id).first()
         if project and project.storage_type == 'google':
@@ -345,7 +346,7 @@ def upload_document(request, store_id):
             # For local projects, check local storage first
             local_projects = storage.list_projects()
             proj = next((p for p in local_projects if p['id'] == store_id), None)
-            
+
             if proj:
                 documents = [
                     {
@@ -362,13 +363,13 @@ def upload_document(request, store_id):
                 ]
             else:
                 documents = []
-        
+
         return render(request, 'partials/document_items.html', {
             'documents': documents,
             'store_id': store_id,
             'url_prefix': '/rag',
         })
-    
+
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -385,13 +386,13 @@ def delete_document(request, document_id):
     # Strip trailing slash if any (from URL matching)
     document_id = document_id.rstrip('/')
     store_id = request.GET.get('store_id')
-    
+
     try:
         if store_id and store_id.startswith('local_'):
             # Local document deletion
             rag_engine = get_rag_engine(store_id)
             success = rag_engine.delete_document(document_id)
-            
+
             if success:
                 storage.remove_document(store_id, document_id)
         elif store_id and (store_id.startswith('rag_') or store_id.startswith('postgres_')):
@@ -416,7 +417,7 @@ def delete_document(request, document_id):
                 if len(parts) >= 2:
                     store_id_from_doc = parts[1]
                     gfs.delete_document_from_store(store_id_from_doc, document_id)
-        
+
         # Return refreshed document list HTML for HTMX to swap in
         from django.http import HttpResponse
         response = HttpResponse(status=200)
@@ -495,13 +496,13 @@ def obsidian_sync(request, store_id):
         result = run_obsidian_lifecycle(obs_source, mode='discover')
         new_count = obs_source.files.filter(status='PENDING').count()
         modified_count = obs_source.files.filter(status='MODIFIED').count()
-        
+
         parts = []
         if new_count > 0:
             parts.append(f"{new_count} new note(s)")
         if modified_count > 0:
             parts.append(f"{modified_count} updated note(s)")
-            
+
         summary = ", ".join(parts) if parts else "no new or modified notes"
         return render_obsidian_section(request, project, obs_source, message=f"Vault scanned: Found {summary} ({result['total_files']} notes total).")
     except Exception as e:

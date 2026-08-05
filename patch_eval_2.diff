@@ -1,0 +1,11 @@
+--- src/apps/evaluate/eval_services.py
++++ src/apps/evaluate/eval_services.py
+@@ -503,7 +503,7 @@
+
+     except Exception as exc:
+         logger.error(f"Error generating QA pairs: {exc}")
+-        QA_GEN_STATUS[project_id] = {"status": "FAILED", "error": str(exc), "count": 0}
++        QA_GEN_STATUS[project_id] = {"status": "FAILED", "error": str(exc) if str(exc) else "An unexpected error occurred", "count": 0}
+
+
+ def _evaluate_metric_via_llm(llm, metric_name: str, question: str, contexts: list[str], answer: str, ground_truth: str) -> float:

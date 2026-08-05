@@ -1,0 +1,16 @@
+--- src/apps/evaluate/eval_services.py
++++ src/apps/evaluate/eval_services.py
+@@ -345,11 +345,11 @@
+
+             # LlamaIndex's PGVectorStore typically uses 'metadata_' column, but legacy schemas might use 'metadata'
+             try:
+-                cursor.execute(f"SELECT text, metadata_ FROM {table} LIMIT 500;")
++                cursor.execute(f"SELECT text, metadata_ FROM {table} WHERE metadata_->>'project_id' = %s LIMIT 500;", (project_id,))
+             except Exception:
+                 try:
+                     conn.rollback()
+-                    cursor.execute(f"SELECT text, metadata FROM {table} LIMIT 500;")
++                    cursor.execute(f"SELECT text, metadata FROM {table} WHERE metadata->>'project_id' = %s LIMIT 500;", (project_id,))
+                 except Exception as inner_exc:
+                     logger.warning(f"Failed querying columns from table {table}: {inner_exc}")
+                     cursor.close()

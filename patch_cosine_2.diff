@@ -1,0 +1,12 @@
+--- src/apps/documents/services.py
++++ src/apps/documents/services.py
+@@ -359,7 +359,8 @@
+             user=config.get("USER", "postgres"),
+             password=config.get("PASSWORD", ""),
+             table_name=table_name,
+-            embed_dim=768 # Standard for gemini-embedding-001
++            embed_dim=768, # Standard for gemini-embedding-001
++            hnsw_kwargs={"distance_function": "cosine"}
+         )
+
+         storage_context = StorageContext.from_defaults(vector_store=vector_store)

@@ -1,0 +1,33 @@
+--- src/apps/evaluate/eval_services.py
++++ src/apps/evaluate/eval_services.py
+@@ -531,9 +531,9 @@
+         QA_GEN_STATUS[project_id] = {"status": "SUCCESS", "error": "", "count": len(chunks) * 3}
+         logger.info(f"Successfully generated {len(chunks) * 3} QA pairs for project {project_id}.")
+
+     except Exception as exc:
+         logger.error(f"Error generating QA pairs for project {project_id}: {exc}")
+-        QA_GEN_STATUS[project_id] = {"status": "FAILED", "error": str(exc), "count": 0}
++        QA_GEN_STATUS[project_id] = {"status": "FAILED", "error": str(exc) if str(exc) else "An unexpected error occurred", "count": 0}
+
+
+ def execute_evaluation_run(run_id: str) -> None:
+@@ -710,9 +710,9 @@
+
+     except Exception as exc:
+         logger.error(f"Error running evaluation: {exc}")
+         run.status = "FAILED"
+-        run.error_message = str(exc)
++        run.error_message = str(exc) if str(exc) else "An unexpected error occurred"
+         run.completed_at = timezone.now()
+         run.save()
+
+
+@@ -794,9 +794,9 @@
+
+     except Exception as exc:
+         logger.error(f"Error generating manual answer for item {item_id}: {exc}")
+         item.status = "FAILED"
+-        item.error_message = str(exc)
++        item.error_message = str(exc) if str(exc) else "An unexpected error occurred"
+         item.save()
+         return item

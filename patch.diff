@@ -1,0 +1,26 @@
+--- src/apps/documents/views.py
++++ src/apps/documents/views.py
+@@ -370,10 +370,11 @@
+         })
+
+     except Exception as e:
+         import traceback
+         traceback.print_exc()
+-        return JsonResponse({'error': f'Upload failed: {str(e)}'}, status=500)
++        error_message = str(e) if str(e) else "An unexpected error occurred"
++        return JsonResponse({'error': f'Upload failed: {error_message}'}, status=500)
+
+
+ @require_http_methods(["DELETE"])
+ @csrf_exempt
+@@ -422,9 +423,9 @@
+         response = HttpResponse(status=200)
+         response['HX-Trigger'] = 'documentListChanged'
+         return response
+     except Exception as e:
+-        return JsonResponse({'error': str(e)}, status=500)
++        return JsonResponse({'error': f'Delete failed: {str(e)}'}, status=500)
+
+
+ @csrf_exempt
+ @require_http_methods(["POST"])

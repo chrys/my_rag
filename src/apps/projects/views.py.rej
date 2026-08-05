@@ -1,0 +1,21 @@
+--- src/apps/projects/views.py
++++ src/apps/projects/views.py
+@@ -42,14 +42,14 @@
+     if request.user.is_authenticated:
+         # Standard user context
+         if request.user.is_superuser:
+-            projects = Project.objects.all().order_by('-created_at')
++            projects = Project.objects.all().select_related('user').order_by('-created_at')
+         else:
+-            projects = Project.objects.filter(
++            projects = Project.objects.filter(
+                 models.Q(user=request.user) | models.Q(user__isnull=True)
+-            ).order_by('-created_at')
++            ).select_related('user').order_by('-created_at')
+     else:
+         # Fallback logic for anonymous users looking at public/demo projects
+-        projects = Project.objects.filter(user__isnull=True).order_by('-created_at')
++        projects = Project.objects.filter(user__isnull=True).select_related('user').order_by('-created_at')
+
+     context = {
+         'projects': projects,

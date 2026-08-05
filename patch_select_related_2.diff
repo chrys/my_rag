@@ -1,0 +1,77 @@
+--- src/apps/evaluate/views.py
++++ src/apps/evaluate/views.py
+@@ -42,7 +42,7 @@
+         return JsonResponse({"error": f"Missing run {run_id}"}, status=404)
+
+     if request.method == "POST":
+-        dataset_items = EvaluationDataset.objects.filter(project=project)
++        dataset_items = EvaluationDataset.objects.filter(project=project).select_related('document')
+         if not dataset_items.exists():
+             return render(request, "evaluate/partials/run_status.html", {
+                 "run": {"status": "FAILED", "error_message": "No QA dataset items found. Please add or generate them first."}
+@@ -116,7 +116,7 @@
+ @require_http_methods(["GET"])
+ def run_metrics_partial(request, store_id, run_id):
+     run = get_object_or_404(EvaluationRun, id=run_id, project__project_id=store_id)
+-    metrics = EvaluationResultMetrics.objects.filter(run=run).select_related("dataset_item")
++    metrics = EvaluationResultMetrics.objects.filter(run=run).select_related("dataset_item", "dataset_item__document")
+
+     if run.status in ["PENDING", "RUNNING"]:
+         return render(request, "evaluate/partials/run_status.html", {"run": run})
+@@ -181,7 +181,7 @@
+ @require_http_methods(["GET"])
+ def dataset_list_partial(request, store_id):
+     project = get_object_or_404(Project, project_id=store_id)
+-        dataset_items = EvaluationDataset.objects.filter(project=project)
++        dataset_items = EvaluationDataset.objects.filter(project=project).select_related('document')
+     return render(request, "evaluate/partials/dataset_list.html", {
+         "dataset_items": dataset_items,
+         "store_id": store_id
+--- src/apps/evaluate/admin_views.py
++++ src/apps/evaluate/admin_views.py
+@@ -51,14 +51,14 @@
+ @require_http_methods(["GET"])
+ def evaluate_index(request):
+     """Admin view mapping all projects and their latest eval status."""
+-        projects_qs = Project.objects.filter(is_active=True)
++        projects_qs = Project.objects.filter(is_active=True).select_related('user')
+     projects_data = []
+
+     for project in projects_qs:
+         qa_count = EvaluationDataset.objects.filter(project=project).count()
+         latest_run = EvaluationRun.objects.filter(project=project).order_by("-started_at").first()
+         metrics_data = None
+         if latest_run and latest_run.status == "SUCCESS":
+             metrics = EvaluationResultMetrics.objects.filter(run=latest_run)
+             if metrics.exists():
+                 from django.db.models import Avg
+@@ -100,7 +100,7 @@
+ @require_http_methods(["GET"])
+ def evaluate_project_detail(request, store_id):
+     project = get_object_or_404(Project, project_id=store_id)
+-        dataset_items = EvaluationDataset.objects.filter(project=project)
++        dataset_items = EvaluationDataset.objects.filter(project=project).select_related('document')
+
+     context = {
+         "project": project,
+--- src/apps/projects/views.py
++++ src/apps/projects/views.py
+@@ -42,14 +42,14 @@
+     if request.user.is_authenticated:
+         # Standard user context
+         if request.user.is_superuser:
+-            projects = Project.objects.all().order_by('-created_at')
++            projects = Project.objects.all().select_related('user').order_by('-created_at')
+         else:
+-            projects = Project.objects.filter(
++            projects = Project.objects.filter(
+                 models.Q(user=request.user) | models.Q(user__isnull=True)
+-            ).order_by('-created_at')
++            ).select_related('user').order_by('-created_at')
+     else:
+         # Fallback logic for anonymous users looking at public/demo projects
+-        projects = Project.objects.filter(user__isnull=True).order_by('-created_at')
++        projects = Project.objects.filter(user__isnull=True).select_related('user').order_by('-created_at')
+
+     context = {
+         'projects': projects,

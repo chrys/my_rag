@@ -1,0 +1,12 @@
+--- src/apps/documents/services.py
++++ src/apps/documents/services.py
+@@ -360,7 +360,8 @@
+             password=config.get("PASSWORD", ""),
+             table_name=table_name,
+             embed_dim=768, # Standard for gemini-embedding-001
+-        )
++            hnsw_kwargs={"distance_function": "cosine"}
++        ) if hasattr(PGVectorStore, "from_params") else None
+
+         storage_context = StorageContext.from_defaults(vector_store=vector_store)
+         node_parser = select_node_parser(file_path, strategy=strategy)

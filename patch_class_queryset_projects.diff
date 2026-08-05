@@ -1,0 +1,19 @@
+--- src/apps/projects/api_views.py
++++ src/apps/projects/api_views.py
+@@ -33,7 +33,7 @@
+     - By project_id
+     - By external_store_id (may contain slashes)
+     """
+-    queryset = Project.objects.all()
++    queryset = Project.objects.all().select_related('user')
+     permission_classes = [IsAuthenticated]
+     lookup_field = 'pk'  # Default lookup field
+     lookup_value_regex = '[^/]+'  # Allow anything except forward slash in URL segment
+@@ -168,7 +168,7 @@
+     - PUT /api/prompts/{id}/ - Update prompt
+     - DELETE /api/prompts/{id}/ - Delete prompt
+     """
+-    queryset = SystemPrompt.objects.all()
++    queryset = SystemPrompt.objects.all().select_related('project')
+     serializer_class = SystemPromptSerializer
+     permission_classes = [AllowAny]

@@ -1,0 +1,22 @@
+--- src/postgres_rag.py
++++ src/postgres_rag.py
+@@ -257,15 +257,15 @@
+                         # Delete all matching chunks by checking file_name in metadata_ or metadata JSON column
+                         try:
+                             cursor.execute(
+-                                f"DELETE FROM {table} WHERE metadata_->>'file_name' = %s OR metadata_->>'file_path' = %s;",
+-                                (document_name, document_name)
++                                f"DELETE FROM {table} WHERE (metadata_->>'file_name' = %s OR metadata_->>'file_path' = %s) AND metadata_->>'project_id' = %s;",
++                                (document_name, document_name, self.project_id)
+                             )
+                             conn.commit()
+                         except Exception:
+                             try:
+                                 conn.rollback()
+                                 cursor.execute(
+-                                    f"DELETE FROM {table} WHERE metadata->>'file_name' = %s OR metadata->>'file_path' = %s;",
+-                                    (document_name, document_name)
++                                    f"DELETE FROM {table} WHERE (metadata->>'file_name' = %s OR metadata->>'file_path' = %s) AND metadata->>'project_id' = %s;",
++                                    (document_name, document_name, self.project_id)
+                                 )
+                                 conn.commit()

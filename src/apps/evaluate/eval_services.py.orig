@@ -41,16 +41,16 @@ class SyntheticQAEvaluator:
             model_name="models/gemini-embedding-001",
             api_key=api_key
         )
-        
+
         # Configure LlamaIndex globally to use Google GenAI/Gemini instead of OpenAI
         from llama_index.core import Settings
         from llama_index.llms.google_genai import GoogleGenAI
         from llama_index.core.embeddings import BaseEmbedding
         from llama_index.core.llms import LLM
-        
+
         if isinstance(self.embed_model, BaseEmbedding):
             Settings.embed_model = self.embed_model
-        
+
         llm = GoogleGenAI(
             model="gemini-2.5-flash-lite",
             api_key=api_key
@@ -73,7 +73,7 @@ class SyntheticQAEvaluator:
             List of nodes containing 'node_id', 'text', and 'metadata'.
         """
         config = getattr(settings, "REMOTE_POSTGRES_CONFIG", {})
-        
+
         from src.apps.documents.services import get_safe_table_name
         safe_table = get_safe_table_name(self.project_id)
         tables_to_try = [
@@ -99,7 +99,7 @@ class SyntheticQAEvaluator:
                     # Check if table exists
                     cur.execute(f"""
                         SELECT EXISTS (
-                            SELECT FROM information_schema.tables 
+                            SELECT FROM information_schema.tables
                             WHERE table_name = '{table}'
                         );
                     """)
@@ -107,8 +107,8 @@ class SyntheticQAEvaluator:
                         # Try metadata_ first, fallback to metadata
                         try:
                             query = f"""
-                                SELECT id, text, node_id, metadata_ 
-                                FROM {table} 
+                                SELECT id, text, node_id, metadata_
+                                FROM {table}
                                 WHERE metadata_->>'file_name' = %s
                                 LIMIT 5;
                             """
@@ -117,8 +117,8 @@ class SyntheticQAEvaluator:
                         except Exception:
                             conn.rollback()
                             query = f"""
-                                SELECT id, text, node_id, metadata 
-                                FROM {table} 
+                                SELECT id, text, node_id, metadata
+                                FROM {table}
                                 WHERE metadata->>'file_name' = %s
                                 LIMIT 5;
                             """
@@ -225,12 +225,7 @@ Text:
             vector_store=vector_store,
             embed_model=self.embed_model
         )
-
-        from llama_index.core.vector_stores import MetadataFilters, ExactMatchFilter
-        filters = MetadataFilters(
-            filters=[ExactMatchFilter(key="project_id", value=self.project_id)]
-        )
-        retriever = index.as_retriever(similarity_top_k=5, filters=filters)
+        retriever = index.as_retriever(similarity_top_k=5)
 
         # Step 4: Run Tests & Calculate Recall
         matches = 0
@@ -243,7 +238,7 @@ Text:
             try:
                 retrieved_nodes = retriever.retrieve(question)
                 retrieved_ids = [n.node.node_id for n in retrieved_nodes]
-                
+
                 success = expected_node_id in retrieved_ids
                 if success:
                     matches += 1
@@ -288,13 +283,13 @@ def _get_postgres_chunks(project_id: str) -> list[dict]:
     """
     import psycopg2
     config = getattr(settings, "REMOTE_POSTGRES_CONFIG", {})
-    
+
     db_name = config.get("NAME")
     db_user = config.get("USER")
     db_pass = config.get("PASSWORD")
     db_host = config.get("HOST")
     db_port = config.get("PORT", "5432")
-    
+
     if not all([db_name, db_user, db_pass, db_host]):
         logger.warning("PostgreSQL credentials missing in settings.")
         return []
@@ -334,11 +329,11 @@ def _get_postgres_chunks(project_id: str) -> list[dict]:
                 connect_timeout=3
             )
             cursor = conn.cursor()
-            
+
             # Check if table exists
             cursor.execute(f"""
                 SELECT EXISTS (
-                    SELECT FROM information_schema.tables 
+                    SELECT FROM information_schema.tables
                     WHERE table_name = '{table}'
                 );
             """)
@@ -347,14 +342,14 @@ def _get_postgres_chunks(project_id: str) -> list[dict]:
                 cursor.close()
                 conn.close()
                 continue
-                
+
             # LlamaIndex's PGVectorStore typically uses 'metadata_' column, but legacy schemas might use 'metadata'
             try:
-                cursor.execute(f"SELECT text, metadata_ FROM {table} WHERE metadata_->>'project_id' = %s LIMIT 500;", (project_id,))
+                cursor.execute(f"SELECT text, metadata_ FROM {table} LIMIT 500;")
             except Exception:
                 try:
                     conn.rollback()
-                    cursor.execute(f"SELECT text, metadata FROM {table} WHERE metadata->>'project_id' = %s LIMIT 500;", (project_id,))
+                    cursor.execute(f"SELECT text, metadata FROM {table} LIMIT 500;")
                 except Exception as inner_exc:
                     logger.warning(f"Failed querying columns from table {table}: {inner_exc}")
                     cursor.close()
@@ -412,7 +407,7 @@ def _get_postgres_chunks(project_id: str) -> list[dict]:
                 except Exception:
                     pass
             continue
-            
+
     return chunks
 
 
@@ -476,7 +471,7 @@ Respond ONLY with a valid JSON array matching this schema:
             try:
                 response = llm.complete(prompt)
                 resp_text = (response.text or "").strip()
-                
+
                 # Clean up markdown JSON wrappers if present
                 if resp_text.startswith("```json"):
                     resp_text = resp_text[7:]
@@ -488,7 +483,7 @@ Respond ONLY with a valid JSON array matching this schema:
                 for item in qa_list:
                     if qas_generated >= num_questions:
                         break
-                    
+
                     EvaluationDataset.objects.create(
                         project=project,
                         document=document_obj,
@@ -508,7 +503,7 @@ Respond ONLY with a valid JSON array matching this schema:
 
     except Exception as exc:
         logger.error(f"Error generating QA pairs: {exc}")
-        QA_GEN_STATUS[project_id] = {"status": "FAILED", "error": str(exc) if str(exc) else "An unexpected error occurred", "count": 0}
+        QA_GEN_STATUS[project_id] = {"status": "FAILED", "error": str(exc), "count": 0}
 
 
 def _evaluate_metric_via_llm(llm, metric_name: str, question: str, contexts: list[str], answer: str, ground_truth: str) -> float:
@@ -516,7 +511,7 @@ def _evaluate_metric_via_llm(llm, metric_name: str, question: str, contexts: lis
     Fallback LLM evaluation routine to compute metrics in case Ragas is not installed/loaded.
     """
     contexts_joined = "\n---\n".join(contexts)
-    
+
     prompts = {
         "faithfulness": f"""You are an evaluation expert. Evaluate if the generated answer is completely derived from the retrieved contexts (no hallucinations or extra extrapolations).
 Contexts:
@@ -526,7 +521,7 @@ Generated Answer:
 {answer}
 
 Respond ONLY with a single float score between 0.0 (completely hallucinated/unsupported) and 1.0 (completely supported by contexts).""",
-        
+
         "answer_relevancy": f"""You are an evaluation expert. Evaluate if the generated answer is highly relevant and directly addresses the user question.
 User Question:
 {question}
@@ -535,7 +530,7 @@ Generated Answer:
 {answer}
 
 Respond ONLY with a single float score between 0.0 (completely irrelevant) and 1.0 (completely relevant and addresses query).""",
-        
+
         "context_recall": f"""You are an evaluation expert. Compare the ground truth answer with the retrieved contexts, and evaluate the fraction of the ground truth that can be recalled from the contexts.
 Ground Truth Answer:
 {ground_truth}
@@ -544,7 +539,7 @@ Retrieved Contexts:
 {contexts_joined}
 
 Respond ONLY with a single float score between 0.0 (none of the ground truth is present in the contexts) and 1.0 (all ground truth details can be recalled from contexts).""",
-        
+
         "context_precision": f"""You are an evaluation expert. Given the user question and the retrieved contexts, evaluate how precise and relevant the contexts are for answering the question.
 User Question:
 {question}
@@ -580,7 +575,7 @@ def execute_evaluation_run(run_id: str) -> None:
 
         project = run.project
         dataset_items = EvaluationDataset.objects.filter(project=project)
-        
+
         if not dataset_items.exists():
             raise ValueError("No QA items found in dataset. Please add manual QAs, upload CSV, or generate QAs first.")
 
@@ -608,12 +603,7 @@ def execute_evaluation_run(run_id: str) -> None:
         # Set up LlamaIndex PostgreSQL Retriever
         vector_store = get_vector_store(project.project_id)
         index = VectorStoreIndex.from_vector_store(vector_store)
-
-        from llama_index.core.vector_stores import MetadataFilters, ExactMatchFilter
-        filters = MetadataFilters(
-            filters=[ExactMatchFilter(key="project_id", value=project.project_id)]
-        )
-        retriever = index.as_retriever(similarity_top_k=3, filters=filters)
+        retriever = index.as_retriever(similarity_top_k=3)
 
         # Ragas dynamic import check
         ragas_available = False
@@ -632,7 +622,7 @@ def execute_evaluation_run(run_id: str) -> None:
                 # Similarity search
                 nodes = retriever.retrieve(item.question)
                 contexts = [n.text for n in nodes]
-                
+
                 # If no contexts found, default
                 if not contexts:
                     contexts = ["No matching contexts retrieved from database."]
@@ -674,7 +664,7 @@ def execute_evaluation_run(run_id: str) -> None:
                     "answer": [t["answer"] for t in traces],
                     "ground_truth": [t["ground_truth"] for t in traces]
                 }
-                
+
                 df = pd.DataFrame(data_dict)
                 dataset_hf = Dataset.from_pandas(df)
 
@@ -722,7 +712,7 @@ def execute_evaluation_run(run_id: str) -> None:
     except Exception as exc:
         logger.error(f"Error running evaluation: {exc}")
         run.status = "FAILED"
-        run.error_message = str(exc) if str(exc) else "An unexpected error occurred"
+        run.error_message = str(exc)
         run.completed_at = timezone.now()
         run.save()
 
@@ -784,12 +774,7 @@ def generate_answer_for_manual_item(item_id: str) -> ManualEvaluationItem:
         try:
             vector_store = get_vector_store(project.project_id)
             index = VectorStoreIndex.from_vector_store(vector_store)
-
-            from llama_index.core.vector_stores import MetadataFilters, ExactMatchFilter
-            filters = MetadataFilters(
-                filters=[ExactMatchFilter(key="project_id", value=project.project_id)]
-            )
-            retriever = index.as_retriever(similarity_top_k=3, filters=filters)
+            retriever = index.as_retriever(similarity_top_k=3)
             nodes = retriever.retrieve(item.question)
             contexts = [n.text for n in nodes if hasattr(n, 'text') and n.text]
         except Exception as ret_err:
@@ -816,7 +801,7 @@ def generate_answer_for_manual_item(item_id: str) -> ManualEvaluationItem:
     except Exception as exc:
         logger.error(f"Error generating manual answer for item {item_id}: {exc}")
         item.status = "FAILED"
-        item.error_message = str(exc) if str(exc) else "An unexpected error occurred"
+        item.error_message = str(exc)
         item.save()
         return item
 
@@ -833,4 +818,3 @@ def batch_generate_manual_answers(run_id: str) -> None:
     items = run.items.filter(status__in=["PENDING", "FAILED"])
     for item in items:
         generate_answer_for_manual_item(str(item.id))
-

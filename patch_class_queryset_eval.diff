@@ -1,0 +1,28 @@
+--- src/apps/evaluate/api_views.py
++++ src/apps/evaluate/api_views.py
+@@ -14,7 +14,7 @@
+     """
+     API ViewSet for EvaluationDataset model
+     """
+-    queryset = EvaluationDataset.objects.all()
++    queryset = EvaluationDataset.objects.all().select_related('project', 'document')
+     serializer_class = EvaluationDatasetSerializer
+     permission_classes = [AllowAny]
+
+@@ -34,7 +34,7 @@
+     """
+     API ViewSet for EvaluationRun model
+     """
+-    queryset = EvaluationRun.objects.all()
++    queryset = EvaluationRun.objects.all().select_related('project')
+     serializer_class = EvaluationRunSerializer
+     permission_classes = [AllowAny]
+
+@@ -43,7 +43,7 @@
+     """
+     API ViewSet for EvaluationResultMetrics model (Read-only)
+     """
+-    queryset = EvaluationResultMetrics.objects.all()
++    queryset = EvaluationResultMetrics.objects.all().select_related('run', 'dataset_item')
+     serializer_class = EvaluationResultMetricsSerializer
+     permission_classes = [AllowAny]

@@ -42,7 +42,7 @@ def qa_generation_status(request, project_id):
     project = get_object_or_404(Project, project_id=project_id)
 
     if status_data["status"] == "SUCCESS":
-        dataset_items = EvaluationDataset.objects.filter(project=project).select_related("document")
+        dataset_items = EvaluationDataset.objects.filter(project=project)
         return render(request, "evaluate/qa_list_partial.html", {
             "project": project,
             "dataset_items": dataset_items,
@@ -116,7 +116,7 @@ def evaluation_results(request, run_id):
     Fetches evaluation metrics and renders the grid results table.
     """
     run = get_object_or_404(EvaluationRun, id=run_id)
-    metrics = EvaluationResultMetrics.objects.filter(run=run).select_related("dataset_item", "dataset_item__document")
+    metrics = EvaluationResultMetrics.objects.filter(run=run).select_related("dataset_item")
 
     if not metrics.exists():
         return HttpResponse('<div class="p-4 text-gray-500">No evaluation metrics recorded for this run.</div>')
@@ -181,7 +181,7 @@ def delete_qa_item(request, item_id):
     item.delete()
 
     if request.headers.get("HX-Request"):
-        dataset_items = EvaluationDataset.objects.filter(project=project).select_related("document")
+        dataset_items = EvaluationDataset.objects.filter(project=project)
         return render(request, "evaluate/qa_list_partial.html", {
             "project": project,
             "dataset_items": dataset_items,
@@ -189,4 +189,3 @@ def delete_qa_item(request, item_id):
         })
 
     return redirect(reverse("custom_admin:qa-setup-workflow", kwargs={"project_id": project.project_id}))
-

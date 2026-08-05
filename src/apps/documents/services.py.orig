@@ -333,11 +333,11 @@ class LlamaIndexIngestionPipeline:
             model_name="models/gemini-embedding-001",
             api_key=os.getenv("GOOGLE_API_KEY")
         )
-        
+
     def index_document(self, file_path, original_filename: str = None, strategy: str = "auto_detect"):
         # Read the document
         documents = SimpleDirectoryReader(input_files=[file_path]).load_data()
-        
+
         if original_filename:
             parent_dir = os.path.dirname(original_filename)
             folder_name = os.path.basename(parent_dir) if parent_dir else 'Root'
@@ -346,11 +346,11 @@ class LlamaIndexIngestionPipeline:
                 doc.metadata['file_path'] = original_filename
                 doc.metadata['folder'] = folder_name
                 doc.metadata['project_id'] = self.project_id
-        
+
         config = getattr(settings, "REMOTE_POSTGRES_CONFIG", {})
-        
+
         table_name = get_safe_table_name(self.project_id)
-        
+
         # Configure Vector Store
         vector_store = PGVectorStore.from_params(
             database=config.get("NAME", "postgres"),
@@ -359,16 +359,15 @@ class LlamaIndexIngestionPipeline:
             user=config.get("USER", "postgres"),
             password=config.get("PASSWORD", ""),
             table_name=table_name,
-            embed_dim=768, # Standard for gemini-embedding-001
-            hnsw_kwargs={"distance_function": "cosine"}
+            embed_dim=768 # Standard for gemini-embedding-001
         )
-        
+
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
         node_parser = select_node_parser(file_path, strategy=strategy)
-        
+
         # Create Index
         index = VectorStoreIndex.from_documents(
-            documents, 
+            documents,
             storage_context=storage_context,
             embed_model=self.embed_model,
             transformations=[node_parser]
@@ -385,8 +384,7 @@ def get_vector_store(project_id):
         user=config.get("USER", "postgres"),
         password=config.get("PASSWORD", ""),
         table_name=table_name,
-        embed_dim=768,
-        hnsw_kwargs={"distance_function": "cosine"}
+        embed_dim=768
     )
 
 
@@ -409,12 +407,12 @@ def check_structural_quality(filepath: str) -> None:
     api_key = os.getenv("GOOGLE_API_KEY", "")
     client = genai.Client(api_key=api_key)
 
-    prompt = f"""You are a Data Quality Inspector. Review the following text snippet extracted from a document. 
+    prompt = f"""You are a Data Quality Inspector. Review the following text snippet extracted from a document.
 Determine if the text structure is intact and readable, or if the layout parser failed.
 
 Look for these failure signs:
 - Words mashed together without spaces (e.g., "TheCompanyReport2024")
-- Words that do not have any meaning 
+- Words that do not have any meaning
 - Shattered sentences from misread columns (e.g., "Revenue $5M Introduction to")
 - Excessive raw font artifact codes (e.g., "CID:12 CID:44")
 
@@ -447,4 +445,3 @@ Text snippet:
 
     if score <= 7:
         raise ValueError(f"Extraction quality too low (Score: {score}/10). Reason: {reason}")
-

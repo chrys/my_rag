@@ -1,0 +1,11 @@
+--- src/google_file_search.py
++++ src/google_file_search.py
+@@ -19,7 +19,7 @@
+ if API_KEY:
+     os.environ["GEMINI_API_KEY"] = API_KEY
+
+-client = genai.Client(api_key=API_KEY) if API_KEY else genai.Client()
++client = genai.Client(api_key=API_KEY) if API_KEY else None
+
+
+ class GoogleFileSearchPermissionError(RuntimeError):

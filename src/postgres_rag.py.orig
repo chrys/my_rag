@@ -244,7 +244,7 @@ class PostgresRAGEngine:
                         # Check if table exists
                         cursor.execute(f"""
                             SELECT EXISTS (
-                                SELECT FROM information_schema.tables 
+                                SELECT FROM information_schema.tables
                                 WHERE table_name = '{table}'
                             );
                         """)
@@ -257,16 +257,16 @@ class PostgresRAGEngine:
                         # Delete all matching chunks by checking file_name in metadata_ or metadata JSON column
                         try:
                             cursor.execute(
-                                f"DELETE FROM {table} WHERE (metadata_->>'file_name' = %s OR metadata_->>'file_path' = %s) AND metadata_->>'project_id' = %s;",
-                                (document_name, document_name, self.project_id)
+                                f"DELETE FROM {table} WHERE metadata_->>'file_name' = %s OR metadata_->>'file_path' = %s;",
+                                (document_name, document_name)
                             )
                             conn.commit()
                         except Exception:
                             try:
                                 conn.rollback()
                                 cursor.execute(
-                                    f"DELETE FROM {table} WHERE (metadata->>'file_name' = %s OR metadata->>'file_path' = %s) AND metadata->>'project_id' = %s;",
-                                    (document_name, document_name, self.project_id)
+                                    f"DELETE FROM {table} WHERE metadata->>'file_name' = %s OR metadata->>'file_path' = %s;",
+                                    (document_name, document_name)
                                 )
                                 conn.commit()
                             except Exception as inner_exc:
