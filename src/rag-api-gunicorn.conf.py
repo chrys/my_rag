@@ -1,4 +1,3 @@
-import os
 
 # Gunicorn configuration for FastAPI app (running uvicorn workers)
 bind = "127.0.0.1:8001"  # Local binding for development

@@ -7,7 +7,7 @@ from django.test import Client
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../src')))
 
 from src.apps.projects.models import Project
-from prompt_storage import get_prompt_storage
+from src.apps.projects.models import Project, SystemPrompt
 
 @pytest.mark.django_db
 class TestChatGoogleLLM:
@@ -52,9 +52,8 @@ class TestChatGoogleLLM:
         )
             
         # Set a restrictive system prompt
-        prompt_storage = get_prompt_storage()
-        prompt_storage.set_prompt(
-            project.project_id, 
+        SystemPrompt.objects.create(
+            project=project, content=
             "Only answer questions about the document topic. For anything else, say 'I cannot help with that'."
         )
         

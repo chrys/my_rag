@@ -42,11 +42,6 @@ class PromptStorage:
     def get_prompt(self, store_id):
         """Get system prompt for a store"""
         return self.prompts.get(store_id, '')
-    
-    def set_prompt(self, store_id, content):
-        """Set system prompt for a store"""
-        self.prompts[store_id] = content
-        self._save_prompts()
 
 
 # Global instance

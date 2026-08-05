@@ -13,7 +13,6 @@ from .serializers import (
     DocumentUpdateSerializer,
     DocumentListSerializer,
 )
-from src.apps.projects.models import Project
 
 
 class DocumentViewSet(viewsets.ModelViewSet):
