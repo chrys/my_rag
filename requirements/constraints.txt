@@ -45,7 +45,6 @@ google-api-python-client==2.195.0
 google-auth==2.47.0
 google-auth-httplib2==0.3.1
 google-genai==1.59.0
-google-generativeai==0.5.4
 googleapis-common-protos==1.74.0
 greenlet==3.3.0
 griffe==1.15.0
@@ -69,13 +68,11 @@ llama-cloud-services==0.6.54
 llama-index==0.14.12
 llama-index-cli==0.5.3
 llama-index-core==0.14.12
-llama-index-embeddings-gemini==0.4.2
 llama-index-embeddings-google==0.4.2
 llama-index-embeddings-ollama==0.8.6
 llama-index-embeddings-openai==0.5.1
 llama-index-indices-managed-llama-cloud==0.9.4
 llama-index-instrumentation==0.4.2
-llama-index-llms-gemini==0.6.2
 llama-index-llms-google-genai==0.8.3
 llama-index-llms-ollama==0.9.1
 llama-index-llms-openai==0.6.13

@@ -2,9 +2,6 @@
 # google-genai and numpy are already in requirements.txt / requirements-prod.txt.
 llama-index-core
 llama-index-vector-stores-postgres
-llama-index-embeddings-gemini
-llama-index-llms-gemini
-google-generativeai
 llama-index-embeddings-google
 llama-index-llms-google-genai
 
