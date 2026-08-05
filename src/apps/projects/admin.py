@@ -43,6 +43,11 @@ class ProjectAdminForm(forms.ModelForm):
         cleaned_data = super().clean()
         custom_prompt = cleaned_data.get('custom_prompt', False)
         prompt_text = cleaned_data.get('custom_prompt_text', '').strip()
+
+        from django.core.exceptions import ValidationError
+        if custom_prompt and not prompt_text:
+            self.add_error('custom_prompt_text', ValidationError('Custom prompt text is required when Custom prompt is enabled.'))
+
         if prompt_text and not custom_prompt:
             cleaned_data['custom_prompt'] = True
             self.instance.custom_prompt = True

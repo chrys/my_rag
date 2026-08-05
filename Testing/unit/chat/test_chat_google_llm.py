@@ -11,9 +11,12 @@ from prompt_storage import get_prompt_storage
 
 @pytest.mark.django_db
 class TestChatGoogleLLM:
-    def test_chat_google_related_answer(self, mocker):
+    def test_chat_google_related_answer(self, mocker) -> None:
         # Mock Google File Search response to avoid real network call
-        mocker.patch("src.apps.chat.views.gfs.ask_store_question", return_value="This is a document about pgvector.")
+        mock_gfs = mocker.MagicMock()
+        mock_gfs.ask_store_question.return_value = "This is a document about pgvector."
+        mocker.patch('src.apps.chat.views.gfs', mock_gfs)
+        mocker.patch('src.apps.chat.views.LazyModuleProxy.__getattr__', return_value=mock_gfs)
 
         # Create project in test database
         project, _ = Project.objects.get_or_create(
@@ -37,9 +40,12 @@ class TestChatGoogleLLM:
         assert "flex" in content
         assert "error" not in content.lower() or "503" in content or "unavailable" in content
 
-    def test_chat_google_unrelated_answer(self, mocker):
+    def test_chat_google_unrelated_answer(self, mocker) -> None:
         # Mock Google File Search response to avoid real network call
-        mocker.patch("src.apps.chat.views.gfs.ask_store_question", return_value="I cannot help with that.")
+        mock_gfs = mocker.MagicMock()
+        mock_gfs.ask_store_question.return_value = "I cannot help with that."
+        mocker.patch('src.apps.chat.views.gfs', mock_gfs)
+        mocker.patch('src.apps.chat.views.LazyModuleProxy.__getattr__', return_value=mock_gfs)
 
         # Create project in test database
         project, _ = Project.objects.get_or_create(

@@ -28,7 +28,7 @@ class TestManualEvaluationModels:
             display_name="Manual Eval Test Project"
         )
 
-    def test_manual_run_creation(self, project):
+    def test_manual_run_creation(self, project) -> None:
         run = ManualEvaluationRun.objects.create(
             project=project,
             source_type="MANUAL_INPUT"
@@ -38,7 +38,7 @@ class TestManualEvaluationModels:
         assert run.source_type == "MANUAL_INPUT"
         assert run.created_at is not None
 
-    def test_manual_item_creation(self, project):
+    def test_manual_item_creation(self, project) -> None:
         run = ManualEvaluationRun.objects.create(
             project=project,
             source_type="CSV_UPLOAD"
@@ -81,7 +81,7 @@ class TestManualEvaluationServices:
 
     @patch("os.getenv", return_value="")
     @patch("src.apps.evaluate.eval_services.get_vector_store")
-    def test_generate_answer_for_single_item(self, mock_get_store, mock_getenv, manual_run):
+    def test_generate_answer_for_single_item(self, mock_get_store, mock_getenv, manual_run) -> None:
         mock_get_store.side_effect = Exception("Mocked vector store connection skip")
         item = manual_run.items.first()
         updated_item = generate_answer_for_manual_item(str(item.id))
@@ -92,7 +92,7 @@ class TestManualEvaluationServices:
 
     @patch("os.getenv", return_value="")
     @patch("src.apps.evaluate.eval_services.get_vector_store")
-    def test_batch_generate_manual_answers(self, mock_get_store, mock_getenv, manual_run):
+    def test_batch_generate_manual_answers(self, mock_get_store, mock_getenv, manual_run) -> None:
         mock_get_store.side_effect = Exception("Mocked vector store connection skip")
         batch_generate_manual_answers(str(manual_run.id))
         
@@ -116,7 +116,7 @@ class TestManualEvaluationViews:
             display_name="Views Test Project"
         )
 
-    def test_create_manual_run_from_text(self, client, user, project):
+    def test_create_manual_run_from_text(self, client, user, project) -> None:
         client.force_login(user)
         url = reverse("custom_admin:manual-eval-create")
         
@@ -132,7 +132,7 @@ class TestManualEvaluationViews:
         assert run.items.count() == 2
         assert run.items.filter(question="What is company policy?").exists()
 
-    def test_create_manual_run_from_csv(self, client, user, project):
+    def test_create_manual_run_from_csv(self, client, user, project) -> None:
         client.force_login(user)
         url = reverse("custom_admin:manual-eval-create")
         
@@ -150,7 +150,7 @@ class TestManualEvaluationViews:
         assert run is not None
         assert run.items.count() == 2
 
-    def test_rate_manual_item(self, client, user, project):
+    def test_rate_manual_item(self, client, user, project) -> None:
         client.force_login(user)
         run = ManualEvaluationRun.objects.create(project=project)
         item = ManualEvaluationItem.objects.create(run=run, question="Sample Q")
@@ -177,7 +177,7 @@ class TestManualEvaluationViews:
 
     @patch("os.getenv", return_value="")
     @patch("src.apps.evaluate.eval_services.get_vector_store")
-    def test_generate_answer_view(self, mock_get_store, mock_getenv, client, user, project):
+    def test_generate_answer_view(self, mock_get_store, mock_getenv, client, user, project) -> None:
         mock_get_store.side_effect = Exception("Mocked vector store connection skip")
         client.force_login(user)
         run = ManualEvaluationRun.objects.create(project=project)
@@ -192,7 +192,7 @@ class TestManualEvaluationViews:
 
     @patch("os.getenv", return_value="")
     @patch("src.apps.evaluate.eval_services.get_vector_store")
-    def test_batch_generate_answers_view(self, mock_get_store, mock_getenv, client, user, project):
+    def test_batch_generate_answers_view(self, mock_get_store, mock_getenv, client, user, project) -> None:
         mock_get_store.side_effect = Exception("Mocked vector store connection skip")
         client.force_login(user)
         run = ManualEvaluationRun.objects.create(project=project)

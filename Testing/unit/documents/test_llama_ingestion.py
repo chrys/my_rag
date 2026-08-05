@@ -89,7 +89,7 @@ class TestStructuralQualityGrading:
 
     @patch("google.genai.Client")
     @patch("llama_index.core.SimpleDirectoryReader")
-    def test_quality_grading_blocks_low_quality(self, mock_reader, mock_genai):
+    def test_quality_grading_blocks_low_quality(self, mock_reader, mock_genai) -> None:
         """Test that a document with a quality score <= 7 raises ValueError"""
         # Mock SimpleDirectoryReader to return garbage essay text
         mock_doc = MagicMock()
@@ -111,7 +111,7 @@ class TestStructuralQualityGrading:
 
     @patch("google.genai.Client")
     @patch("llama_index.core.SimpleDirectoryReader")
-    def test_quality_grading_allows_high_quality(self, mock_reader, mock_genai):
+    def test_quality_grading_allows_high_quality(self, mock_reader, mock_genai) -> None:
         """Test that a document with a quality score > 7 executes successfully without error"""
         mock_doc = MagicMock()
         mock_doc.text = "This is a clean, well-formatted and perfectly readable report."
@@ -134,7 +134,7 @@ class TestStructuralQualityGrading:
 @pytest.mark.django_db
 @patch("django.conf.settings")
 @patch("psycopg2.connect")
-def test_postgres_rag_engine_delete_document_db_cleanup(mock_connect, mock_settings):
+def test_postgres_rag_engine_delete_document_db_cleanup(mock_connect, mock_settings) -> None:
     """Test that PostgresRAGEngine delete_document method executes SQL DELETE queries to clean up chunks"""
     from src.postgres_rag import PostgresRAGEngine
 

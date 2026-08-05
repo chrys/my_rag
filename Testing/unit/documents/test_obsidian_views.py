@@ -12,7 +12,7 @@ from src.apps.documents.models import ObsidianSource, ObsidianFile
 @pytest.mark.django_db
 class TestObsidianViews:
 
-    def test_set_source_type_view(self, client):
+    def test_set_source_type_view(self, client) -> None:
         project = Project.objects.create(
             project_id='view_source_type_test',
             display_name='View Source Type Test',
@@ -25,7 +25,7 @@ class TestObsidianViews:
         source = ObsidianSource.objects.get(project=project)
         assert source.source_type == 'obsidian'
 
-    def test_obsidian_save_path_view(self, client, mocker):
+    def test_obsidian_save_path_view(self, client, mocker) -> None:
         mocker.patch('src.apps.documents.services.LlamaIndexIngestionPipeline')
         with tempfile.TemporaryDirectory() as tmp_dir:
             project = Project.objects.create(
@@ -41,7 +41,7 @@ class TestObsidianViews:
             assert source.vault_path == tmp_dir
             assert b"Vault path saved" in response.content
 
-    def test_obsidian_index_and_sync_views(self, client, mocker):
+    def test_obsidian_index_and_sync_views(self, client, mocker) -> None:
         mocker.patch('src.apps.documents.services.LlamaIndexIngestionPipeline')
         with tempfile.TemporaryDirectory() as tmp_dir:
             project = Project.objects.create(

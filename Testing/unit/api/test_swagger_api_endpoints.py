@@ -41,13 +41,13 @@ class TestSwaggerChatAPI:
             storage_type="postgres"
         )
 
-    def test_chat_query_missing_fields(self, client):
+    def test_chat_query_missing_fields(self, client) -> None:
         """Test POST /rag/api/chat/ returns 400 when store_id or query is missing."""
         response = client.post("/rag/api/chat/", json.dumps({}), content_type="application/json")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "error" in response.json()
 
-    def test_chat_query_unauthorized_project(self, client):
+    def test_chat_query_unauthorized_project(self, client) -> None:
         """Test POST /rag/api/chat/ returns 403 when project belongs to another user."""
         other_user = User.objects.create_user(username="otheruser", password="password123")
         Project.objects.create(
@@ -61,7 +61,7 @@ class TestSwaggerChatAPI:
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
     @patch("src.apps.chat.views.get_rag_engine")
-    def test_chat_query_local_store(self, mock_get_rag_engine, client, user):
+    def test_chat_query_local_store(self, mock_get_rag_engine, client, user) -> None:
         """Test POST /rag/api/chat/ with local store returns query response and citations."""
         Project.objects.create(
             user=user,
@@ -109,7 +109,7 @@ class TestSwaggerProjectsAPI:
             description="Alpha description"
         )
 
-    def test_list_projects(self, client, project):
+    def test_list_projects(self, client, project) -> None:
         """GET /rag/api/projects/"""
         response = client.get("/rag/api/projects/")
         assert response.status_code == status.HTTP_200_OK
@@ -118,7 +118,7 @@ class TestSwaggerProjectsAPI:
         assert len(results) >= 1
         assert results[0]["project_id"] == "proj_alpha"
 
-    def test_create_project_success(self, client):
+    def test_create_project_success(self, client) -> None:
         """POST /rag/api/projects/"""
         payload = {
             "project_id": "proj_beta",
@@ -130,7 +130,7 @@ class TestSwaggerProjectsAPI:
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["project_id"] == "proj_beta"
 
-    def test_create_project_unsupported_storage(self, client):
+    def test_create_project_unsupported_storage(self, client) -> None:
         """POST /rag/api/projects/ with unsupported storage returns 400 validation error."""
         payload = {
             "project_id": "proj_invalid",
@@ -141,7 +141,7 @@ class TestSwaggerProjectsAPI:
         response = client.post("/rag/api/projects/", payload)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_get_project_by_pk_and_project_id(self, client, project):
+    def test_get_project_by_pk_and_project_id(self, client, project) -> None:
         """GET /rag/api/projects/{id}/ supports pk and project_id lookup."""
         res1 = client.get(f"/rag/api/projects/{project.pk}/")
         assert res1.status_code == status.HTTP_200_OK
@@ -149,20 +149,20 @@ class TestSwaggerProjectsAPI:
         res2 = client.get(f"/rag/api/projects/{project.project_id}/")
         assert res2.status_code == status.HTTP_200_OK
 
-    def test_update_project(self, client, project):
+    def test_update_project(self, client, project) -> None:
         """PUT /rag/api/projects/{id}/ and PATCH /rag/api/projects/{id}/"""
         payload = {"display_name": "Project Alpha Updated", "description": "Updated desc", "is_active": True}
         response = client.put(f"/rag/api/projects/{project.project_id}/", payload)
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["display_name"] == "Project Alpha Updated"
 
-    def test_delete_project(self, client, project):
+    def test_delete_project(self, client, project) -> None:
         """DELETE /rag/api/projects/{id}/"""
         response = client.delete(f"/rag/api/projects/{project.project_id}/")
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert not Project.objects.filter(pk=project.pk).exists()
 
-    def test_get_and_set_project_prompt(self, client, project):
+    def test_get_and_set_project_prompt(self, client, project) -> None:
         """GET & POST /rag/api/projects/{id}/prompt/"""
         # GET empty prompt
         get_res = client.get(f"/rag/api/projects/{project.project_id}/prompt/")
@@ -175,7 +175,7 @@ class TestSwaggerProjectsAPI:
         assert post_res.json()["status"] == "success"
         assert post_res.json()["prompt"] == "Answer concisely."
 
-    def test_get_project_documents(self, client, project):
+    def test_get_project_documents(self, client, project) -> None:
         """GET /rag/api/projects/{id}/documents/"""
         Document.objects.create(
             project=project,
@@ -189,13 +189,13 @@ class TestSwaggerProjectsAPI:
         assert len(docs) == 1
         assert docs[0]["document_name"] == "spec.pdf"
 
-    def test_active_projects(self, client, project):
+    def test_active_projects(self, client, project) -> None:
         """GET /rag/api/projects/active/"""
         response = client.get("/rag/api/projects/active/")
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) >= 1
 
-    def test_projects_by_storage(self, client, project):
+    def test_projects_by_storage(self, client, project) -> None:
         """GET /rag/api/projects/by_storage/"""
         # Missing param
         res_err = client.get("/rag/api/projects/by_storage/")
@@ -225,7 +225,7 @@ class TestSwaggerSystemPromptsAPI:
     def project(self, user):
         return Project.objects.create(user=user, project_id="p_prompt", display_name="Prompt Project")
 
-    def test_crud_system_prompts(self, client, project):
+    def test_crud_system_prompts(self, client, project) -> None:
         """Test List, Create, Retrieve, Update, Delete for /rag/api/prompts/"""
         # Create
         create_res = client.post("/rag/api/prompts/", {"project": project.id, "content": "Initial prompt"})
@@ -285,7 +285,7 @@ class TestSwaggerDocumentsAPI:
             state="INDEXED"
         )
 
-    def test_documents_list_and_create(self, client, project):
+    def test_documents_list_and_create(self, client, project) -> None:
         """GET & POST /rag/api/documents/"""
         # Create metadata
         payload = {
@@ -302,7 +302,7 @@ class TestSwaggerDocumentsAPI:
         res_list = client.get("/rag/api/documents/")
         assert res_list.status_code == status.HTTP_200_OK
 
-    def test_documents_filtering_actions(self, client, project, document):
+    def test_documents_filtering_actions(self, client, project, document) -> None:
         """Test by_project, by_state, indexed, and failed actions."""
         # by_project
         res_proj = client.get(f"/rag/api/documents/by_project/?project_id={project.project_id}")
@@ -322,7 +322,7 @@ class TestSwaggerDocumentsAPI:
         res_fail = client.get("/rag/api/documents/failed/")
         assert res_fail.status_code == status.HTTP_200_OK
 
-    def test_document_retrieve_update_delete(self, client, document):
+    def test_document_retrieve_update_delete(self, client, document) -> None:
         """GET, PUT, DELETE for /rag/api/documents/{id}/"""
         # Retrieve by PK
         res_get = client.get(f"/rag/api/documents/{document.id}/")
@@ -337,7 +337,7 @@ class TestSwaggerDocumentsAPI:
         assert res_del.status_code == status.HTTP_204_NO_CONTENT
 
     @patch("src.postgres_rag.PostgresRAGEngine")
-    def test_delete_document_by_filename_route(self, mock_postgres_engine, client, project):
+    def test_delete_document_by_filename_route(self, mock_postgres_engine, client, project) -> None:
         """DELETE /rag/api/documents/{document_id} with dots in filename and store_id param."""
         doc = Document.objects.create(
             project=project,
@@ -378,7 +378,7 @@ class TestSwaggerMessagesAPI:
             session_id="sess_123"
         )
 
-    def test_messages_crud_and_filters(self, client, user, project, message):
+    def test_messages_crud_and_filters(self, client, user, project, message) -> None:
         """Test List, Create, Retrieve, by_project, by_session, by_user for /rag/api/messages/"""
         # List
         res_list = client.get("/rag/api/messages/")
@@ -429,7 +429,7 @@ class TestSwaggerEvaluationAPI:
     def project(self, user):
         return Project.objects.create(user=user, project_id="p_eval", display_name="Eval Project")
 
-    def test_evaluation_datasets(self, client, project):
+    def test_evaluation_datasets(self, client, project) -> None:
         """GET, POST, DELETE for /rag/api/datasets/"""
         # Create dataset item
         payload = {
@@ -458,7 +458,7 @@ class TestSwaggerEvaluationAPI:
         res_del = client.delete(f"/rag/api/datasets/{item_id}/")
         assert res_del.status_code == status.HTTP_204_NO_CONTENT
 
-    def test_evaluation_runs_and_results(self, client, project):
+    def test_evaluation_runs_and_results(self, client, project) -> None:
         """GET & POST for /rag/api/runs/ and /rag/api/results/"""
         # Create evaluation run
         run_res = client.post("/rag/api/runs/", {"project": project.id, "status": "PENDING"})

@@ -16,7 +16,7 @@ from src.apps.documents.services import (
 @pytest.mark.django_db
 class TestObsidianLifecycleEngine:
 
-    def test_discover_obsidian_vault_files_sync_and_purge(self):
+    def test_discover_obsidian_vault_files_sync_and_purge(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             # Create files on disk
             file1 = os.path.join(tmp_dir, "Note1.md")
@@ -49,7 +49,7 @@ class TestObsidianLifecycleEngine:
             assert ObsidianFile.objects.filter(obsidian_source=source).count() == 1
             assert ObsidianFile.objects.filter(obsidian_source=source).first().relative_path == "Note2.md"
 
-    def test_run_obsidian_lifecycle_modes(self, mocker):
+    def test_run_obsidian_lifecycle_modes(self, mocker) -> None:
         mocker.patch('src.apps.documents.services.LlamaIndexIngestionPipeline')
         with tempfile.TemporaryDirectory() as tmp_dir:
             file1 = os.path.join(tmp_dir, "Guide1.md")
@@ -92,7 +92,7 @@ class TestObsidianLifecycleEngine:
                 f_obj = ObsidianFile.objects.get(obsidian_source=source_disc, relative_path="DiscNote.md")
                 assert f_obj.status == 'PENDING'
 
-    def test_discover_obsidian_modified_file_detection(self):
+    def test_discover_obsidian_modified_file_detection(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             file_path = os.path.join(tmp_dir, "ModifiedNote.md")
             with open(file_path, "w") as f:

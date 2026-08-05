@@ -7,10 +7,10 @@ from src.apps.documents.views import _sanitize_uploaded_filename, upload_documen
 
 @pytest.mark.django_db
 class TestAdminDocumentViews:
-    def test_sanitize_uploaded_filename_strips_path_segments(self):
+    def test_sanitize_uploaded_filename_strips_path_segments(self) -> None:
         assert _sanitize_uploaded_filename('../../unsafe folder/test doc?.txt') == 'test_doc.txt'
 
-    def test_list_documents_google(self, mocker):
+    def test_list_documents_google(self, mocker) -> None:
         project = Project.objects.create(
             project_id='list_google_id',
             display_name='List Google Project',
@@ -30,7 +30,7 @@ class TestAdminDocumentViews:
         mock_list.assert_called_once_with('ext_list_123')
         assert b'Doc 1' in response.content
 
-    def test_list_documents_postgres(self, mocker):
+    def test_list_documents_postgres(self, mocker) -> None:
         project = Project.objects.create(
             project_id='list_postgres_id',
             display_name='List Postgres Project',
@@ -46,7 +46,7 @@ class TestAdminDocumentViews:
         assert response.status_code == 200
         assert b'PG Doc' in response.content
 
-    def test_list_documents_local_legacy(self, mocker):
+    def test_list_documents_local_legacy(self, mocker) -> None:
         # Mock local storage to return a project with documents
         mock_storage = mocker.Mock()
         mock_storage.list_projects.return_value = [{
@@ -64,7 +64,7 @@ class TestAdminDocumentViews:
         assert response.status_code == 200
         assert b'doc_local.txt' in response.content
 
-    def test_upload_document_local(self, mocker):
+    def test_upload_document_local(self, mocker) -> None:
         mock_storage = mocker.Mock()
         mock_storage.list_projects.return_value = []
         mocker.patch('src.apps.documents.views.get_local_project_storage', return_value=mock_storage)
@@ -85,7 +85,7 @@ class TestAdminDocumentViews:
         mock_engine.index_document.assert_called_once()
         mock_storage.add_document.assert_called_once_with('local_456', 'local_doc.txt')
 
-    def test_delete_document_local(self, mocker):
+    def test_delete_document_local(self, mocker) -> None:
         mock_storage = mocker.Mock()
         mocker.patch('src.apps.documents.views.get_local_project_storage', return_value=mock_storage)
         
@@ -102,7 +102,7 @@ class TestAdminDocumentViews:
         mock_engine.delete_document.assert_called_once_with('local_doc.txt')
         mock_storage.remove_document.assert_called_once_with('local_456', 'local_doc.txt')
 
-    def test_upload_document_google(self, mocker):
+    def test_upload_document_google(self, mocker) -> None:
         project = Project.objects.create(
             project_id='google_test_id',
             display_name='Test Upload Google',
@@ -125,7 +125,7 @@ class TestAdminDocumentViews:
         args, _ = mock_add.call_args
         assert args[0] == 'ext_google_123'
 
-    def test_upload_document_postgres(self, mocker):
+    def test_upload_document_postgres(self, mocker) -> None:
         project = Project.objects.create(
             project_id='postgres_test_id',
             display_name='Test Upload Postgres',
@@ -151,7 +151,7 @@ class TestAdminDocumentViews:
         assert doc.indexed_at is not None
         assert doc.error_message == ''
 
-    def test_upload_document_postgres_marks_failed_state(self, mocker):
+    def test_upload_document_postgres_marks_failed_state(self, mocker) -> None:
         project = Project.objects.create(
             project_id='postgres_failed_test_id',
             display_name='Test Failed Upload Postgres',
@@ -177,7 +177,7 @@ class TestAdminDocumentViews:
         assert doc.indexed_at is None
         assert 'Postgres configuration missing' in doc.error_message
 
-    def test_upload_document_postgres_rate_limit_returns_503(self, mocker):
+    def test_upload_document_postgres_rate_limit_returns_503(self, mocker) -> None:
         from src.postgres_rag import EmbeddingRateLimitError
 
         project = Project.objects.create(
@@ -205,7 +205,7 @@ class TestAdminDocumentViews:
         assert doc.indexed_at is None
         assert 'temporarily rate limited' in doc.error_message
 
-    def test_upload_document_postgres_rejects_unsupported_file_type(self, mocker):
+    def test_upload_document_postgres_rejects_unsupported_file_type(self, mocker) -> None:
         project = Project.objects.create(
             project_id='postgres_unsupported_test_id',
             display_name='Test Unsupported Upload Postgres',
@@ -227,7 +227,7 @@ class TestAdminDocumentViews:
         mock_pipeline.index_document.assert_not_called()
         assert not Document.objects.filter(project=project, document_name="malware.exe").exists()
 
-    def test_delete_document_google(self, mocker):
+    def test_delete_document_google(self, mocker) -> None:
         project = Project.objects.create(
             project_id='google_del_id',
             display_name='Test Delete Google Doc',
@@ -245,7 +245,7 @@ class TestAdminDocumentViews:
         assert response.status_code == 200
         mock_delete.assert_called_once_with('ext_google_456', 'document_name_123')
 
-    def test_delete_document_postgres(self, mocker):
+    def test_delete_document_postgres(self, mocker) -> None:
         project = Project.objects.create(
             project_id='postgres_del_id',
             display_name='Test Delete Postgres Doc',

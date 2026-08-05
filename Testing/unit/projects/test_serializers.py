@@ -18,7 +18,7 @@ from src.apps.projects.serializers import (
 class TestProjectSerializer:
     """Test cases for ProjectSerializer"""
     
-    def test_serialize_project(self):
+    def test_serialize_project(self) -> None:
         """Test serializing a complete project"""
         project = Project.objects.create(
             project_id='serial_001',
@@ -38,7 +38,7 @@ class TestProjectSerializer:
         assert data['document_count'] == 5
         assert data['is_active'] is True
     
-    def test_serialize_project_with_prompt(self):
+    def test_serialize_project_with_prompt(self) -> None:
         """Test serializing project with system prompt"""
         project = Project.objects.create(
             project_id='serial_prompt_001',
@@ -56,7 +56,7 @@ class TestProjectSerializer:
         assert 'system_prompt' in data
         assert data['system_prompt']['content'] == 'Test prompt'
     
-    def test_project_serializer_read_only_fields(self):
+    def test_project_serializer_read_only_fields(self) -> None:
         """Test that read-only fields cannot be modified"""
         project = Project.objects.create(
             project_id='readonly_001',
@@ -76,7 +76,7 @@ class TestProjectSerializer:
             # created_at and updated_at should not be modified
             assert refreshed.display_name == 'Updated'
     
-    def test_serialize_google_project(self):
+    def test_serialize_google_project(self) -> None:
         """Test serializing Google File Search project"""
         project = Project.objects.create(
             project_id='google_serial_001',
@@ -96,7 +96,7 @@ class TestProjectSerializer:
 class TestProjectCreateSerializer:
     """Test cases for ProjectCreateSerializer"""
     
-    def test_create_project_with_serializer(self):
+    def test_create_project_with_serializer(self) -> None:
         """Test creating a project using serializer"""
         data = {
             'project_id': 'create_test_001',
@@ -114,7 +114,7 @@ class TestProjectCreateSerializer:
         assert project.display_name == 'Created Project'
         assert project.storage_type == 'postgres'
     
-    def test_create_project_missing_required_field(self):
+    def test_create_project_missing_required_field(self) -> None:
         """Test creating project without required field"""
         data = {
             'project_id': 'missing_name_001',
@@ -126,7 +126,7 @@ class TestProjectCreateSerializer:
         assert not serializer.is_valid()
         assert 'display_name' in serializer.errors
     
-    def test_create_serializer_invalid_storage_type(self):
+    def test_create_serializer_invalid_storage_type(self) -> None:
         """Test validation of storage_type field"""
         data = {
             'project_id': 'invalid_storage',
@@ -138,7 +138,7 @@ class TestProjectCreateSerializer:
         assert not serializer.is_valid()
         assert 'storage_type' in serializer.errors
     
-    def test_create_serializer_blocked_storage_types(self):
+    def test_create_serializer_blocked_storage_types(self) -> None:
         """Test that local and google storage types are rejected during validation"""
         for storage_type in ['local', 'google']:
             data = {
@@ -152,7 +152,7 @@ class TestProjectCreateSerializer:
             assert 'storage_type' in serializer.errors
             assert serializer.errors['storage_type'][0] == "This functionality has not been implemented yet."
 
-    def test_create_serializer_valid_storage_type(self):
+    def test_create_serializer_valid_storage_type(self) -> None:
         """Test that postgres storage type is accepted"""
         data = {
             'project_id': 'valid_postgres_001',
@@ -165,7 +165,7 @@ class TestProjectCreateSerializer:
         project = serializer.save()
         assert project.storage_type == 'postgres'
     
-    def test_create_serializer_optional_fields(self):
+    def test_create_serializer_optional_fields(self) -> None:
         """Test that description is optional"""
         data = {
             'project_id': 'optional_fields_001',
@@ -182,7 +182,7 @@ class TestProjectCreateSerializer:
 class TestProjectUpdateSerializer:
     """Test cases for ProjectUpdateSerializer"""
     
-    def test_partial_update_display_name(self):
+    def test_partial_update_display_name(self) -> None:
         """Test updating only display_name"""
         project = Project.objects.create(
             project_id='update_001',
@@ -197,7 +197,7 @@ class TestProjectUpdateSerializer:
         
         assert updated.display_name == 'Updated Name'
     
-    def test_update_is_active_status(self):
+    def test_update_is_active_status(self) -> None:
         """Test updating is_active field"""
         project = Project.objects.create(
             project_id='update_active_001',
@@ -213,7 +213,7 @@ class TestProjectUpdateSerializer:
         
         assert updated.is_active is False
     
-    def test_update_description(self):
+    def test_update_description(self) -> None:
         """Test updating description"""
         project = Project.objects.create(
             project_id='update_desc_001',
@@ -228,7 +228,7 @@ class TestProjectUpdateSerializer:
         
         assert updated.description == 'New description'
     
-    def test_update_multiple_fields(self):
+    def test_update_multiple_fields(self) -> None:
         """Test updating multiple fields at once"""
         project = Project.objects.create(
             project_id='update_multi_001',
@@ -255,7 +255,7 @@ class TestProjectUpdateSerializer:
 class TestProjectListSerializer:
     """Test cases for ProjectListSerializer"""
     
-    def test_list_serializer_fields(self):
+    def test_list_serializer_fields(self) -> None:
         """Test ProjectListSerializer contains expected fields"""
         project = Project.objects.create(
             project_id='list_001',
@@ -273,7 +273,7 @@ class TestProjectListSerializer:
         assert 'storage_type' in data
         assert 'is_active' in data
     
-    def test_list_serializer_multiple_projects(self):
+    def test_list_serializer_multiple_projects(self) -> None:
         """Test serializing multiple projects"""
         projects = [
             Project.objects.create(
@@ -293,7 +293,7 @@ class TestProjectListSerializer:
 class TestSystemPromptSerializer:
     """Test cases for SystemPromptSerializer"""
     
-    def test_serialize_system_prompt(self):
+    def test_serialize_system_prompt(self) -> None:
         """Test serializing a system prompt"""
         project = Project.objects.create(
             project_id='prompt_serial_001',
@@ -311,7 +311,7 @@ class TestSystemPromptSerializer:
         assert data['project'] == project.id
         assert data['content'] == 'You are a helpful AI assistant.'
     
-    def test_create_system_prompt_with_serializer(self):
+    def test_create_system_prompt_with_serializer(self) -> None:
         """Test creating system prompt via serializer"""
         project = Project.objects.create(
             project_id='prompt_create_001',
@@ -331,7 +331,7 @@ class TestSystemPromptSerializer:
         assert prompt.project_id == project.id
         assert prompt.content == 'Custom prompt content'
     
-    def test_update_system_prompt_content(self):
+    def test_update_system_prompt_content(self) -> None:
         """Test updating system prompt content"""
         project = Project.objects.create(
             project_id='prompt_update_001',
@@ -351,7 +351,7 @@ class TestSystemPromptSerializer:
         
         assert updated.content == 'Updated content'
     
-    def test_system_prompt_serializer_read_only_fields(self):
+    def test_system_prompt_serializer_read_only_fields(self) -> None:
         """Test read-only fields in SystemPromptSerializer"""
         project = Project.objects.create(
             project_id='prompt_readonly_001',

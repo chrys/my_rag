@@ -24,7 +24,7 @@ class TestEvaluationSerializers:
             display_name="Test Project"
         )
 
-    def test_dataset_serializer(self, project):
+    def test_dataset_serializer(self, project) -> None:
         """Test serializing EvaluationDataset"""
         dataset = EvaluationDataset.objects.create(
             project=project,
@@ -43,7 +43,7 @@ class TestEvaluationSerializers:
         assert data["source"] == "MANUAL"
         assert "created_at" in data
 
-    def test_run_serializer(self, project):
+    def test_run_serializer(self, project) -> None:
         """Test serializing EvaluationRun"""
         run = EvaluationRun.objects.create(
             project=project,
@@ -59,7 +59,7 @@ class TestEvaluationSerializers:
         assert "started_at" in data
         assert data["completed_at"] is None
 
-    def test_result_metrics_serializer(self, project):
+    def test_result_metrics_serializer(self, project) -> None:
         """Test serializing EvaluationResultMetrics"""
         dataset = EvaluationDataset.objects.create(
             project=project,

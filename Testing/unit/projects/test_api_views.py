@@ -32,7 +32,7 @@ def authenticated_user():
 class TestProjectViewSet:
     """Test cases for ProjectViewSet"""
     
-    def test_list_projects(self, api_factory, authenticated_user):
+    def test_list_projects(self, api_factory, authenticated_user) -> None:
         """Test listing projects"""
         # Create test projects
         Project.objects.create(user=authenticated_user, 
@@ -57,7 +57,7 @@ class TestProjectViewSet:
         assert response.data['count'] == 2
         assert len(response.data['results']) == 2
     
-    def test_retrieve_project(self, api_factory, authenticated_user):
+    def test_retrieve_project(self, api_factory, authenticated_user) -> None:
         """Test retrieving a single project"""
         project = Project.objects.create(user=authenticated_user, 
             project_id='retrieve_1',
@@ -73,7 +73,7 @@ class TestProjectViewSet:
         assert response.status_code == status.HTTP_200_OK
         assert response.data['display_name'] == 'Retrieve Test'
     
-    def test_create_project(self, api_factory, authenticated_user):
+    def test_create_project(self, api_factory, authenticated_user) -> None:
         """Test creating a project"""
         data = {
             'project_id': 'create_api_001',
@@ -94,7 +94,7 @@ class TestProjectViewSet:
         project = Project.objects.get(project_id='create_api_001')
         assert project.display_name == 'API Created Project'
     
-    def test_update_project(self, api_factory, authenticated_user):
+    def test_update_project(self, api_factory, authenticated_user) -> None:
         """Test updating a project"""
         project = Project.objects.create(user=authenticated_user, 
             project_id='update_api_001',
@@ -111,7 +111,7 @@ class TestProjectViewSet:
         assert response.status_code == status.HTTP_200_OK
         assert response.data['display_name'] == 'Updated Name'
     
-    def test_partial_update_project(self, api_factory, authenticated_user):
+    def test_partial_update_project(self, api_factory, authenticated_user) -> None:
         """Test partial update of a project"""
         project = Project.objects.create(user=authenticated_user, 
             project_id='partial_update_001',
@@ -129,7 +129,7 @@ class TestProjectViewSet:
         assert response.status_code == status.HTTP_200_OK
         assert response.data['is_active'] is False
     
-    def test_delete_project(self, api_factory, authenticated_user):
+    def test_delete_project(self, api_factory, authenticated_user) -> None:
         """Test deleting a project"""
         project = Project.objects.create(user=authenticated_user, 
             project_id='delete_api_001',
@@ -149,7 +149,7 @@ class TestProjectViewSet:
         # Verify deleted from database
         assert not Project.objects.filter(id=project_id).exists()
     
-    def test_filter_projects_by_storage_type(self, api_factory, authenticated_user):
+    def test_filter_projects_by_storage_type(self, api_factory, authenticated_user) -> None:
         """Test filtering projects by storage type"""
         Project.objects.all().delete()  # Clear any existing projects
         Project.objects.create(user=authenticated_user, 
@@ -179,7 +179,7 @@ class TestProjectViewSet:
         assert len(rag_projects) == 1
         assert rag_projects[0]['storage_type'] == 'postgres'
     
-    def test_filter_projects_by_active(self, api_factory, authenticated_user):
+    def test_filter_projects_by_active(self, api_factory, authenticated_user) -> None:
         """Test filtering projects by active status"""
         Project.objects.create(user=authenticated_user, 
             project_id='filter_active_001',
@@ -208,7 +208,7 @@ class TestProjectViewSet:
 class TestSystemPromptViewSet:
     """Test cases for SystemPromptViewSet"""
     
-    def test_list_system_prompts(self, api_factory, authenticated_user):
+    def test_list_system_prompts(self, api_factory, authenticated_user) -> None:
         """Test listing system prompts"""
         project1 = Project.objects.create(user=authenticated_user, 
             project_id='prompt_proj_1',
@@ -233,7 +233,7 @@ class TestSystemPromptViewSet:
         assert response.data['count'] == 2
         assert len(response.data['results']) == 2
     
-    def test_retrieve_system_prompt(self, api_factory, authenticated_user):
+    def test_retrieve_system_prompt(self, api_factory, authenticated_user) -> None:
         """Test retrieving a single system prompt"""
         project = Project.objects.create(user=authenticated_user, 
             project_id='prompt_retrieve_proj',
@@ -254,7 +254,7 @@ class TestSystemPromptViewSet:
         assert response.status_code == status.HTTP_200_OK
         assert response.data['content'] == 'Test prompt content'
     
-    def test_create_system_prompt(self, api_factory, authenticated_user):
+    def test_create_system_prompt(self, api_factory, authenticated_user) -> None:
         """Test creating a system prompt"""
         project = Project.objects.create(user=authenticated_user, 
             project_id='prompt_create_proj',
@@ -275,7 +275,7 @@ class TestSystemPromptViewSet:
         assert response.status_code == status.HTTP_201_CREATED
         assert response.data['content'] == 'New prompt content'
     
-    def test_update_system_prompt(self, api_factory, authenticated_user):
+    def test_update_system_prompt(self, api_factory, authenticated_user) -> None:
         """Test updating a system prompt"""
         project = Project.objects.create(user=authenticated_user, 
             project_id='prompt_update_proj',
@@ -297,7 +297,7 @@ class TestSystemPromptViewSet:
         assert response.status_code == status.HTTP_200_OK
         assert response.data['content'] == 'Updated content'
     
-    def test_delete_system_prompt(self, api_factory, authenticated_user):
+    def test_delete_system_prompt(self, api_factory, authenticated_user) -> None:
         """Test deleting a system prompt"""
         project = Project.objects.create(user=authenticated_user, 
             project_id='prompt_delete_proj',
@@ -322,7 +322,7 @@ class TestSystemPromptViewSet:
         # Verify deleted
         assert not SystemPrompt.objects.filter(id=prompt_id).exists()
     
-    def test_filter_prompts_by_project(self, api_factory, authenticated_user):
+    def test_filter_prompts_by_project(self, api_factory, authenticated_user) -> None:
         """Test filtering prompts by project"""
         project1 = Project.objects.create(user=authenticated_user, 
             project_id='filter_prompt_proj1',
@@ -347,7 +347,7 @@ class TestSystemPromptViewSet:
         matching = [p for p in response.data['results'] if p['project'] == project1.id]
         assert len(matching) >= 1
 
-    def test_list_projects_isolation(self, api_factory, authenticated_user):
+    def test_list_projects_isolation(self, api_factory, authenticated_user) -> None:
         """Test that a user can only list their own projects"""
         other_user = User.objects.create_user(username='other', password='pw')
         
@@ -372,7 +372,89 @@ class TestSystemPromptViewSet:
         assert response.data['count'] == 1
         assert response.data['results'][0]['display_name'] == 'My Project'
 
-    def test_create_project_sets_user(self, api_factory, authenticated_user):
+    def test_get_object_project_id(self, api_factory, authenticated_user) -> None:
+        project = Project.objects.create(
+            project_id='test_proj_id_lookup',
+            display_name='My Project',
+            user=authenticated_user
+        )
+        request = api_factory.get(f'/api/projects/{project.project_id}/')
+        force_authenticate(request, user=authenticated_user)
+        view = ProjectViewSet.as_view({'get': 'retrieve'})
+        view.kwargs = {'pk': project.project_id}
+        response = view(request, pk=project.project_id)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['project_id'] == project.project_id
+
+    def test_get_object_external_store_id(self, api_factory, authenticated_user) -> None:
+        project = Project.objects.create(
+            project_id='test_proj_ext_id_lookup',
+            display_name='My Project',
+            external_store_id='ext/store/id',
+            user=authenticated_user
+        )
+        request = api_factory.get(f'/api/projects/{project.external_store_id}/')
+        force_authenticate(request, user=authenticated_user)
+        view = ProjectViewSet.as_view({'get': 'retrieve'})
+        view.kwargs = {'pk': project.external_store_id}
+        response = view(request, pk=project.external_store_id)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['external_store_id'] == project.external_store_id
+
+    def test_get_object_not_found(self, api_factory, authenticated_user) -> None:
+        request = api_factory.get('/api/projects/does_not_exist/')
+        force_authenticate(request, user=authenticated_user)
+        view = ProjectViewSet.as_view({'get': 'retrieve'})
+        view.kwargs = {'pk': 'does_not_exist'}
+        response = view(request, pk='does_not_exist')
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_project_prompt_action_get(self, api_factory, authenticated_user) -> None:
+        project = Project.objects.create(
+            project_id='prompt_action_get',
+            display_name='Prompt Project',
+            user=authenticated_user
+        )
+        SystemPrompt.objects.create(project=project, content='Test Get Prompt')
+        request = api_factory.get(f'/api/projects/{project.id}/prompt/')
+        force_authenticate(request, user=authenticated_user)
+        view = ProjectViewSet.as_view({'get': 'prompt'})
+        view.kwargs = {'pk': project.id}
+        response = view(request, pk=project.id)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['prompt'] == 'Test Get Prompt'
+
+    def test_project_prompt_action_post(self, api_factory, authenticated_user) -> None:
+        project = Project.objects.create(
+            project_id='prompt_action_post',
+            display_name='Prompt Project',
+            user=authenticated_user
+        )
+        request = api_factory.post(f'/api/projects/{project.id}/prompt/', {'content': 'New test prompt'}, format='json')
+        force_authenticate(request, user=authenticated_user)
+        view = ProjectViewSet.as_view({'post': 'prompt'})
+        view.kwargs = {'pk': project.id}
+        response = view(request, pk=project.id)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['prompt'] == 'New test prompt'
+
+    def test_project_documents_action(self, api_factory, authenticated_user) -> None:
+        project = Project.objects.create(
+            project_id='docs_action_test',
+            display_name='Docs Project',
+            user=authenticated_user
+        )
+        from src.apps.documents.models import Document
+        Document.objects.create(project=project, document_name='test.pdf')
+        request = api_factory.get(f'/api/projects/{project.id}/documents/')
+        force_authenticate(request, user=authenticated_user)
+        view = ProjectViewSet.as_view({'get': 'documents'})
+        view.kwargs = {'pk': project.id}
+        response = view(request, pk=project.id)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 1
+
+    def test_create_project_sets_user(self, api_factory, authenticated_user) -> None:
         """Test creating a project sets the authenticated user"""
         data = {
             'project_id': 'create_user_001',

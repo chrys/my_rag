@@ -32,7 +32,7 @@ class TestAPIKeySerializer:
             key='test_key_12345'
         )
     
-    def test_api_key_serializer_serialization(self, api_key):
+    def test_api_key_serializer_serialization(self, api_key) -> None:
         """Test serializing an API key"""
         serializer = APIKeySerializer(api_key)
         data = serializer.data
@@ -43,7 +43,7 @@ class TestAPIKeySerializer:
         assert data['is_active'] is True
         assert data['user_username'] == 'testuser'
     
-    def test_api_key_serializer_read_only_fields(self, api_key):
+    def test_api_key_serializer_read_only_fields(self, api_key) -> None:
         """Test that certain fields are read-only"""
         serializer = APIKeySerializer(api_key)
         
@@ -51,7 +51,7 @@ class TestAPIKeySerializer:
         assert serializer.fields['created_at'].read_only is True
         assert serializer.fields['last_used_at'].read_only is True
     
-    def test_api_key_serializer_user_username_field(self, api_key):
+    def test_api_key_serializer_user_username_field(self, api_key) -> None:
         """Test user_username read-only field"""
         serializer = APIKeySerializer(api_key)
         data = serializer.data
@@ -69,7 +69,7 @@ class TestAPIKeyCreateSerializer:
         """Create a test user"""
         return User.objects.create_user(username='testuser', password='testpass')
     
-    def test_create_serializer_generate_key(self, user):
+    def test_create_serializer_generate_key(self, user) -> None:
         """Test that create serializer generates a key"""
         data = {
             'name': 'New Key',
@@ -87,12 +87,12 @@ class TestAPIKeyCreateSerializer:
         assert api_key.user == user
         assert api_key.name == 'New Key'
     
-    def test_create_serializer_key_is_read_only(self, user):
+    def test_create_serializer_key_is_read_only(self, user) -> None:
         """Test that key field is read-only"""
         serializer = APIKeyCreateSerializer()
         assert serializer.fields['key'].read_only is True
     
-    def test_create_serializer_default_active(self, user):
+    def test_create_serializer_default_active(self, user) -> None:
         """Test that is_active can be set"""
         data = {
             'name': 'New Key',
@@ -105,7 +105,7 @@ class TestAPIKeyCreateSerializer:
         api_key = serializer.save(user=user)
         assert api_key.is_active is False
     
-    def test_create_serializer_requires_name(self, user):
+    def test_create_serializer_requires_name(self, user) -> None:
         """Test that name is required"""
         data = {
             'is_active': True
@@ -134,7 +134,7 @@ class TestAPIKeyListSerializer:
             key='test_key'
         )
     
-    def test_list_serializer_lightweight_fields(self, api_key):
+    def test_list_serializer_lightweight_fields(self, api_key) -> None:
         """Test list serializer includes only lightweight fields"""
         serializer = APIKeyListSerializer(api_key)
         data = serializer.data
@@ -150,7 +150,7 @@ class TestAPIKeyListSerializer:
         assert 'user' not in data
         assert 'user_username' not in data
     
-    def test_list_serializer_serializes_multiple(self, user):
+    def test_list_serializer_serializes_multiple(self, user) -> None:
         """Test serializing multiple API keys"""
         key1 = APIKey.objects.create(
             user=user,
@@ -188,13 +188,13 @@ class TestAPIUsageListSerializer:
             key='test_key'
         )
     
-    def test_list_serializer_fields_defined(self):
+    def test_list_serializer_fields_defined(self) -> None:
         """Test that list serializer has defined fields"""
         # Just verify the serializer class can be instantiated
         # The GenericIPAddressField has issues in DRF, but model tests verify data
         assert APIUsageListSerializer is not None
     
-    def test_list_serializer_model_reference(self):
+    def test_list_serializer_model_reference(self) -> None:
         """Test that serializer references correct model"""
         serializer = APIUsageListSerializer()
         assert serializer.Meta.model == APIUsage

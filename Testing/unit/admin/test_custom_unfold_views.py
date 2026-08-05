@@ -10,7 +10,7 @@ from src.apps.my_rag_project.admin import custom_admin_site
 class TestCustomUnfoldViews:
     """Test cases for Custom Unfold Views in the admin panel"""
 
-    def test_chat_workflow_view_context(self):
+    def test_chat_workflow_view_context(self) -> None:
         """Test ChatWorkflowView context includes active projects"""
         project = Project.objects.create(
             project_id="test_chat_view_1",
@@ -39,7 +39,7 @@ class TestCustomUnfoldViews:
         assert project in active_list
         assert inactive not in active_list
 
-    def test_evaluation_workflow_view_context(self):
+    def test_evaluation_workflow_view_context(self) -> None:
         """Test EvaluationWorkflowView context includes active projects"""
         project = Project.objects.create(
             project_id="test_eval_view_1",

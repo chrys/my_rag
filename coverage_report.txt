@@ -1,0 +1,515 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-7.4.3, pluggy-1.6.0 -- /home/jules/.pyenv/versions/3.12.13/bin/python
+cachedir: .pytest_cache
+django: version: 6.0.8, settings: src.apps.my_rag_project.settings (from ini)
+rootdir: /app
+configfile: pytest.ini
+plugins: mock-3.12.0, cov-7.1.0, django-4.7.0, anyio-4.14.2
+collecting ... collected 370 items
+
+Testing/unit/test_rag_auth_urls.py::test_rag_root_redirects_to_rag_login_for_unauthenticated_client PASSED [  0%]
+Testing/unit/admin/test_admin_document_views.py::TestAdminDocumentViews::test_sanitize_uploaded_filename_strips_path_segments PASSED [  0%]
+Testing/unit/admin/test_admin_document_views.py::TestAdminDocumentViews::test_list_documents_google PASSED [  0%]
+Testing/unit/admin/test_admin_document_views.py::TestAdminDocumentViews::test_list_documents_postgres PASSED [  1%]
+Testing/unit/admin/test_admin_document_views.py::TestAdminDocumentViews::test_list_documents_local_legacy PASSED [  1%]
+Testing/unit/admin/test_admin_document_views.py::TestAdminDocumentViews::test_upload_document_local PASSED [  1%]
+Testing/unit/admin/test_admin_document_views.py::TestAdminDocumentViews::test_delete_document_local PASSED [  1%]
+Testing/unit/admin/test_admin_document_views.py::TestAdminDocumentViews::test_upload_document_google PASSED [  2%]
+Testing/unit/admin/test_admin_document_views.py::TestAdminDocumentViews::test_upload_document_postgres PASSED [  2%]
+Testing/unit/admin/test_admin_document_views.py::TestAdminDocumentViews::test_upload_document_postgres_marks_failed_state PASSED [  2%]
+Testing/unit/admin/test_admin_document_views.py::TestAdminDocumentViews::test_upload_document_postgres_rate_limit_returns_503 PASSED [  2%]
+Testing/unit/admin/test_admin_document_views.py::TestAdminDocumentViews::test_upload_document_postgres_rejects_unsupported_file_type PASSED [  3%]
+Testing/unit/admin/test_admin_document_views.py::TestAdminDocumentViews::test_delete_document_google PASSED [  3%]
+Testing/unit/admin/test_admin_document_views.py::TestAdminDocumentViews::test_delete_document_postgres PASSED [  3%]
+Testing/unit/admin/test_admin_project_services.py::TestAdminProjectServices::test_create_project_service_call PASSED [  4%]
+Testing/unit/admin/test_admin_project_services.py::TestAdminProjectServices::test_delete_project_service_call PASSED [  4%]
+Testing/unit/admin/test_admin_project_views.py::TestAdminProjectViews::test_create_project_google PASSED [  4%]
+Testing/unit/admin/test_admin_project_views.py::TestAdminProjectViews::test_create_project_postgres PASSED [  4%]
+Testing/unit/admin/test_admin_project_views.py::TestAdminProjectViews::test_delete_project_google PASSED [  5%]
+Testing/unit/admin/test_admin_project_views.py::TestAdminProjectViews::test_delete_project_postgres PASSED [  5%]
+Testing/unit/admin/test_admin_project_views.py::TestAdminProjectViews::test_delete_project_postgres_without_optional_ai_dependencies PASSED [  5%]
+Testing/unit/admin/test_admin_project_views.py::TestAdminProjectViews::test_delete_project_google_without_gfs_deps_still_deletes_db_record PASSED [  5%]
+Testing/unit/admin/test_admin_prompt_views.py::TestAdminPromptViews::test_postgres_prompt_rejects_non_owner PASSED [  6%]
+Testing/unit/admin/test_admin_prompt_views.py::TestAdminPromptViews::test_add_custom_prompt_postgres_uses_system_prompt_model PASSED [  6%]
+Testing/unit/admin/test_admin_prompt_views.py::TestAdminPromptViews::test_add_custom_prompt PASSED [  6%]
+Testing/unit/admin/test_admin_prompt_views.py::TestAdminPromptViews::test_edit_custom_prompt PASSED [  7%]
+Testing/unit/admin/test_admin_prompt_views.py::TestAdminPromptViews::test_system_prompt_passed_to_llm PASSED [  7%]
+Testing/unit/admin/test_admin_prompt_views.py::TestAdminPromptViews::test_project_admin_form_saves_custom_prompt_text PASSED [  7%]
+Testing/unit/admin/test_admin_prompt_views.py::TestAdminPromptViews::test_project_admin_form_disables_immutable_fields_when_sources_exist PASSED [  7%]
+Testing/unit/admin/test_custom_unfold_views.py::TestCustomUnfoldViews::test_chat_workflow_view_context PASSED [  8%]
+Testing/unit/admin/test_custom_unfold_views.py::TestCustomUnfoldViews::test_evaluation_workflow_view_context PASSED [  8%]
+Testing/unit/api/test_api_views_new.py::TestAPIKeyViewSet::test_list_api_keys PASSED [  8%]
+Testing/unit/api/test_api_views_new.py::TestAPIKeyViewSet::test_list_api_keys_only_user_keys PASSED [  8%]
+Testing/unit/api/test_api_views_new.py::TestAPIKeyViewSet::test_retrieve_api_key PASSED [  9%]
+Testing/unit/api/test_api_views_new.py::TestAPIKeyViewSet::test_create_api_key PASSED [  9%]
+Testing/unit/api/test_api_views_new.py::TestAPIKeyViewSet::test_create_api_key_associates_with_user PASSED [  9%]
+Testing/unit/api/test_api_views_new.py::TestAPIKeyViewSet::test_delete_api_key PASSED [ 10%]
+Testing/unit/api/test_api_views_new.py::TestAPIKeyViewSet::test_api_key_active_action PASSED [ 10%]
+Testing/unit/api/test_api_views_new.py::TestAPIKeyViewSet::test_get_serializer_class_for_create PASSED [ 10%]
+Testing/unit/api/test_api_views_new.py::TestAPIKeyViewSet::test_get_serializer_class_for_list PASSED [ 10%]
+Testing/unit/api/test_api_views_new.py::TestAPIUsageViewSet::test_list_usage PASSED [ 11%]
+Testing/unit/api/test_api_views_new.py::TestAPIUsageViewSet::test_list_usage_only_user_usage PASSED [ 11%]
+Testing/unit/api/test_api_views_new.py::TestAPIUsageViewSet::test_retrieve_usage PASSED [ 11%]
+Testing/unit/api/test_api_views_new.py::TestAPIUsageViewSet::test_usage_by_key_action PASSED [ 11%]
+Testing/unit/api/test_api_views_new.py::TestAPIUsageViewSet::test_usage_by_key_missing_param PASSED [ 12%]
+Testing/unit/api/test_api_views_new.py::TestAPIUsageViewSet::test_usage_by_key_not_found PASSED [ 12%]
+Testing/unit/api/test_api_views_new.py::TestAPIUsageViewSet::test_usage_by_endpoint_action PASSED [ 12%]
+Testing/unit/api/test_api_views_new.py::TestAPIUsageViewSet::test_usage_by_endpoint_missing_param PASSED [ 12%]
+Testing/unit/api/test_api_views_new.py::TestAPIUsageViewSet::test_usage_summary_action PASSED [ 13%]
+Testing/unit/api/test_api_views_new.py::TestAPIUsageViewSet::test_usage_viewset_is_read_only PASSED [ 13%]
+Testing/unit/api/test_api_views_new.py::TestAPIUsageViewSet::test_get_serializer_class_for_list PASSED [ 13%]
+Testing/unit/api/test_models_new.py::TestAPIKeyModel::test_create_api_key PASSED [ 14%]
+Testing/unit/api/test_models_new.py::TestAPIKeyModel::test_api_key_default_active PASSED [ 14%]
+Testing/unit/api/test_models_new.py::TestAPIKeyModel::test_api_key_inactive PASSED [ 14%]
+Testing/unit/api/test_models_new.py::TestAPIKeyModel::test_api_key_unique_constraint PASSED [ 14%]
+Testing/unit/api/test_models_new.py::TestAPIKeyModel::test_api_key_str_representation PASSED [ 15%]
+Testing/unit/api/test_models_new.py::TestAPIKeyModel::test_api_key_timestamps PASSED [ 15%]
+Testing/unit/api/test_models_new.py::TestAPIKeyModel::test_api_key_update_last_used PASSED [ 15%]
+Testing/unit/api/test_models_new.py::TestAPIKeyModel::test_api_key_ordering PASSED [ 15%]
+Testing/unit/api/test_models_new.py::TestAPIKeyModel::test_cascade_delete_on_user PASSED [ 16%]
+Testing/unit/api/test_models_new.py::TestAPIKeyModel::test_generate_key_static_method PASSED [ 16%]
+Testing/unit/api/test_models_new.py::TestAPIKeyModel::test_multiple_keys_per_user PASSED [ 16%]
+Testing/unit/api/test_models_new.py::TestAPIKeyModel::test_different_users_different_keys PASSED [ 17%]
+Testing/unit/api/test_models_new.py::TestAPIUsageModel::test_create_api_usage PASSED [ 17%]
+Testing/unit/api/test_models_new.py::TestAPIUsageModel::test_api_usage_various_methods PASSED [ 17%]
+Testing/unit/api/test_models_new.py::TestAPIUsageModel::test_api_usage_various_status_codes PASSED [ 17%]
+Testing/unit/api/test_models_new.py::TestAPIUsageModel::test_api_usage_str_representation PASSED [ 18%]
+Testing/unit/api/test_models_new.py::TestAPIUsageModel::test_api_usage_timestamp PASSED [ 18%]
+Testing/unit/api/test_models_new.py::TestAPIUsageModel::test_api_usage_cascade_delete_on_key PASSED [ 18%]
+Testing/unit/api/test_models_new.py::TestAPIUsageModel::test_api_usage_ordering PASSED [ 18%]
+Testing/unit/api/test_models_new.py::TestAPIUsageModel::test_filter_by_api_key PASSED [ 19%]
+Testing/unit/api/test_models_new.py::TestAPIUsageModel::test_filter_by_status_code PASSED [ 19%]
+Testing/unit/api/test_models_new.py::TestAPIUsageModel::test_filter_by_endpoint PASSED [ 19%]
+Testing/unit/api/test_models_new.py::TestAPIUsageModel::test_multiple_usage_logs_per_key PASSED [ 20%]
+Testing/unit/api/test_serializers_new.py::TestAPIKeySerializer::test_api_key_serializer_serialization PASSED [ 20%]
+Testing/unit/api/test_serializers_new.py::TestAPIKeySerializer::test_api_key_serializer_read_only_fields PASSED [ 20%]
+Testing/unit/api/test_serializers_new.py::TestAPIKeySerializer::test_api_key_serializer_user_username_field PASSED [ 20%]
+Testing/unit/api/test_serializers_new.py::TestAPIKeyCreateSerializer::test_create_serializer_generate_key PASSED [ 21%]
+Testing/unit/api/test_serializers_new.py::TestAPIKeyCreateSerializer::test_create_serializer_key_is_read_only PASSED [ 21%]
+Testing/unit/api/test_serializers_new.py::TestAPIKeyCreateSerializer::test_create_serializer_default_active PASSED [ 21%]
+Testing/unit/api/test_serializers_new.py::TestAPIKeyCreateSerializer::test_create_serializer_requires_name PASSED [ 21%]
+Testing/unit/api/test_serializers_new.py::TestAPIKeyListSerializer::test_list_serializer_lightweight_fields PASSED [ 22%]
+Testing/unit/api/test_serializers_new.py::TestAPIKeyListSerializer::test_list_serializer_serializes_multiple PASSED [ 22%]
+Testing/unit/api/test_serializers_new.py::TestAPIUsageListSerializer::test_list_serializer_fields_defined PASSED [ 22%]
+Testing/unit/api/test_serializers_new.py::TestAPIUsageListSerializer::test_list_serializer_model_reference PASSED [ 22%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerChatAPI::test_chat_query_missing_fields PASSED [ 23%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerChatAPI::test_chat_query_unauthorized_project PASSED [ 23%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerChatAPI::test_chat_query_local_store PASSED [ 23%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerProjectsAPI::test_list_projects PASSED [ 24%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerProjectsAPI::test_create_project_success PASSED [ 24%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerProjectsAPI::test_create_project_unsupported_storage PASSED [ 24%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerProjectsAPI::test_get_project_by_pk_and_project_id PASSED [ 24%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerProjectsAPI::test_update_project PASSED [ 25%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerProjectsAPI::test_delete_project PASSED [ 25%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerProjectsAPI::test_get_and_set_project_prompt PASSED [ 25%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerProjectsAPI::test_get_project_documents PASSED [ 25%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerProjectsAPI::test_active_projects PASSED [ 26%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerProjectsAPI::test_projects_by_storage PASSED [ 26%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerSystemPromptsAPI::test_crud_system_prompts PASSED [ 26%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerDocumentsAPI::test_documents_list_and_create PASSED [ 27%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerDocumentsAPI::test_documents_filtering_actions PASSED [ 27%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerDocumentsAPI::test_document_retrieve_update_delete PASSED [ 27%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerDocumentsAPI::test_delete_document_by_filename_route PASSED [ 27%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerMessagesAPI::test_messages_crud_and_filters PASSED [ 28%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerEvaluationAPI::test_evaluation_datasets PASSED [ 28%]
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerEvaluationAPI::test_evaluation_runs_and_results PASSED [ 28%]
+Testing/unit/chat/test_api_views.py::TestChatMessageViewSet::test_list_messages PASSED [ 28%]
+Testing/unit/chat/test_api_views.py::TestChatMessageViewSet::test_retrieve_message PASSED [ 29%]
+Testing/unit/chat/test_api_views.py::TestChatMessageViewSet::test_create_message PASSED [ 29%]
+Testing/unit/chat/test_api_views.py::TestChatMessageViewSet::test_update_message PASSED [ 29%]
+Testing/unit/chat/test_api_views.py::TestChatMessageViewSet::test_partial_update_message PASSED [ 30%]
+Testing/unit/chat/test_api_views.py::TestChatMessageViewSet::test_delete_message PASSED [ 30%]
+Testing/unit/chat/test_api_views.py::TestChatMessageViewSet::test_by_project_action PASSED [ 30%]
+Testing/unit/chat/test_api_views.py::TestChatMessageViewSet::test_by_project_missing_param PASSED [ 30%]
+Testing/unit/chat/test_api_views.py::TestChatMessageViewSet::test_by_session_action PASSED [ 31%]
+Testing/unit/chat/test_api_views.py::TestChatMessageViewSet::test_by_session_missing_param PASSED [ 31%]
+Testing/unit/chat/test_api_views.py::TestChatMessageViewSet::test_by_user_action_authenticated PASSED [ 31%]
+Testing/unit/chat/test_api_views.py::TestChatMessageViewSet::test_by_user_action_unauthenticated PASSED [ 31%]
+Testing/unit/chat/test_api_views.py::TestChatMessageViewSet::test_get_serializer_class_list PASSED [ 32%]
+Testing/unit/chat/test_api_views.py::TestChatMessageViewSet::test_get_serializer_class_create PASSED [ 32%]
+Testing/unit/chat/test_api_views.py::TestChatMessageViewSet::test_message_filtering_by_type PASSED [ 32%]
+Testing/unit/chat/test_chat_google_llm.py::TestChatGoogleLLM::test_chat_google_related_answer PASSED [ 32%]
+Testing/unit/chat/test_chat_google_llm.py::TestChatGoogleLLM::test_chat_google_unrelated_answer PASSED [ 33%]
+Testing/unit/chat/test_chat_rag_llm.py::TestChatRagLLM::test_chat_rag_related_answer PASSED [ 33%]
+Testing/unit/chat/test_chat_rag_llm.py::TestChatRagLLM::test_chat_rag_unrelated_answer PASSED [ 33%]
+Testing/unit/chat/test_chat_views.py::TestChatViews::test_adaptive_hyde_direct_lookup PASSED [ 34%]
+Testing/unit/chat/test_chat_views.py::TestChatViews::test_chat_submit_authenticated PASSED [ 34%]
+Testing/unit/chat/test_chat_views.py::TestChatViews::test_chat_submit_local PASSED [ 34%]
+Testing/unit/chat/test_chat_views.py::TestChatViews::test_chat_api_local PASSED [ 34%]
+Testing/unit/chat/test_chat_views.py::TestChatViews::test_chat_api_authenticated PASSED [ 35%]
+Testing/unit/chat/test_chat_views.py::TestChatViews::test_chat_api_basic_auth_fallback PASSED [ 35%]
+Testing/unit/chat/test_chat_views.py::TestChatViews::test_chat_submit_rag PASSED [ 35%]
+Testing/unit/chat/test_chat_views.py::TestChatViews::test_chat_submit_rag_includes_document_name_attribution PASSED [ 35%]
+Testing/unit/chat/test_chat_views.py::TestChatViews::test_chat_submit_rag_uses_project_system_prompt PASSED [ 36%]
+Testing/unit/chat/test_chat_views.py::TestChatViews::test_chat_submit_rag_rejects_non_owner PASSED [ 36%]
+Testing/unit/chat/test_chat_views.py::TestChatViews::test_chat_api_rag_returns_document_name_attribution PASSED [ 36%]
+Testing/unit/chat/test_chat_views.py::TestChatViews::test_chat_api_missing_params PASSED [ 37%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_create_user_message PASSED [ 37%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_create_assistant_message PASSED [ 37%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_message_timestamps PASSED [ 37%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_message_string_representation PASSED [ 38%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_message_string_representation_truncated PASSED [ 38%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_context_documents_default PASSED [ 38%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_context_documents_json PASSED [ 38%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_system_prompt_stored PASSED [ 39%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_session_id_blank PASSED [ 39%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_message_ordering PASSED [ 39%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_queryset_filter_by_project PASSED [ 40%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_queryset_filter_by_session PASSED [ 40%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_queryset_filter_by_message_type PASSED [ 40%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_message_user_optional PASSED [ 40%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_cascade_delete_project PASSED [ 41%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_user_set_to_null_on_deletion PASSED [ 41%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_valid_message_types PASSED [ 41%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_project_related_access PASSED [ 41%]
+Testing/unit/chat/test_models.py::TestChatMessageModel::test_user_related_access PASSED [ 42%]
+Testing/unit/chat/test_serializers.py::TestChatMessageSerializer::test_serialize_user_message PASSED [ 42%]
+Testing/unit/chat/test_serializers.py::TestChatMessageSerializer::test_serialize_assistant_message PASSED [ 42%]
+Testing/unit/chat/test_serializers.py::TestChatMessageSerializer::test_serializer_read_only_fields PASSED [ 42%]
+Testing/unit/chat/test_serializers.py::TestChatMessageSerializer::test_serialize_null_user PASSED [ 43%]
+Testing/unit/chat/test_serializers.py::TestChatMessageCreateSerializer::test_create_user_message PASSED [ 43%]
+Testing/unit/chat/test_serializers.py::TestChatMessageCreateSerializer::test_create_required_fields PASSED [ 43%]
+Testing/unit/chat/test_serializers.py::TestChatMessageCreateSerializer::test_create_optional_session_id PASSED [ 44%]
+Testing/unit/chat/test_serializers.py::TestChatMessageCreateSerializer::test_create_invalid_message_type PASSED [ 44%]
+Testing/unit/chat/test_serializers.py::TestChatMessageCreateSerializer::test_create_valid_message_types PASSED [ 44%]
+Testing/unit/chat/test_serializers.py::TestChatMessageListSerializer::test_list_serializer_fields PASSED [ 44%]
+Testing/unit/chat/test_serializers.py::TestChatMessageListSerializer::test_list_serializer_multiple PASSED [ 45%]
+Testing/unit/chat/test_serializers.py::TestChatResponseSerializer::test_serialize_response PASSED [ 45%]
+Testing/unit/chat/test_serializers.py::TestChatResponseSerializer::test_response_required_fields PASSED [ 45%]
+Testing/unit/chat/test_serializers.py::TestChatResponseSerializer::test_deserialize_response PASSED [ 45%]
+Testing/unit/documents/test_api_views.py::TestDocumentViewSet::test_list_documents PASSED [ 46%]
+Testing/unit/documents/test_api_views.py::TestDocumentViewSet::test_retrieve_document PASSED [ 46%]
+Testing/unit/documents/test_api_views.py::TestDocumentViewSet::test_create_document PASSED [ 46%]
+Testing/unit/documents/test_api_views.py::TestDocumentViewSet::test_update_document PASSED [ 47%]
+Testing/unit/documents/test_api_views.py::TestDocumentViewSet::test_partial_update_document PASSED [ 47%]
+Testing/unit/documents/test_api_views.py::TestDocumentViewSet::test_delete_document PASSED [ 47%]
+Testing/unit/documents/test_api_views.py::TestDocumentViewSet::test_by_project_action PASSED [ 47%]
+Testing/unit/documents/test_api_views.py::TestDocumentViewSet::test_by_project_action_with_string_id PASSED [ 48%]
+Testing/unit/documents/test_api_views.py::TestDocumentViewSet::test_by_project_missing_param PASSED [ 48%]
+Testing/unit/documents/test_api_views.py::TestDocumentViewSet::test_by_state_action PASSED [ 48%]
+Testing/unit/documents/test_api_views.py::TestDocumentViewSet::test_by_state_missing_param PASSED [ 48%]
+Testing/unit/documents/test_api_views.py::TestDocumentViewSet::test_indexed_action PASSED [ 49%]
+Testing/unit/documents/test_api_views.py::TestDocumentViewSet::test_failed_action PASSED [ 49%]
+Testing/unit/documents/test_api_views.py::TestDocumentViewSet::test_get_serializer_class_list PASSED [ 49%]
+Testing/unit/documents/test_api_views.py::TestDocumentViewSet::test_get_serializer_class_create PASSED [ 50%]
+Testing/unit/documents/test_api_views.py::TestDocumentViewSet::test_get_serializer_class_update PASSED [ 50%]
+Testing/unit/documents/test_api_views.py::TestDocumentViewSet::test_document_filtering_by_state PASSED [ 50%]
+Testing/unit/documents/test_api_views.py::TestDocumentViewSet::test_document_filtering_by_project PASSED [ 50%]
+Testing/unit/documents/test_llama_ingestion.py::test_llama_ingestion_pipeline_triggered PASSED [ 51%]
+Testing/unit/documents/test_llama_ingestion.py::test_embedding_model_instantiation PASSED [ 51%]
+Testing/unit/documents/test_llama_ingestion.py::test_llama_ingestion_pipeline_original_filename PASSED [ 51%]
+Testing/unit/documents/test_llama_ingestion.py::test_postgres_rag_engine_delete_document_db_cleanup PASSED [ 51%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_create_document_minimal PASSED [ 52%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_create_document_full PASSED [ 52%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_document_expiration_fields PASSED [ 52%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_document_timestamps PASSED [ 52%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_indexed_at_optional PASSED [ 53%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_indexed_at_set PASSED [ 53%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_document_string_representation PASSED [ 53%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_document_string_without_display_name PASSED [ 54%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_valid_index_states PASSED [ 54%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_unique_together_project_name PASSED [ 54%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_unique_together_different_projects PASSED [ 54%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_error_message_empty PASSED [ 55%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_error_message_set PASSED [ 55%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_external_document_id_optional PASSED [ 55%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_display_name_optional PASSED [ 55%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_file_size_optional PASSED [ 56%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_document_ordering PASSED [ 56%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_queryset_filter_by_project PASSED [ 56%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_queryset_filter_by_state PASSED [ 57%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_queryset_filter_by_project_and_state PASSED [ 57%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_cascade_delete_project PASSED [ 57%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_project_related_access PASSED [ 57%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_mime_type_default PASSED [ 58%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_update_document_state PASSED [ 58%]
+Testing/unit/documents/test_models.py::TestDocumentModel::test_update_error_message PASSED [ 58%]
+Testing/unit/documents/test_obsidian_lifecycle.py::TestObsidianLifecycleEngine::test_discover_obsidian_vault_files_sync_and_purge PASSED [ 58%]
+Testing/unit/documents/test_obsidian_lifecycle.py::TestObsidianLifecycleEngine::test_run_obsidian_lifecycle_modes PASSED [ 59%]
+Testing/unit/documents/test_obsidian_lifecycle.py::TestObsidianLifecycleEngine::test_discover_obsidian_modified_file_detection PASSED [ 59%]
+Testing/unit/documents/test_obsidian_models.py::TestObsidianModels::test_create_obsidian_source PASSED [ 59%]
+Testing/unit/documents/test_obsidian_models.py::TestObsidianModels::test_create_obsidian_file PASSED [ 60%]
+Testing/unit/documents/test_obsidian_views.py::TestObsidianViews::test_set_source_type_view PASSED [ 60%]
+Testing/unit/documents/test_obsidian_views.py::TestObsidianViews::test_obsidian_save_path_view PASSED [ 60%]
+Testing/unit/documents/test_obsidian_views.py::TestObsidianViews::test_obsidian_index_and_sync_views PASSED [ 60%]
+Testing/unit/documents/test_serializers.py::TestDocumentSerializer::test_serialize_pending_document PASSED [ 61%]
+Testing/unit/documents/test_serializers.py::TestDocumentSerializer::test_serialize_indexed_document PASSED [ 61%]
+Testing/unit/documents/test_serializers.py::TestDocumentSerializer::test_serialize_failed_document PASSED [ 61%]
+Testing/unit/documents/test_serializers.py::TestDocumentSerializer::test_serializer_read_only_fields PASSED [ 61%]
+Testing/unit/documents/test_serializers.py::TestDocumentCreateSerializer::test_create_document PASSED [ 62%]
+Testing/unit/documents/test_serializers.py::TestDocumentCreateSerializer::test_create_required_fields PASSED [ 62%]
+Testing/unit/documents/test_serializers.py::TestDocumentCreateSerializer::test_create_optional_fields PASSED [ 62%]
+Testing/unit/documents/test_serializers.py::TestDocumentCreateSerializer::test_create_always_pending PASSED [ 62%]
+Testing/unit/documents/test_serializers.py::TestDocumentUpdateSerializer::test_update_display_name PASSED [ 63%]
+Testing/unit/documents/test_serializers.py::TestDocumentUpdateSerializer::test_update_state PASSED [ 63%]
+Testing/unit/documents/test_serializers.py::TestDocumentUpdateSerializer::test_update_error_message PASSED [ 63%]
+Testing/unit/documents/test_serializers.py::TestDocumentUpdateSerializer::test_update_multiple_fields PASSED [ 64%]
+Testing/unit/documents/test_serializers.py::TestDocumentListSerializer::test_list_serializer_fields PASSED [ 64%]
+Testing/unit/documents/test_serializers.py::TestDocumentListSerializer::test_list_serializer_multiple PASSED [ 64%]
+Testing/unit/documents/test_serializers.py::TestDocumentListSerializer::test_list_serializer_data_integrity PASSED [ 64%]
+Testing/unit/evaluate/test_api_views_eval.py::TestEvaluationApiViews::test_list_datasets PASSED [ 65%]
+Testing/unit/evaluate/test_api_views_eval.py::TestEvaluationApiViews::test_create_run PASSED [ 65%]
+Testing/unit/evaluate/test_manual_eval.py::TestManualEvaluationModels::test_manual_run_creation PASSED [ 65%]
+Testing/unit/evaluate/test_manual_eval.py::TestManualEvaluationModels::test_manual_item_creation PASSED [ 65%]
+Testing/unit/evaluate/test_manual_eval.py::TestManualEvaluationServices::test_generate_answer_for_single_item PASSED [ 66%]
+Testing/unit/evaluate/test_manual_eval.py::TestManualEvaluationServices::test_batch_generate_manual_answers PASSED [ 66%]
+Testing/unit/evaluate/test_manual_eval.py::TestManualEvaluationViews::test_create_manual_run_from_text PASSED [ 66%]
+Testing/unit/evaluate/test_manual_eval.py::TestManualEvaluationViews::test_create_manual_run_from_csv PASSED [ 67%]
+Testing/unit/evaluate/test_manual_eval.py::TestManualEvaluationViews::test_rate_manual_item PASSED [ 67%]
+Testing/unit/evaluate/test_manual_eval.py::TestManualEvaluationViews::test_generate_answer_view PASSED [ 67%]
+Testing/unit/evaluate/test_manual_eval.py::TestManualEvaluationViews::test_batch_generate_answers_view PASSED [ 67%]
+Testing/unit/evaluate/test_models_eval.py::TestEvaluationModels::test_create_evaluation_dataset_general PASSED [ 68%]
+Testing/unit/evaluate/test_models_eval.py::TestEvaluationModels::test_create_evaluation_dataset_with_document PASSED [ 68%]
+Testing/unit/evaluate/test_models_eval.py::TestEvaluationModels::test_create_evaluation_run PASSED [ 68%]
+Testing/unit/evaluate/test_models_eval.py::TestEvaluationModels::test_create_evaluation_result_metrics PASSED [ 68%]
+Testing/unit/evaluate/test_serializers_eval.py::TestEvaluationSerializers::test_dataset_serializer PASSED [ 69%]
+Testing/unit/evaluate/test_serializers_eval.py::TestEvaluationSerializers::test_run_serializer PASSED [ 69%]
+Testing/unit/evaluate/test_serializers_eval.py::TestEvaluationSerializers::test_result_metrics_serializer PASSED [ 69%]
+Testing/unit/evaluate/test_synthetic_qa_eval.py::TestEvaluationServices::test_generate_synthetic_qas_success PASSED [ 70%]
+Testing/unit/evaluate/test_synthetic_qa_eval.py::TestEvaluationServices::test_execute_evaluation_run_success PASSED [ 70%]
+Testing/unit/evaluate/test_synthetic_qa_eval.py::TestEvaluationServices::test_get_postgres_chunks_fallback PASSED [ 70%]
+Testing/unit/evaluate/test_synthetic_qa_eval.py::TestSyntheticQAEvaluator::test_evaluator_initialization PASSED [ 70%]
+Testing/unit/evaluate/test_synthetic_qa_eval.py::TestSyntheticQAEvaluator::test_fetch_document_nodes PASSED [ 71%]
+Testing/unit/evaluate/test_synthetic_qa_eval.py::TestSyntheticQAEvaluator::test_generate_synthetic_questions PASSED [ 71%]
+Testing/unit/evaluate/test_synthetic_qa_eval.py::TestSyntheticQAEvaluator::test_evaluate_retrieval_recall PASSED [ 71%]
+Testing/unit/evaluate/test_synthetic_qa_eval.py::TestRunEvaluationView::test_run_evaluation_view_post_success PASSED [ 71%]
+Testing/unit/evaluate/test_views_eval.py::TestEvaluationViews::test_evaluation_dashboard_authenticated PASSED [ 72%]
+Testing/unit/evaluate/test_views_eval.py::TestEvaluationViews::test_qa_setup_redirect PASSED [ 72%]
+Testing/unit/evaluate/test_views_eval.py::TestEvaluationViews::test_qa_setup_get PASSED [ 72%]
+Testing/unit/evaluate/test_views_eval.py::TestEvaluationViews::test_qa_setup_post_manual PASSED [ 72%]
+Testing/unit/evaluate/test_views_eval.py::TestEvaluationViews::test_qa_setup_post_csv_success PASSED [ 73%]
+Testing/unit/evaluate/test_views_eval.py::TestEvaluationViews::test_qa_setup_post_csv_missing_headers PASSED [ 73%]
+Testing/unit/evaluate/test_views_eval.py::TestEvaluationViews::test_qa_setup_post_generate PASSED [ 73%]
+Testing/unit/evaluate/test_views_eval.py::TestEvaluationViews::test_qa_generation_status_running PASSED [ 74%]
+Testing/unit/evaluate/test_views_eval.py::TestEvaluationViews::test_qa_generation_status_success PASSED [ 74%]
+Testing/unit/evaluate/test_views_eval.py::TestEvaluationViews::test_qa_generation_status_failed PASSED [ 74%]
+Testing/unit/evaluate/test_views_eval.py::TestEvaluationViews::test_run_evaluation_trigger PASSED [ 74%]
+Testing/unit/evaluate/test_views_eval.py::TestEvaluationViews::test_evaluation_run_status_running PASSED [ 75%]
+Testing/unit/evaluate/test_views_eval.py::TestEvaluationViews::test_evaluation_run_status_success PASSED [ 75%]
+Testing/unit/evaluate/test_views_eval.py::TestEvaluationViews::test_evaluation_run_status_failed PASSED [ 75%]
+Testing/unit/evaluate/test_views_eval.py::TestEvaluationViews::test_evaluation_results_render PASSED [ 75%]
+Testing/unit/evaluate/test_views_eval.py::TestEvaluationViews::test_delete_qa_item_non_htmx PASSED [ 76%]
+Testing/unit/evaluate/test_views_eval.py::TestEvaluationViews::test_delete_qa_item_htmx PASSED [ 76%]
+Testing/unit/projects/test_api_views.py::TestProjectViewSet::test_list_projects PASSED [ 76%]
+Testing/unit/projects/test_api_views.py::TestProjectViewSet::test_retrieve_project PASSED [ 77%]
+Testing/unit/projects/test_api_views.py::TestProjectViewSet::test_create_project PASSED [ 77%]
+Testing/unit/projects/test_api_views.py::TestProjectViewSet::test_update_project PASSED [ 77%]
+Testing/unit/projects/test_api_views.py::TestProjectViewSet::test_partial_update_project PASSED [ 77%]
+Testing/unit/projects/test_api_views.py::TestProjectViewSet::test_delete_project PASSED [ 78%]
+Testing/unit/projects/test_api_views.py::TestProjectViewSet::test_filter_projects_by_storage_type PASSED [ 78%]
+Testing/unit/projects/test_api_views.py::TestProjectViewSet::test_filter_projects_by_active PASSED [ 78%]
+Testing/unit/projects/test_api_views.py::TestSystemPromptViewSet::test_list_system_prompts PASSED [ 78%]
+Testing/unit/projects/test_api_views.py::TestSystemPromptViewSet::test_retrieve_system_prompt PASSED [ 79%]
+Testing/unit/projects/test_api_views.py::TestSystemPromptViewSet::test_create_system_prompt PASSED [ 79%]
+Testing/unit/projects/test_api_views.py::TestSystemPromptViewSet::test_update_system_prompt PASSED [ 79%]
+Testing/unit/projects/test_api_views.py::TestSystemPromptViewSet::test_delete_system_prompt PASSED [ 80%]
+Testing/unit/projects/test_api_views.py::TestSystemPromptViewSet::test_filter_prompts_by_project PASSED [ 80%]
+Testing/unit/projects/test_api_views.py::TestSystemPromptViewSet::test_list_projects_isolation PASSED [ 80%]
+Testing/unit/projects/test_api_views.py::TestSystemPromptViewSet::test_create_project_sets_user PASSED [ 80%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_create_project_local PASSED [ 81%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_project_disable_thinking_setting PASSED [ 81%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_project_llm_and_embedding_model_defaults PASSED [ 81%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_embedding_model_immutability_guardrail_when_indexed PASSED [ 81%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_project_response_mode_choices PASSED [ 82%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_create_project_google PASSED [ 82%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_create_project_postgres PASSED [ 82%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_project_id_unique PASSED [ 82%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_project_timestamps PASSED [ 83%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_project_str_representation PASSED [ 83%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_project_ordering PASSED [ 83%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_project_is_active_default PASSED [ 84%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_project_storage_type_choices PASSED [ 84%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_project_validation_blocked_types PASSED [ 84%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_project_declares_postgres_storage_choice PASSED [ 84%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_project_document_count_default PASSED [ 85%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_project_last_indexed_at_default PASSED [ 85%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_project_update PASSED [ 85%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_project_queryset_filter_by_storage_type PASSED [ 85%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_project_queryset_filter_by_active PASSED [ 86%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_project_parameter_placeholders_defaults PASSED [ 86%]
+Testing/unit/projects/test_models.py::TestProjectModel::test_project_parameter_placeholders_custom PASSED [ 86%]
+Testing/unit/projects/test_models.py::TestSystemPromptModel::test_create_system_prompt PASSED [ 87%]
+Testing/unit/projects/test_models.py::TestSystemPromptModel::test_system_prompt_one_to_one_relationship PASSED [ 87%]
+Testing/unit/projects/test_models.py::TestSystemPromptModel::test_system_prompt_str_representation PASSED [ 87%]
+Testing/unit/projects/test_models.py::TestSystemPromptModel::test_system_prompt_empty_content PASSED [ 87%]
+Testing/unit/projects/test_models.py::TestSystemPromptModel::test_system_prompt_timestamps PASSED [ 88%]
+Testing/unit/projects/test_models.py::TestSystemPromptModel::test_system_prompt_cascade_delete PASSED [ 88%]
+Testing/unit/projects/test_models.py::TestSystemPromptModel::test_system_prompt_update PASSED [ 88%]
+Testing/unit/projects/test_models.py::TestSystemPromptModel::test_system_prompt_related_access PASSED [ 88%]
+Testing/unit/projects/test_postgres_connectivity.py::TestPostgresConnectivity::test_postgres_connection_success PASSED [ 89%]
+Testing/unit/projects/test_postgres_connectivity.py::TestPostgresConnectivity::test_postgres_connection_failure PASSED [ 89%]
+Testing/unit/projects/test_postgres_connectivity.py::TestPostgresConnectivity::test_create_project_postgres_connection_failure PASSED [ 89%]
+Testing/unit/projects/test_postgres_connectivity.py::TestPostgresConnectivity::test_create_project_postgres_connection_success PASSED [ 90%]
+Testing/unit/projects/test_postgres_connectivity.py::TestPostgresConnectivity::test_upload_document_postgres_connection_failure PASSED [ 90%]
+Testing/unit/projects/test_serializers.py::TestProjectSerializer::test_serialize_project PASSED [ 90%]
+Testing/unit/projects/test_serializers.py::TestProjectSerializer::test_serialize_project_with_prompt PASSED [ 90%]
+Testing/unit/projects/test_serializers.py::TestProjectSerializer::test_project_serializer_read_only_fields PASSED [ 91%]
+Testing/unit/projects/test_serializers.py::TestProjectSerializer::test_serialize_google_project PASSED [ 91%]
+Testing/unit/projects/test_serializers.py::TestProjectCreateSerializer::test_create_project_with_serializer PASSED [ 91%]
+Testing/unit/projects/test_serializers.py::TestProjectCreateSerializer::test_create_project_missing_required_field PASSED [ 91%]
+Testing/unit/projects/test_serializers.py::TestProjectCreateSerializer::test_create_serializer_invalid_storage_type PASSED [ 92%]
+Testing/unit/projects/test_serializers.py::TestProjectCreateSerializer::test_create_serializer_blocked_storage_types PASSED [ 92%]
+Testing/unit/projects/test_serializers.py::TestProjectCreateSerializer::test_create_serializer_valid_storage_type PASSED [ 92%]
+Testing/unit/projects/test_serializers.py::TestProjectCreateSerializer::test_create_serializer_optional_fields PASSED [ 92%]
+Testing/unit/projects/test_serializers.py::TestProjectUpdateSerializer::test_partial_update_display_name PASSED [ 93%]
+Testing/unit/projects/test_serializers.py::TestProjectUpdateSerializer::test_update_is_active_status PASSED [ 93%]
+Testing/unit/projects/test_serializers.py::TestProjectUpdateSerializer::test_update_description PASSED [ 93%]
+Testing/unit/projects/test_serializers.py::TestProjectUpdateSerializer::test_update_multiple_fields PASSED [ 94%]
+Testing/unit/projects/test_serializers.py::TestProjectListSerializer::test_list_serializer_fields PASSED [ 94%]
+Testing/unit/projects/test_serializers.py::TestProjectListSerializer::test_list_serializer_multiple_projects PASSED [ 94%]
+Testing/unit/projects/test_serializers.py::TestSystemPromptSerializer::test_serialize_system_prompt PASSED [ 94%]
+Testing/unit/projects/test_serializers.py::TestSystemPromptSerializer::test_create_system_prompt_with_serializer PASSED [ 95%]
+Testing/unit/projects/test_serializers.py::TestSystemPromptSerializer::test_update_system_prompt_content PASSED [ 95%]
+Testing/unit/projects/test_serializers.py::TestSystemPromptSerializer::test_system_prompt_serializer_read_only_fields PASSED [ 95%]
+Testing/unit/test_optional_dependency_imports.py::test_view_modules_import_without_google_file_search[src.apps.documents.views] PASSED [ 95%]
+Testing/unit/test_optional_dependency_imports.py::test_view_modules_import_without_google_file_search[src.apps.chat.views] PASSED [ 96%]
+Testing/unit/test_optional_dependency_imports.py::test_view_modules_import_without_google_file_search[src.apps.projects.views] PASSED [ 96%]
+Testing/unit/test_optional_dependency_imports.py::test_view_modules_import_without_local_rag[src.apps.documents.views] PASSED [ 96%]
+Testing/unit/test_optional_dependency_imports.py::test_view_modules_import_without_local_rag[src.apps.chat.views] PASSED [ 97%]
+Testing/unit/test_rag_auth_urls.py::test_rag_login_route_exists PASSED   [ 97%]
+Testing/unit/chat/test_llm_router.py::test_llm_router_gemini_cloud PASSED [ 97%]
+Testing/unit/chat/test_llm_router.py::test_llm_router_gemma_local_ollama PASSED [ 97%]
+Testing/unit/chat/test_llm_router.py::test_llm_router_gemma_local_failure PASSED [ 98%]
+Testing/unit/documents/test_llama_ingestion.py::test_get_safe_table_name PASSED [ 98%]
+Testing/unit/documents/test_llama_ingestion.py::test_select_node_parser_autodetect PASSED [ 98%]
+Testing/unit/documents/test_llama_ingestion.py::TestStructuralQualityGrading::test_quality_grading_blocks_low_quality PASSED [ 98%]
+Testing/unit/documents/test_llama_ingestion.py::TestStructuralQualityGrading::test_quality_grading_allows_high_quality PASSED [ 99%]
+Testing/unit/documents/test_obsidian_services.py::test_sanitize_obsidian_markdown_links PASSED [ 99%]
+Testing/unit/documents/test_obsidian_services.py::test_scan_obsidian_vault_exclusions PASSED [ 99%]
+Testing/unit/documents/test_obsidian_services.py::test_enrich_chunk_metadata PASSED [100%]
+
+=============================== warnings summary ===============================
+Testing/unit/test_rag_auth_urls.py: 1 warning
+Testing/unit/api/test_swagger_api_endpoints.py: 21 warnings
+Testing/unit/chat/test_chat_google_llm.py: 2 warnings
+Testing/unit/chat/test_chat_rag_llm.py: 2 warnings
+Testing/unit/chat/test_chat_views.py: 4 warnings
+Testing/unit/documents/test_obsidian_views.py: 3 warnings
+Testing/unit/evaluate/test_manual_eval.py: 5 warnings
+Testing/unit/evaluate/test_synthetic_qa_eval.py: 1 warning
+Testing/unit/projects/test_postgres_connectivity.py: 3 warnings
+  /home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/sentry_sdk/integrations/django/middleware.py:172: UserWarning: No directory at: /app/staticfiles/
+    self._inner = middleware(get_response, *args, **kwargs)
+
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerSystemPromptsAPI::test_crud_system_prompts
+Testing/unit/projects/test_api_views.py::TestSystemPromptViewSet::test_list_system_prompts
+Testing/unit/projects/test_api_views.py::TestSystemPromptViewSet::test_filter_prompts_by_project
+  /home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/rest_framework/pagination.py:200: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'src.apps.projects.models.SystemPrompt'> QuerySet.
+    paginator = self.django_paginator_class(queryset, page_size)
+
+Testing/unit/api/test_swagger_api_endpoints.py::TestSwaggerEvaluationAPI::test_evaluation_runs_and_results
+  /home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/rest_framework/pagination.py:200: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'src.apps.evaluate.models.EvaluationResultMetrics'> QuerySet.
+    paginator = self.django_paginator_class(queryset, page_size)
+
+Testing/unit/documents/test_llama_ingestion.py::test_llama_ingestion_pipeline_triggered
+Testing/unit/documents/test_llama_ingestion.py::test_llama_ingestion_pipeline_original_filename
+  /app/src/apps/documents/services.py:332: DeprecationWarning: Call to deprecated class GeminiEmbedding. (Should use `llama-index-embeddings-google-genai` instead, using Google's latest unified SDK. See: https://docs.llamaindex.ai/en/stable/examples/embeddings/google_genai/Support for this package will be discontinued after v0.4.2) -- Deprecated since version 0.4.2.
+    self.embed_model = GeminiEmbedding(
+
+Testing/unit/evaluate/test_synthetic_qa_eval.py::TestSyntheticQAEvaluator::test_evaluator_initialization
+Testing/unit/evaluate/test_synthetic_qa_eval.py::TestSyntheticQAEvaluator::test_fetch_document_nodes
+Testing/unit/evaluate/test_synthetic_qa_eval.py::TestSyntheticQAEvaluator::test_generate_synthetic_questions
+Testing/unit/evaluate/test_synthetic_qa_eval.py::TestSyntheticQAEvaluator::test_evaluate_retrieval_recall
+Testing/unit/evaluate/test_synthetic_qa_eval.py::TestRunEvaluationView::test_run_evaluation_view_post_success
+  /app/src/apps/evaluate/eval_services.py:40: DeprecationWarning: Call to deprecated class GeminiEmbedding. (Should use `llama-index-embeddings-google-genai` instead, using Google's latest unified SDK. See: https://docs.llamaindex.ai/en/stable/examples/embeddings/google_genai/Support for this package will be discontinued after v0.4.2) -- Deprecated since version 0.4.2.
+    self.embed_model = GeminiEmbedding(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.13-final-0 _______________
+
+Name                                                                                         Stmts   Miss  Cover   Missing
+--------------------------------------------------------------------------------------------------------------------------
+src/apps/__init__.py                                                                             0      0   100%
+src/apps/api/__init__.py                                                                         0      0   100%
+src/apps/api/admin.py                                                                           16      0   100%
+src/apps/api/api_urls.py                                                                        20      0   100%
+src/apps/api/api_views.py                                                                       61      0   100%
+src/apps/api/apps.py                                                                             3      0   100%
+src/apps/api/migrations/0001_initial.py                                                          7      0   100%
+src/apps/api/migrations/__init__.py                                                              0      0   100%
+src/apps/api/models.py                                                                          30      0   100%
+src/apps/api/serializers.py                                                                     30      0   100%
+src/apps/api/tests.py                                                                            1      1     0%   1
+src/apps/chat/__init__.py                                                                        0      0   100%
+src/apps/chat/admin.py                                                                           9      0   100%
+src/apps/chat/admin_views.py                                                                    11      0   100%
+src/apps/chat/api_views.py                                                                      58      0   100%
+src/apps/chat/apps.py                                                                            3      0   100%
+src/apps/chat/llm_router.py                                                                     33      5    85%   33-34, 60-62
+src/apps/chat/migrations/0001_initial.py                                                         7      0   100%
+src/apps/chat/migrations/__init__.py                                                             0      0   100%
+src/apps/chat/models.py                                                                         20      0   100%
+src/apps/chat/pages.py                                                                          19      4    79%   14, 21, 28, 35
+src/apps/chat/serializers.py                                                                    20      0   100%
+src/apps/chat/services.py                                                                       25     10    60%   14, 50-60
+src/apps/chat/tests.py                                                                           1      1     0%   1
+src/apps/chat/urls.py                                                                            4      0   100%
+src/apps/chat/views.py                                                                         234     60    74%   28-30, 64, 92-93, 138-149, 158, 160, 174-178, 182, 188-194, 227-233, 246-249, 258-259, 279, 295-306, 315, 317, 331-335, 338-339, 396-400
+src/apps/documents/__init__.py                                                                   0      0   100%
+src/apps/documents/admin.py                                                                     21      0   100%
+src/apps/documents/api_views.py                                                                 77     13    83%   54, 64-72, 81-88
+src/apps/documents/apps.py                                                                       3      0   100%
+src/apps/documents/migrations/0001_initial.py                                                    6      0   100%
+src/apps/documents/migrations/0002_document_expiration_date_document_is_expired_checked.py       4      0   100%
+src/apps/documents/migrations/0003_document_chunking_strategy.py                                 4      0   100%
+src/apps/documents/migrations/0004_obsidiansource_obsidianfile.py                                5      0   100%
+src/apps/documents/migrations/0005_alter_obsidianfile_status.py                                  4      0   100%
+src/apps/documents/migrations/__init__.py                                                        0      0   100%
+src/apps/documents/models.py                                                                    52      2    96%   164, 219
+src/apps/documents/serializers.py                                                               21      1    95%   31
+src/apps/documents/services.py                                                                 228     38    83%   19, 37, 41-42, 64, 75-76, 84-85, 123-124, 173-176, 189-190, 215-220, 244-247, 254, 303-310, 318, 323-325, 441-444
+src/apps/documents/tests.py                                                                      1      1     0%   1
+src/apps/documents/urls.py                                                                       4      0   100%
+src/apps/documents/views.py                                                                    302     58    81%   36-38, 45, 56, 87-88, 118-120, 123, 150, 154, 159-168, 196-197, 233-234, 293-308, 323, 327-328, 331, 351, 373-376, 404-405, 413-418, 425-426, 455-456, 468-469, 481-482, 498, 500, 504-505
+src/apps/evaluate/__init__.py                                                                    0      0   100%
+src/apps/evaluate/admin.py                                                                      18      0   100%
+src/apps/evaluate/admin_views.py                                                               200     22    89%   63-65, 142, 148, 164, 187-193, 221, 224, 231-232, 285, 298, 309, 315-316, 319
+src/apps/evaluate/api_views.py                                                                  26      1    96%   26
+src/apps/evaluate/apps.py                                                                        3      0   100%
+src/apps/evaluate/eval_services.py                                                             379    113    70%   117-126, 136-137, 159, 175-177, 195, 214, 252-254, 294-295, 342-344, 353-357, 367-368, 383-387, 392, 402-409, 425, 430, 435, 477, 479, 485, 495-497, 500, 504-506, 557-559, 570-571, 580, 585, 599, 601, 612-613, 628, 646-648, 651, 655-689, 712-717, 724-726, 733-735, 745, 767, 769, 776-779, 787-791, 801-806, 815-816
+src/apps/evaluate/migrations/0001_initial.py                                                     7      0   100%
+src/apps/evaluate/migrations/0002_manualevaluationrun_manualevaluationitem.py                    6      0   100%
+src/apps/evaluate/migrations/__init__.py                                                         0      0   100%
+src/apps/evaluate/models.py                                                                     64      5    92%   47, 82, 109, 140, 189
+src/apps/evaluate/serializers.py                                                                16      0   100%
+src/apps/evaluate/tests.py                                                                       1      1     0%   1
+src/apps/evaluate/urls.py                                                                        4      0   100%
+src/apps/evaluate/views.py                                                                      83      1    99%   122
+src/apps/my_rag_project/__init__.py                                                              0      0   100%
+src/apps/my_rag_project/admin.py                                                                18      2    89%   60-61
+src/apps/my_rag_project/asgi.py                                                                  4      4     0%   10-16
+src/apps/my_rag_project/settings/__init__.py                                                     7      2    71%   12, 14
+src/apps/my_rag_project/settings/base.py                                                        52      3    94%   33-34, 46
+src/apps/my_rag_project/settings/settings_dev.py                                                14      3    79%   35-37
+src/apps/my_rag_project/settings/settings_prod.py                                               26     26     0%   6-107
+src/apps/my_rag_project/settings/settings_test.py                                                8      8     0%   6-42
+src/apps/my_rag_project/urls.py                                                                  5      0   100%
+src/apps/my_rag_project/wsgi.py                                                                  4      4     0%   10-16
+src/apps/projects/__init__.py                                                                    0      0   100%
+src/apps/projects/admin.py                                                                      71     15    79%   29, 47-48, 59-63, 73-75, 134-138
+src/apps/projects/api_views.py                                                                  97     16    84%   44, 47, 69-70, 77-90, 121-122
+src/apps/projects/apps.py                                                                        3      0   100%
+src/apps/projects/db_utils.py                                                                   20      1    95%   25
+src/apps/projects/migrations/0001_initial.py                                                     6      0   100%
+src/apps/projects/migrations/0002_alter_project_storage_type.py                                  4      0   100%
+src/apps/projects/migrations/0003_project_user.py                                                6      0   100%
+src/apps/projects/migrations/0004_alter_project_storage_type.py                                  4      0   100%
+src/apps/projects/migrations/0005_project_chunking_project_custom_prompt_and_more.py             4      0   100%
+src/apps/projects/migrations/0006_project_use_markitdown_and_more.py                             4      0   100%
+src/apps/projects/migrations/0007_alter_project_storage_type.py                                  4      0   100%
+src/apps/projects/migrations/0008_alter_project_document_parsing.py                              4      0   100%
+src/apps/projects/migrations/0009_alter_project_storage_type_and_more.py                         4      0   100%
+src/apps/projects/migrations/0010_remove_project_use_structural_grading_and_more.py              4      0   100%
+src/apps/projects/migrations/0011_project_llm_model_alter_project_embedding_model.py             4      0   100%
+src/apps/projects/migrations/0012_alter_project_llm_model.py                                     4      0   100%
+src/apps/projects/migrations/0013_project_disable_thinking.py                                    4      0   100%
+src/apps/projects/migrations/__init__.py                                                         0      0   100%
+src/apps/projects/models.py                                                                     64      9    86%   185-195
+src/apps/projects/serializers.py                                                                37      2    95%   46, 61
+src/apps/projects/tests.py                                                                       1      1     0%   1
+src/apps/projects/urls.py                                                                        4      0   100%
+src/apps/projects/views.py                                                                     109     19    83%   35, 38, 44-47, 72-80, 153, 168-169, 186-187, 199-200
+--------------------------------------------------------------------------------------------------------------------------
+TOTAL                                                                                         2751    452    84%
+================= 370 passed, 53 warnings in 166.06s (0:02:46) =================

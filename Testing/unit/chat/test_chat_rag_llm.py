@@ -11,7 +11,7 @@ from prompt_storage import get_prompt_storage
 
 @pytest.mark.django_db
 class TestChatRagLLM:
-    def test_chat_rag_related_answer(self, mocker):
+    def test_chat_rag_related_answer(self, mocker) -> None:
         # Create project in test database
         project, _ = Project.objects.get_or_create(
             display_name="Test RAG",
@@ -42,7 +42,7 @@ class TestChatRagLLM:
         assert 'content' in data
         assert data['content'] == 'What is the content of the indexed documents?'
 
-    def test_chat_rag_unrelated_answer(self, mocker):
+    def test_chat_rag_unrelated_answer(self, mocker) -> None:
         # Create project in test database
         project, _ = Project.objects.get_or_create(
             display_name="Test RAG",

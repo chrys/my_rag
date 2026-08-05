@@ -48,7 +48,7 @@ class TestEvaluationViews:
             storage_type="postgres"
         )
 
-    def test_evaluation_dashboard_authenticated(self, factory, user, project):
+    def test_evaluation_dashboard_authenticated(self, factory, user, project) -> None:
         """Test rendering the central evaluation dashboard redirects to Unfold"""
         request = factory.get("/rag/evaluate/")
         request.user = user
@@ -57,7 +57,7 @@ class TestEvaluationViews:
         assert response.status_code == 302
         assert response.url == "/rag/dashboard/evaluate/"
 
-    def test_qa_setup_redirect(self, factory, user, project):
+    def test_qa_setup_redirect(self, factory, user, project) -> None:
         """Test standard qa_setup view redirects to custom admin workflow"""
         request = factory.get(f"/rag/evaluate/qa-setup/{project.project_id}/")
         request.user = user
@@ -67,7 +67,7 @@ class TestEvaluationViews:
         assert "/rag/dashboard/evaluate/qa-setup/" in response.url
 
     @patch("src.apps.evaluate.admin_views.QaSetupWorkflowView.render_to_response")
-    def test_qa_setup_get(self, mock_render, factory, user, project):
+    def test_qa_setup_get(self, mock_render, factory, user, project) -> None:
         """Test GET request to QaSetupWorkflowView"""
         mock_render.return_value = HttpResponse(b"Mock Dataset Configuration for Views Project")
         request = factory.get(f"/rag/dashboard/evaluate/qa-setup/{project.project_id}/")
@@ -79,7 +79,7 @@ class TestEvaluationViews:
         assert b"Dataset Configuration" in response.content
         assert b"Views Project" in response.content
 
-    def test_qa_setup_post_manual(self, factory, user, project):
+    def test_qa_setup_post_manual(self, factory, user, project) -> None:
         """Test POST request to QaSetupWorkflowView with manual QA inputs"""
         data = {
             "input_method": "manual",
@@ -102,7 +102,7 @@ class TestEvaluationViews:
         assert datasets[0].ground_truth == "A1."
         assert datasets[0].source == "MANUAL"
 
-    def test_qa_setup_post_csv_success(self, factory, user, project):
+    def test_qa_setup_post_csv_success(self, factory, user, project) -> None:
         """Test POST request to QaSetupWorkflowView with a valid CSV file upload"""
         csv_content = "Question,Answer\nWhere is pgvector?,PostgreSQL pgvector database.\nHow does RAG work?,Retrieval-Augmented Generation."
         csv_file = SimpleUploadedFile(
@@ -129,7 +129,7 @@ class TestEvaluationViews:
         assert datasets[0].question == "How does RAG work?"
         assert datasets[1].ground_truth == "PostgreSQL pgvector database."
 
-    def test_qa_setup_post_csv_missing_headers(self, factory, user, project):
+    def test_qa_setup_post_csv_missing_headers(self, factory, user, project) -> None:
         """Test POST request to QaSetupWorkflowView with invalid CSV file missing headers"""
         csv_content = "Query,Response\nWhere is pgvector?,PostgreSQL.\n"
         csv_file = SimpleUploadedFile("invalid.csv", csv_content.encode("utf-8"), content_type="text/csv")
@@ -147,7 +147,7 @@ class TestEvaluationViews:
         assert b"CSV must contain 'Question' and 'Answer' column headers" in response.content
 
     @patch("src.apps.evaluate.eval_services.start_async_qa_generation")
-    def test_qa_setup_post_generate(self, mock_start_gen, factory, user, project):
+    def test_qa_setup_post_generate(self, mock_start_gen, factory, user, project) -> None:
         """Test POST request to QaSetupWorkflowView to trigger automatic QA generation"""
         data = {
             "input_method": "generate",
@@ -162,7 +162,7 @@ class TestEvaluationViews:
         assert b"Synthesizing Dataset Questions..." in response.content
         mock_start_gen.assert_called_once_with(project.project_id, 7)
 
-    def test_qa_generation_status_running(self, factory, user, project):
+    def test_qa_generation_status_running(self, factory, user, project) -> None:
         """Test polling QA generation status while running"""
         from src.apps.evaluate.views import QA_GEN_STATUS
         QA_GEN_STATUS[project.project_id] = {"status": "RUNNING", "error": "", "count": 0}
@@ -174,7 +174,7 @@ class TestEvaluationViews:
         assert response.status_code == 200
         assert b"Synthesizing Dataset Questions..." in response.content
 
-    def test_qa_generation_status_success(self, factory, user, project):
+    def test_qa_generation_status_success(self, factory, user, project) -> None:
         """Test polling QA generation status upon successful completion"""
         from src.apps.evaluate.views import QA_GEN_STATUS
         QA_GEN_STATUS[project.project_id] = {"status": "SUCCESS", "error": "", "count": 5}
@@ -195,7 +195,7 @@ class TestEvaluationViews:
         assert b"Successfully synthesized 5 QA pairs" in response.content
         assert b"Generated Q1?" in response.content
 
-    def test_qa_generation_status_failed(self, factory, user, project):
+    def test_qa_generation_status_failed(self, factory, user, project) -> None:
         """Test polling QA generation status upon failure"""
         from src.apps.evaluate.views import QA_GEN_STATUS
         QA_GEN_STATUS[project.project_id] = {"status": "FAILED", "error": "API rate limit reached", "count": 0}
@@ -208,7 +208,7 @@ class TestEvaluationViews:
         assert b"Generation failed: API rate limit reached" in response.content
 
     @patch("src.apps.evaluate.views.start_async_evaluation_run")
-    def test_run_evaluation_trigger(self, mock_start_eval, factory, user, project):
+    def test_run_evaluation_trigger(self, mock_start_eval, factory, user, project) -> None:
         """Test triggering an evaluation benchmark run"""
         request = factory.post(f"/rag/evaluate/run/{project.project_id}/")
         request.user = user
@@ -222,7 +222,7 @@ class TestEvaluationViews:
         assert runs.count() == 1
         mock_start_eval.assert_called_once_with(runs[0].id)
 
-    def test_evaluation_run_status_running(self, factory, user, project):
+    def test_evaluation_run_status_running(self, factory, user, project) -> None:
         """Test polling evaluation run status when running"""
         run = EvaluationRun.objects.create(project=project, status="RUNNING")
 
@@ -233,7 +233,7 @@ class TestEvaluationViews:
         assert response.status_code == 200
         assert b"Running Evaluation Benchmarks..." in response.content
 
-    def test_evaluation_run_status_success(self, factory, user, project):
+    def test_evaluation_run_status_success(self, factory, user, project) -> None:
         """Test polling evaluation run status upon success returns HTMX redirect payload"""
         run = EvaluationRun.objects.create(project=project, status="SUCCESS")
 
@@ -245,7 +245,7 @@ class TestEvaluationViews:
         assert b"hx-get" in response.content
         assert f"/rag/evaluate/results/{run.id}/".encode() in response.content
 
-    def test_evaluation_run_status_failed(self, factory, user, project):
+    def test_evaluation_run_status_failed(self, factory, user, project) -> None:
         """Test polling evaluation run status upon failure returns error alert"""
         run = EvaluationRun.objects.create(project=project, status="FAILED", error_message="Database lock timeout")
 
@@ -256,7 +256,7 @@ class TestEvaluationViews:
         assert response.status_code == 200
         assert b"Evaluation failed: Database lock timeout" in response.content
 
-    def test_evaluation_results_render(self, factory, user, project):
+    def test_evaluation_results_render(self, factory, user, project) -> None:
         """Test rendering the detailed evaluation metrics grid results page"""
         dataset = EvaluationDataset.objects.create(
             project=project,
@@ -287,7 +287,7 @@ class TestEvaluationViews:
         assert b"0.55" in response.content
         assert b"0.95" in response.content
 
-    def test_delete_qa_item_non_htmx(self, factory, user, project):
+    def test_delete_qa_item_non_htmx(self, factory, user, project) -> None:
         """Test deleting a QA dataset item via standard POST/DELETE request redirects"""
         dataset = EvaluationDataset.objects.create(
             project=project,
@@ -304,7 +304,7 @@ class TestEvaluationViews:
         assert response.status_code == 302
         assert not EvaluationDataset.objects.filter(id=dataset.id).exists()
 
-    def test_delete_qa_item_htmx(self, factory, user, project):
+    def test_delete_qa_item_htmx(self, factory, user, project) -> None:
         """Test deleting a QA dataset item via HTMX request returns list partial and success message"""
         dataset = EvaluationDataset.objects.create(
             project=project,

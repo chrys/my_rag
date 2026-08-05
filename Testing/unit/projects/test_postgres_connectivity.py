@@ -13,7 +13,7 @@ class TestPostgresConnectivity:
     """Test suite for PostgreSQL connectivity checks and views integration"""
 
     @patch("psycopg2.connect")
-    def test_postgres_connection_success(self, mock_connect):
+    def test_postgres_connection_success(self, mock_connect) -> None:
         """Test test_postgres_connection utility returns True on successful connection"""
         mock_conn = MagicMock()
         mock_connect.return_value = mock_conn
@@ -26,7 +26,7 @@ class TestPostgresConnectivity:
         mock_conn.close.assert_called_once()
 
     @patch("psycopg2.connect")
-    def test_postgres_connection_failure(self, mock_connect):
+    def test_postgres_connection_failure(self, mock_connect) -> None:
         """Test test_postgres_connection utility returns False and error message on connection error"""
         mock_connect.side_effect = Exception("Connection timed out")
 
@@ -37,7 +37,7 @@ class TestPostgresConnectivity:
         mock_connect.assert_called_once()
 
     @patch("src.apps.projects.views.test_postgres_connection")
-    def test_create_project_postgres_connection_failure(self, mock_test_conn, client):
+    def test_create_project_postgres_connection_failure(self, mock_test_conn, client) -> None:
         """Test that project creation fails and returns hx-swap-oob when database connection check fails"""
         mock_test_conn.return_value = (False, "Fatal: database 'db.sqlite3' does not exist")
         
@@ -58,7 +58,7 @@ class TestPostgresConnectivity:
         assert "Connection failed" in response.content.decode("utf-8")
 
     @patch("src.apps.projects.views.test_postgres_connection")
-    def test_create_project_postgres_connection_success(self, mock_test_conn, client):
+    def test_create_project_postgres_connection_success(self, mock_test_conn, client) -> None:
         """Test that project creation succeeds and returns HX-Trigger header when database connection is OK"""
         mock_test_conn.return_value = (True, "")
         
@@ -84,7 +84,7 @@ class TestPostgresConnectivity:
         assert response.headers.get("HX-Trigger") == "projectCreated"
 
     @patch("src.apps.documents.views.test_postgres_connection")
-    def test_upload_document_postgres_connection_failure(self, mock_test_conn, client):
+    def test_upload_document_postgres_connection_failure(self, mock_test_conn, client) -> None:
         """Test that document upload fails and marks the document state as FAILED in the Django database if the connection check fails"""
         mock_test_conn.return_value = (False, "Network unreachable on port 5432")
         

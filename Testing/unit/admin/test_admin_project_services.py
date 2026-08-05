@@ -6,7 +6,7 @@ from src.apps.projects.models import Project
 
 @pytest.mark.django_db
 class TestAdminProjectServices:
-    def test_create_project_service_call(self, mocker):
+    def test_create_project_service_call(self, mocker) -> None:
         mock_test_conn = mocker.patch('src.apps.projects.views.test_postgres_connection', return_value=(True, ""))
         
         factory = RequestFactory()
@@ -21,7 +21,7 @@ class TestAdminProjectServices:
         mock_test_conn.assert_called_once()
         assert Project.objects.filter(display_name='Service Level Project', storage_type='postgres').exists()
 
-    def test_delete_project_service_call(self, mocker):
+    def test_delete_project_service_call(self, mocker) -> None:
         Project.objects.create(
             project_id='test_service_id',
             display_name='Test Service Delete',

@@ -3,7 +3,7 @@ from django.urls import resolve
 
 
 @pytest.mark.django_db
-def test_rag_root_redirects_to_rag_login_for_unauthenticated_client(client):
+def test_rag_root_redirects_to_rag_login_for_unauthenticated_client(client) -> None:
     response = client.get("/rag/")
 
     assert response.status_code == 302

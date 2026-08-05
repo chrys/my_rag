@@ -30,7 +30,7 @@ class TestEvaluationModels:
             document_name="test_doc.pdf"
         )
 
-    def test_create_evaluation_dataset_general(self, project):
+    def test_create_evaluation_dataset_general(self, project) -> None:
         """Test creating a general project-level EvaluationDataset QA pair"""
         dataset = EvaluationDataset.objects.create(
             project=project,
@@ -48,7 +48,7 @@ class TestEvaluationModels:
         assert dataset.source == "MANUAL"
         assert dataset.created_at is not None
 
-    def test_create_evaluation_dataset_with_document(self, project, document):
+    def test_create_evaluation_dataset_with_document(self, project, document) -> None:
         """Test creating a document-linked EvaluationDataset QA pair"""
         dataset = EvaluationDataset.objects.create(
             project=project,
@@ -61,7 +61,7 @@ class TestEvaluationModels:
         assert dataset.document == document
         assert dataset.source == "GENERATED"
 
-    def test_create_evaluation_run(self, project):
+    def test_create_evaluation_run(self, project) -> None:
         """Test creating an EvaluationRun instance"""
         run = EvaluationRun.objects.create(
             project=project,
@@ -74,7 +74,7 @@ class TestEvaluationModels:
         assert run.started_at is not None
         assert run.completed_at is None
 
-    def test_create_evaluation_result_metrics(self, project):
+    def test_create_evaluation_result_metrics(self, project) -> None:
         """Test creating EvaluationResultMetrics"""
         dataset = EvaluationDataset.objects.create(
             project=project,

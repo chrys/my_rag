@@ -37,7 +37,7 @@ def user():
 class TestChatMessageSerializer:
     """Test ChatMessageSerializer"""
     
-    def test_serialize_user_message(self, project, user):
+    def test_serialize_user_message(self, project, user) -> None:
         """Test serializing a user message"""
         message = ChatMessage.objects.create(
             project=project,
@@ -57,7 +57,7 @@ class TestChatMessageSerializer:
         assert data['message_type'] == 'user'
         assert data['content'] == 'What is this?'
     
-    def test_serialize_assistant_message(self, project):
+    def test_serialize_assistant_message(self, project) -> None:
         """Test serializing an assistant message"""
         message = ChatMessage.objects.create(
             project=project,
@@ -75,7 +75,7 @@ class TestChatMessageSerializer:
         assert data['response_html'] == '<p>This is the answer</p>'
         assert data['context_documents'] == [{'id': 1}]
     
-    def test_serializer_read_only_fields(self, project):
+    def test_serializer_read_only_fields(self, project) -> None:
         """Test that created_at and response_html are read-only"""
         message = ChatMessage.objects.create(
             project=project,
@@ -91,7 +91,7 @@ class TestChatMessageSerializer:
         assert 'created_at' in serializer.Meta.read_only_fields
         assert 'response_html' in serializer.Meta.read_only_fields
     
-    def test_serialize_null_user(self, project):
+    def test_serialize_null_user(self, project) -> None:
         """Test serializing message with null user"""
         message = ChatMessage.objects.create(
             project=project,
@@ -109,7 +109,7 @@ class TestChatMessageSerializer:
 class TestChatMessageCreateSerializer:
     """Test ChatMessageCreateSerializer"""
     
-    def test_create_user_message(self, project):
+    def test_create_user_message(self, project) -> None:
         """Test creating message via serializer"""
         data = {
             'project': project.id,
@@ -127,7 +127,7 @@ class TestChatMessageCreateSerializer:
         assert message.content == 'New query'
         assert message.session_id == 'session_123'
     
-    def test_create_required_fields(self, project):
+    def test_create_required_fields(self, project) -> None:
         """Test required fields validation"""
         data = {
             'project': project.id,
@@ -139,7 +139,7 @@ class TestChatMessageCreateSerializer:
         assert not serializer.is_valid()
         assert 'content' in serializer.errors
     
-    def test_create_optional_session_id(self, project):
+    def test_create_optional_session_id(self, project) -> None:
         """Test session_id is optional"""
         data = {
             'project': project.id,
@@ -153,7 +153,7 @@ class TestChatMessageCreateSerializer:
         message = serializer.save()
         assert message.session_id == ''
     
-    def test_create_invalid_message_type(self, project):
+    def test_create_invalid_message_type(self, project) -> None:
         """Test invalid message type is rejected"""
         data = {
             'project': project.id,
@@ -165,7 +165,7 @@ class TestChatMessageCreateSerializer:
         assert not serializer.is_valid()
         assert 'message_type' in serializer.errors
     
-    def test_create_valid_message_types(self, project):
+    def test_create_valid_message_types(self, project) -> None:
         """Test both valid message types work"""
         for msg_type in ['user', 'assistant']:
             data = {
@@ -182,7 +182,7 @@ class TestChatMessageCreateSerializer:
 class TestChatMessageListSerializer:
     """Test ChatMessageListSerializer"""
     
-    def test_list_serializer_fields(self, project):
+    def test_list_serializer_fields(self, project) -> None:
         """Test list serializer has correct fields"""
         message = ChatMessage.objects.create(
             project=project,
@@ -206,7 +206,7 @@ class TestChatMessageListSerializer:
         assert 'user' not in data
         assert 'response_html' not in data
     
-    def test_list_serializer_multiple(self, project):
+    def test_list_serializer_multiple(self, project) -> None:
         """Test serializing multiple messages"""
         msg1 = ChatMessage.objects.create(
             project=project,
@@ -233,7 +233,7 @@ class TestChatMessageListSerializer:
 class TestChatResponseSerializer:
     """Test ChatResponseSerializer for API responses"""
     
-    def test_serialize_response(self):
+    def test_serialize_response(self) -> None:
         """Test serializing chat response"""
         data = {
             'user_message': 'What is AI?',
@@ -244,7 +244,7 @@ class TestChatResponseSerializer:
         serializer = ChatResponseSerializer(data=data)
         assert serializer.is_valid()
     
-    def test_response_required_fields(self):
+    def test_response_required_fields(self) -> None:
         """Test response serializer requires all fields"""
         data = {
             'user_message': 'Question?',
@@ -256,7 +256,7 @@ class TestChatResponseSerializer:
         assert 'bot_response' in serializer.errors
         assert 'bot_response_html' in serializer.errors
     
-    def test_deserialize_response(self):
+    def test_deserialize_response(self) -> None:
         """Test deserializing response for API output"""
         response_data = {
             'user_message': 'How are you?',

@@ -33,7 +33,7 @@ class TestAPIKeyViewSet:
             key='test_key'
         )
     
-    def test_list_api_keys(self, api_factory, user, api_key):
+    def test_list_api_keys(self, api_factory, user, api_key) -> None:
         """Test listing API keys"""
         request = api_factory.get('/api/keys/')
         request.user = user
@@ -45,7 +45,7 @@ class TestAPIKeyViewSet:
         results = response.data.get('results', [])
         assert len(results) >= 1
     
-    def test_list_api_keys_only_user_keys(self, api_factory, user):
+    def test_list_api_keys_only_user_keys(self, api_factory, user) -> None:
         """Test that users only see their own API keys"""
         other_user = User.objects.create_user(username='other', password='pass')
         
@@ -70,7 +70,7 @@ class TestAPIKeyViewSet:
         assert len(results) == 1
         assert results[0]['name'] == 'User Key'
     
-    def test_retrieve_api_key(self, api_factory, user, api_key):
+    def test_retrieve_api_key(self, api_factory, user, api_key) -> None:
         """Test retrieving a single API key"""
         request = api_factory.get(f'/api/keys/{api_key.id}/')
         request.user = user
@@ -82,7 +82,7 @@ class TestAPIKeyViewSet:
         assert response.data['id'] == api_key.id
         assert response.data['name'] == 'Test Key'
     
-    def test_create_api_key(self, api_factory, user):
+    def test_create_api_key(self, api_factory, user) -> None:
         """Test creating a new API key"""
         data = {
             'name': 'New Key',
@@ -103,7 +103,7 @@ class TestAPIKeyViewSet:
         key = APIKey.objects.get(name='New Key')
         assert key.user == user
     
-    def test_create_api_key_associates_with_user(self, api_factory, user):
+    def test_create_api_key_associates_with_user(self, api_factory, user) -> None:
         """Test that created API key is associated with authenticated user"""
         data = {
             'name': 'Test Key',
@@ -121,7 +121,7 @@ class TestAPIKeyViewSet:
         key = APIKey.objects.get(name='Test Key')
         assert key.user == user
     
-    def test_delete_api_key(self, api_factory, user, api_key):
+    def test_delete_api_key(self, api_factory, user, api_key) -> None:
         """Test deleting an API key"""
         key_id = api_key.id
         
@@ -134,7 +134,7 @@ class TestAPIKeyViewSet:
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert not APIKey.objects.filter(id=key_id).exists()
     
-    def test_api_key_active_action(self, api_factory, user):
+    def test_api_key_active_action(self, api_factory, user) -> None:
         """Test active custom action"""
         active_key = APIKey.objects.create(
             user=user,
@@ -160,7 +160,7 @@ class TestAPIKeyViewSet:
         assert len(results) >= 1
         assert all(key['is_active'] is True for key in results)
     
-    def test_get_serializer_class_for_create(self, api_factory, user):
+    def test_get_serializer_class_for_create(self, api_factory, user) -> None:
         """Test that create action uses CreateSerializer"""
         data = {
             'name': 'Test Key',
@@ -176,7 +176,7 @@ class TestAPIKeyViewSet:
         # CreateSerializer should return the generated key
         assert 'key' in response.data
     
-    def test_get_serializer_class_for_list(self, api_factory, user, api_key):
+    def test_get_serializer_class_for_list(self, api_factory, user, api_key) -> None:
         """Test that list action uses ListSerializer"""
         request = api_factory.get('/api/keys/')
         request.user = user
@@ -225,7 +225,7 @@ class TestAPIUsageViewSet:
             ip_address='192.168.1.1'
         )
     
-    def test_list_usage(self, api_factory, user, usage):
+    def test_list_usage(self, api_factory, user, usage) -> None:
         """Test listing API usage"""
         request = api_factory.get('/api/usage/')
         request.user = user
@@ -237,7 +237,7 @@ class TestAPIUsageViewSet:
         results = response.data.get('results', [])
         assert len(results) >= 1
     
-    def test_list_usage_only_user_usage(self, api_factory, user):
+    def test_list_usage_only_user_usage(self, api_factory, user) -> None:
         """Test that users only see their own API usage"""
         other_user = User.objects.create_user(username='other', password='pass')
         
@@ -279,7 +279,7 @@ class TestAPIUsageViewSet:
         assert len(results) == 1
         assert results[0]['endpoint'] == user_usage.endpoint
     
-    def test_retrieve_usage(self, api_factory, user, usage):
+    def test_retrieve_usage(self, api_factory, user, usage) -> None:
         """Test retrieving a single usage log"""
         # Note: GenericIPAddressField has serialization issues in current DRF version
         # Model tests verify the database layer works correctly
@@ -297,7 +297,7 @@ class TestAPIUsageViewSet:
             # Expected due to GenericIPAddressField serialization issue
             pass
     
-    def test_usage_by_key_action(self, api_factory, user, api_key):
+    def test_usage_by_key_action(self, api_factory, user, api_key) -> None:
         """Test by_key custom action"""
         usage1 = APIUsage.objects.create(
             api_key=api_key,
@@ -334,7 +334,7 @@ class TestAPIUsageViewSet:
             # Expected due to GenericIPAddressField serialization issue
             pass
     
-    def test_usage_by_key_missing_param(self, api_factory, user):
+    def test_usage_by_key_missing_param(self, api_factory, user) -> None:
         """Test by_key without key_id parameter"""
         request = api_factory.get('/api/usage/by_key/')
         request.user = user
@@ -344,7 +344,7 @@ class TestAPIUsageViewSet:
         
         assert response.status_code == status.HTTP_400_BAD_REQUEST
     
-    def test_usage_by_key_not_found(self, api_factory, user):
+    def test_usage_by_key_not_found(self, api_factory, user) -> None:
         """Test by_key with non-existent key"""
         request = api_factory.get('/api/usage/by_key/?key_id=99999')
         request.user = user
@@ -354,7 +354,7 @@ class TestAPIUsageViewSet:
         
         assert response.status_code == status.HTTP_404_NOT_FOUND
     
-    def test_usage_by_endpoint_action(self, api_factory, user, api_key):
+    def test_usage_by_endpoint_action(self, api_factory, user, api_key) -> None:
         """Test by_endpoint custom action"""
         usage1 = APIUsage.objects.create(
             api_key=api_key,
@@ -385,7 +385,7 @@ class TestAPIUsageViewSet:
             # Expected due to GenericIPAddressField serialization issue
             pass
     
-    def test_usage_by_endpoint_missing_param(self, api_factory, user):
+    def test_usage_by_endpoint_missing_param(self, api_factory, user) -> None:
         """Test by_endpoint without endpoint parameter"""
         request = api_factory.get('/api/usage/by_endpoint/')
         request.user = user
@@ -395,7 +395,7 @@ class TestAPIUsageViewSet:
         
         assert response.status_code == status.HTTP_400_BAD_REQUEST
     
-    def test_usage_summary_action(self, api_factory, user, api_key):
+    def test_usage_summary_action(self, api_factory, user, api_key) -> None:
         """Test summary custom action"""
         for i in range(5):
             APIUsage.objects.create(
@@ -429,7 +429,7 @@ class TestAPIUsageViewSet:
         assert response.data['total_requests'] == 6
         assert response.data['error_count'] == 1
     
-    def test_usage_viewset_is_read_only(self, api_factory, user, usage):
+    def test_usage_viewset_is_read_only(self, api_factory, user, usage) -> None:
         """Test that usage viewset doesn't allow create/update/delete"""
         data = {
             'endpoint': '/api/test/',
@@ -452,7 +452,7 @@ class TestAPIUsageViewSet:
             # Expected: ReadOnlyModelViewSet doesn't have create
             pass
     
-    def test_get_serializer_class_for_list(self, api_factory, user, usage):
+    def test_get_serializer_class_for_list(self, api_factory, user, usage) -> None:
         """Test that list action uses ListSerializer"""
         request = api_factory.get('/api/usage/')
         request.user = user

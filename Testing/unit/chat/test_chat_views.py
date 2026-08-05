@@ -19,7 +19,7 @@ from src.apps.chat.services import generate_adaptive_hyde_passage
 
 @pytest.mark.django_db
 class TestChatViews:
-    def test_adaptive_hyde_direct_lookup(self, mocker):
+    def test_adaptive_hyde_direct_lookup(self, mocker) -> None:
         mock_client = mocker.Mock()
         mock_response = mocker.Mock()
         mock_response.text = "CATEGORY: DIRECT_LOOKUP"
@@ -28,7 +28,7 @@ class TestChatViews:
 
         result = generate_adaptive_hyde_passage("Error 0x80070005")
         assert result == "Error 0x80070005"
-    def test_chat_submit_authenticated(self, mocker):
+    def test_chat_submit_authenticated(self, mocker) -> None:
         user = User.objects.create_user(username='testuser', password='password')
         project = Project.objects.create(
             project_id='local_auth_test_id',
@@ -57,7 +57,7 @@ class TestChatViews:
         assert ChatMessage.objects.filter(user=user, message_type='user').exists()
         assert ChatMessage.objects.filter(user=user, message_type='assistant').exists()
 
-    def test_chat_submit_local(self, mocker):
+    def test_chat_submit_local(self, mocker) -> None:
         project = Project.objects.create(
             project_id='local_test_id',
             display_name='Local Project',
@@ -80,7 +80,7 @@ class TestChatViews:
         assert response.status_code == 200
         assert b"Local response." in response.content
 
-    def test_chat_api_local(self, mocker):
+    def test_chat_api_local(self, mocker) -> None:
         project = Project.objects.create(
             project_id='local_api_id',
             display_name='Local API Project',
@@ -103,7 +103,7 @@ class TestChatViews:
         data = response.json()
         assert data['bot_response'] == "Local API response."
 
-    def test_chat_api_authenticated(self, mocker):
+    def test_chat_api_authenticated(self, mocker) -> None:
         user = User.objects.create_user(username='apiuser', password='password')
         project = Project.objects.create(
             project_id='local_api_auth_id',
@@ -127,7 +127,7 @@ class TestChatViews:
         # Use project=project since the view should handle the lookup or we fix the view if it's broken
         assert ChatMessage.objects.filter(user=user, message_type='user').exists()
 
-    def test_chat_api_basic_auth_fallback(self, mocker):
+    def test_chat_api_basic_auth_fallback(self, mocker) -> None:
         user = User.objects.create_user(username='apiuser_basic', password='password')
         project = Project.objects.create(
             project_id='local_api_basic_auth_id',
@@ -161,7 +161,7 @@ class TestChatViews:
         from src.apps.chat.models import ChatMessage
         assert ChatMessage.objects.filter(user=user, message_type='user').exists()
 
-    def test_chat_submit_rag(self, mocker):
+    def test_chat_submit_rag(self, mocker) -> None:
         project = Project.objects.create(
             project_id='postgres_test_submit',
             display_name='RAG Submit Project',
@@ -192,7 +192,7 @@ class TestChatViews:
         assert response.status_code == 200
         assert b"RAG response." in response.content
 
-    def test_chat_submit_rag_includes_document_name_attribution(self, mocker):
+    def test_chat_submit_rag_includes_document_name_attribution(self, mocker) -> None:
         Project.objects.create(
             project_id='postgres_attribution_submit',
             display_name='Attributed RAG Submit Project',
@@ -227,7 +227,7 @@ class TestChatViews:
         assert b"alpha.txt" in response.content
         assert b"beta.md" in response.content
 
-    def test_chat_submit_rag_uses_project_system_prompt(self, mocker):
+    def test_chat_submit_rag_uses_project_system_prompt(self, mocker) -> None:
         project = Project.objects.create(
             project_id='postgres_prompted_submit',
             display_name='Prompted RAG Submit Project',
@@ -264,7 +264,7 @@ class TestChatViews:
             'System Context: Use only the project system prompt.\n\nQuery: Prompted RAG query'
         )
 
-    def test_chat_submit_rag_rejects_non_owner(self, mocker):
+    def test_chat_submit_rag_rejects_non_owner(self, mocker) -> None:
         owner = User.objects.create_user(username='ragowner', password='password')
         intruder = User.objects.create_user(username='ragintruder', password='password')
         Project.objects.create(
@@ -294,7 +294,7 @@ class TestChatViews:
         assert response.status_code == 403
         mock_engine.query.assert_not_called()
 
-    def test_chat_api_rag_returns_document_name_attribution(self, mocker):
+    def test_chat_api_rag_returns_document_name_attribution(self, mocker) -> None:
         Project.objects.create(
             project_id='postgres_attribution_api',
             display_name='Attributed RAG API Project',
@@ -334,7 +334,7 @@ class TestChatViews:
         assert data['bot_response'] == 'API RAG response.'
         assert data['source_documents'] == ['alpha.txt', 'beta.md']
 
-    def test_chat_api_missing_params(self):
+    def test_chat_api_missing_params(self) -> None:
         client = Client()
         response = client.post('/rag/api/chat/', data=json.dumps({
             'query': 'Missing store_id'

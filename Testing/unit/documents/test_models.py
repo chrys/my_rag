@@ -22,7 +22,7 @@ def project():
 class TestDocumentModel:
     """Test cases for Document model"""
     
-    def test_create_document_minimal(self, project):
+    def test_create_document_minimal(self, project) -> None:
         """Test creating a document with minimal fields"""
         document = Document.objects.create(
             project=project,
@@ -35,7 +35,7 @@ class TestDocumentModel:
         assert document.state == 'PENDING'
         assert document.mime_type == 'application/octet-stream'
     
-    def test_create_document_full(self, project):
+    def test_create_document_full(self, project) -> None:
         """Test creating a document with all fields"""
         document = Document.objects.create(
             project=project,
@@ -53,7 +53,7 @@ class TestDocumentModel:
         assert document.file_size == 1024000
         assert document.state == 'INDEXED'
 
-    def test_document_expiration_fields(self, project):
+    def test_document_expiration_fields(self, project) -> None:
         """Test document expiration tracking fields default and custom values"""
         doc1 = Document.objects.create(
             project=project,
@@ -72,7 +72,7 @@ class TestDocumentModel:
         assert doc2.is_expired_checked is True
         assert doc2.expiration_date == future_time
     
-    def test_document_timestamps(self, project):
+    def test_document_timestamps(self, project) -> None:
         """Test document timestamps"""
         document = Document.objects.create(
             project=project,
@@ -82,7 +82,7 @@ class TestDocumentModel:
         assert document.created_at is not None
         assert isinstance(document.created_at, timezone.datetime)
     
-    def test_indexed_at_optional(self, project):
+    def test_indexed_at_optional(self, project) -> None:
         """Test indexed_at is optional"""
         document = Document.objects.create(
             project=project,
@@ -92,7 +92,7 @@ class TestDocumentModel:
         
         assert document.indexed_at is None
     
-    def test_indexed_at_set(self, project):
+    def test_indexed_at_set(self, project) -> None:
         """Test setting indexed_at when document is indexed"""
         indexed_time = timezone.now()
         document = Document.objects.create(
@@ -104,7 +104,7 @@ class TestDocumentModel:
         
         assert document.indexed_at == indexed_time
     
-    def test_document_string_representation(self, project):
+    def test_document_string_representation(self, project) -> None:
         """Test document string representation"""
         document = Document.objects.create(
             project=project,
@@ -116,7 +116,7 @@ class TestDocumentModel:
         assert 'Quarterly Report' in str_repr
         assert project.display_name in str_repr
     
-    def test_document_string_without_display_name(self, project):
+    def test_document_string_without_display_name(self, project) -> None:
         """Test string representation without display_name"""
         document = Document.objects.create(
             project=project,
@@ -127,7 +127,7 @@ class TestDocumentModel:
         assert 'docs/report.pdf' in str_repr
         assert project.display_name in str_repr
     
-    def test_valid_index_states(self, project):
+    def test_valid_index_states(self, project) -> None:
         """Test all valid indexing states"""
         states = ['PENDING', 'INDEXING', 'INDEXED', 'FAILED']
         
@@ -139,7 +139,7 @@ class TestDocumentModel:
             )
             assert document.state == state
     
-    def test_unique_together_project_name(self, project):
+    def test_unique_together_project_name(self, project) -> None:
         """Test unique_together constraint on project and document_name"""
         Document.objects.create(
             project=project,
@@ -152,7 +152,7 @@ class TestDocumentModel:
                 document_name='unique.pdf'
             )
     
-    def test_unique_together_different_projects(self, project):
+    def test_unique_together_different_projects(self, project) -> None:
         """Test same name allowed in different projects"""
         other_project = Project.objects.create(
             project_id='other_doc_proj',
@@ -170,7 +170,7 @@ class TestDocumentModel:
         
         assert doc1.id != doc2.id
     
-    def test_error_message_empty(self, project):
+    def test_error_message_empty(self, project) -> None:
         """Test error_message is empty by default"""
         document = Document.objects.create(
             project=project,
@@ -180,7 +180,7 @@ class TestDocumentModel:
         
         assert document.error_message == ''
     
-    def test_error_message_set(self, project):
+    def test_error_message_set(self, project) -> None:
         """Test storing error message for failed indexing"""
         error = "Failed to index: PDF is corrupted"
         document = Document.objects.create(
@@ -192,7 +192,7 @@ class TestDocumentModel:
         
         assert document.error_message == error
     
-    def test_external_document_id_optional(self, project):
+    def test_external_document_id_optional(self, project) -> None:
         """Test external_document_id is optional"""
         document = Document.objects.create(
             project=project,
@@ -201,7 +201,7 @@ class TestDocumentModel:
         
         assert document.external_document_id is None
     
-    def test_display_name_optional(self, project):
+    def test_display_name_optional(self, project) -> None:
         """Test display_name is optional"""
         document = Document.objects.create(
             project=project,
@@ -210,7 +210,7 @@ class TestDocumentModel:
         
         assert document.display_name == ''
     
-    def test_file_size_optional(self, project):
+    def test_file_size_optional(self, project) -> None:
         """Test file_size is optional"""
         document = Document.objects.create(
             project=project,
@@ -219,7 +219,7 @@ class TestDocumentModel:
         
         assert document.file_size is None
     
-    def test_document_ordering(self, project):
+    def test_document_ordering(self, project) -> None:
         """Test documents ordered by -created_at"""
         doc1 = Document.objects.create(
             project=project,
@@ -234,7 +234,7 @@ class TestDocumentModel:
         assert documents[0].id == doc2.id
         assert documents[1].id == doc1.id
     
-    def test_queryset_filter_by_project(self, project):
+    def test_queryset_filter_by_project(self, project) -> None:
         """Test filtering documents by project"""
         other_project = Project.objects.create(
             project_id='other_proj_2',
@@ -254,7 +254,7 @@ class TestDocumentModel:
         assert filtered.count() == 1
         assert filtered.first().id == doc1.id
     
-    def test_queryset_filter_by_state(self, project):
+    def test_queryset_filter_by_state(self, project) -> None:
         """Test filtering documents by state"""
         indexed_doc = Document.objects.create(
             project=project,
@@ -271,7 +271,7 @@ class TestDocumentModel:
         assert indexed.count() == 1
         assert indexed.first().id == indexed_doc.id
     
-    def test_queryset_filter_by_project_and_state(self, project):
+    def test_queryset_filter_by_project_and_state(self, project) -> None:
         """Test filtering by project and state"""
         Document.objects.create(
             project=project,
@@ -288,7 +288,7 @@ class TestDocumentModel:
         assert filtered.count() == 1
         assert filtered.first().state == 'INDEXED'
     
-    def test_cascade_delete_project(self, project):
+    def test_cascade_delete_project(self, project) -> None:
         """Test documents deleted when project deleted"""
         document = Document.objects.create(
             project=project,
@@ -300,7 +300,7 @@ class TestDocumentModel:
         
         assert not Document.objects.filter(id=doc_id).exists()
     
-    def test_project_related_access(self, project):
+    def test_project_related_access(self, project) -> None:
         """Test accessing documents from project"""
         doc1 = Document.objects.create(
             project=project,
@@ -316,7 +316,7 @@ class TestDocumentModel:
         assert doc1 in documents
         assert doc2 in documents
     
-    def test_mime_type_default(self, project):
+    def test_mime_type_default(self, project) -> None:
         """Test mime_type defaults to octet-stream"""
         document = Document.objects.create(
             project=project,
@@ -325,7 +325,7 @@ class TestDocumentModel:
         
         assert document.mime_type == 'application/octet-stream'
     
-    def test_update_document_state(self, project):
+    def test_update_document_state(self, project) -> None:
         """Test updating document state"""
         document = Document.objects.create(
             project=project,
@@ -339,7 +339,7 @@ class TestDocumentModel:
         refreshed = Document.objects.get(id=document.id)
         assert refreshed.state == 'INDEXING'
     
-    def test_update_error_message(self, project):
+    def test_update_error_message(self, project) -> None:
         """Test updating error message"""
         document = Document.objects.create(
             project=project,

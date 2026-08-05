@@ -16,7 +16,7 @@ class TestAPIKeyModel:
         """Create a test user"""
         return User.objects.create_user(username='testuser', password='testpass')
     
-    def test_create_api_key(self, user):
+    def test_create_api_key(self, user) -> None:
         """Test creating an API key"""
         api_key = APIKey.objects.create(
             user=user,
@@ -29,7 +29,7 @@ class TestAPIKeyModel:
         assert api_key.name == 'Test Key'
         assert api_key.is_active is True
     
-    def test_api_key_default_active(self, user):
+    def test_api_key_default_active(self, user) -> None:
         """Test that API keys are active by default"""
         api_key = APIKey.objects.create(
             user=user,
@@ -39,7 +39,7 @@ class TestAPIKeyModel:
         
         assert api_key.is_active is True
     
-    def test_api_key_inactive(self, user):
+    def test_api_key_inactive(self, user) -> None:
         """Test creating an inactive API key"""
         api_key = APIKey.objects.create(
             user=user,
@@ -50,7 +50,7 @@ class TestAPIKeyModel:
         
         assert api_key.is_active is False
     
-    def test_api_key_unique_constraint(self, user):
+    def test_api_key_unique_constraint(self, user) -> None:
         """Test that API keys are unique"""
         APIKey.objects.create(
             user=user,
@@ -65,7 +65,7 @@ class TestAPIKeyModel:
                 key='unique_key_123'  # Duplicate
             )
     
-    def test_api_key_str_representation(self, user):
+    def test_api_key_str_representation(self, user) -> None:
         """Test string representation"""
         api_key = APIKey.objects.create(
             user=user,
@@ -75,7 +75,7 @@ class TestAPIKeyModel:
         
         assert str(api_key) == f"My Key ({user.username})"
     
-    def test_api_key_timestamps(self, user):
+    def test_api_key_timestamps(self, user) -> None:
         """Test that timestamps are set correctly"""
         api_key = APIKey.objects.create(
             user=user,
@@ -86,7 +86,7 @@ class TestAPIKeyModel:
         assert api_key.created_at is not None
         assert api_key.last_used_at is None
     
-    def test_api_key_update_last_used(self, user):
+    def test_api_key_update_last_used(self, user) -> None:
         """Test updating last_used_at"""
         api_key = APIKey.objects.create(
             user=user,
@@ -102,7 +102,7 @@ class TestAPIKeyModel:
         api_key.refresh_from_db()
         assert api_key.last_used_at is not None
     
-    def test_api_key_ordering(self, user):
+    def test_api_key_ordering(self, user) -> None:
         """Test that API keys are ordered by created_at descending"""
         key1 = APIKey.objects.create(
             user=user,
@@ -119,7 +119,7 @@ class TestAPIKeyModel:
         assert keys[0].id == key2.id
         assert keys[1].id == key1.id
     
-    def test_cascade_delete_on_user(self, user):
+    def test_cascade_delete_on_user(self, user) -> None:
         """Test cascade delete when user is deleted"""
         api_key = APIKey.objects.create(
             user=user,
@@ -132,7 +132,7 @@ class TestAPIKeyModel:
         
         assert not APIKey.objects.filter(id=key_id).exists()
     
-    def test_generate_key_static_method(self):
+    def test_generate_key_static_method(self) -> None:
         """Test key generation method"""
         key1 = APIKey.generate_key()
         key2 = APIKey.generate_key()
@@ -143,7 +143,7 @@ class TestAPIKeyModel:
         assert len(key2) > 0
         assert key1 != key2  # Should be unique
     
-    def test_multiple_keys_per_user(self, user):
+    def test_multiple_keys_per_user(self, user) -> None:
         """Test that a user can have multiple API keys"""
         key1 = APIKey.objects.create(
             user=user,
@@ -159,7 +159,7 @@ class TestAPIKeyModel:
         user_keys = APIKey.objects.filter(user=user)
         assert len(user_keys) == 2
     
-    def test_different_users_different_keys(self):
+    def test_different_users_different_keys(self) -> None:
         """Test that different users have separate keys"""
         user1 = User.objects.create_user(username='user1', password='pass')
         user2 = User.objects.create_user(username='user2', password='pass')
@@ -198,7 +198,7 @@ class TestAPIUsageModel:
             key='test_key'
         )
     
-    def test_create_api_usage(self, api_key):
+    def test_create_api_usage(self, api_key) -> None:
         """Test creating an API usage log"""
         usage = APIUsage.objects.create(
             api_key=api_key,
@@ -215,7 +215,7 @@ class TestAPIUsageModel:
         assert usage.method == 'GET'
         assert usage.status_code == 200
     
-    def test_api_usage_various_methods(self, api_key):
+    def test_api_usage_various_methods(self, api_key) -> None:
         """Test recording different HTTP methods"""
         methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
         
@@ -231,7 +231,7 @@ class TestAPIUsageModel:
             
             assert usage.method == method
     
-    def test_api_usage_various_status_codes(self, api_key):
+    def test_api_usage_various_status_codes(self, api_key) -> None:
         """Test recording different status codes"""
         status_codes = [200, 201, 400, 404, 500]
         
@@ -247,7 +247,7 @@ class TestAPIUsageModel:
             
             assert usage.status_code == code
     
-    def test_api_usage_str_representation(self, api_key):
+    def test_api_usage_str_representation(self, api_key) -> None:
         """Test string representation"""
         usage = APIUsage.objects.create(
             api_key=api_key,
@@ -260,7 +260,7 @@ class TestAPIUsageModel:
         
         assert str(usage) == "GET /api/projects/ - 200"
     
-    def test_api_usage_timestamp(self, api_key):
+    def test_api_usage_timestamp(self, api_key) -> None:
         """Test that created_at is set"""
         usage = APIUsage.objects.create(
             api_key=api_key,
@@ -273,7 +273,7 @@ class TestAPIUsageModel:
         
         assert usage.created_at is not None
     
-    def test_api_usage_cascade_delete_on_key(self, api_key):
+    def test_api_usage_cascade_delete_on_key(self, api_key) -> None:
         """Test cascade delete when API key is deleted"""
         usage = APIUsage.objects.create(
             api_key=api_key,
@@ -289,7 +289,7 @@ class TestAPIUsageModel:
         
         assert not APIUsage.objects.filter(id=usage_id).exists()
     
-    def test_api_usage_ordering(self, api_key):
+    def test_api_usage_ordering(self, api_key) -> None:
         """Test that usage logs are ordered by created_at descending"""
         usage1 = APIUsage.objects.create(
             api_key=api_key,
@@ -312,7 +312,7 @@ class TestAPIUsageModel:
         assert usage_logs[0].id == usage2.id
         assert usage_logs[1].id == usage1.id
     
-    def test_filter_by_api_key(self, user, api_key):
+    def test_filter_by_api_key(self, user, api_key) -> None:
         """Test filtering usage by API key"""
         other_user = User.objects.create_user(username='other', password='pass')
         other_key = APIKey.objects.create(
@@ -342,7 +342,7 @@ class TestAPIUsageModel:
         assert len(key_usage) == 1
         assert key_usage[0].id == usage1.id
     
-    def test_filter_by_status_code(self, api_key):
+    def test_filter_by_status_code(self, api_key) -> None:
         """Test filtering by status code"""
         APIUsage.objects.create(
             api_key=api_key,
@@ -364,7 +364,7 @@ class TestAPIUsageModel:
         errors = APIUsage.objects.filter(status_code__gte=400)
         assert len(errors) == 1
     
-    def test_filter_by_endpoint(self, api_key):
+    def test_filter_by_endpoint(self, api_key) -> None:
         """Test filtering by endpoint"""
         APIUsage.objects.create(
             api_key=api_key,
@@ -386,7 +386,7 @@ class TestAPIUsageModel:
         project_usage = APIUsage.objects.filter(endpoint='/api/projects/')
         assert len(project_usage) == 1
     
-    def test_multiple_usage_logs_per_key(self, api_key):
+    def test_multiple_usage_logs_per_key(self, api_key) -> None:
         """Test that an API key can have multiple usage logs"""
         for i in range(5):
             APIUsage.objects.create(

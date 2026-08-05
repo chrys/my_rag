@@ -27,7 +27,7 @@ def project():
 class TestDocumentSerializer:
     """Test DocumentSerializer"""
     
-    def test_serialize_pending_document(self, project):
+    def test_serialize_pending_document(self, project) -> None:
         """Test serializing a pending document"""
         document = Document.objects.create(
             project=project,
@@ -45,7 +45,7 @@ class TestDocumentSerializer:
         assert data['display_name'] == 'Draft Report'
         assert data['state'] == 'PENDING'
     
-    def test_serialize_indexed_document(self, project):
+    def test_serialize_indexed_document(self, project) -> None:
         """Test serializing an indexed document"""
         document = Document.objects.create(
             project=project,
@@ -65,7 +65,7 @@ class TestDocumentSerializer:
         assert data['file_size'] == 2048000
         assert data['state'] == 'INDEXED'
     
-    def test_serialize_failed_document(self, project):
+    def test_serialize_failed_document(self, project) -> None:
         """Test serializing a failed document"""
         error_msg = "PDF is corrupted"
         document = Document.objects.create(
@@ -81,7 +81,7 @@ class TestDocumentSerializer:
         assert data['state'] == 'FAILED'
         assert data['error_message'] == error_msg
     
-    def test_serializer_read_only_fields(self, project):
+    def test_serializer_read_only_fields(self, project) -> None:
         """Test that created_at and indexed_at are read-only"""
         document = Document.objects.create(
             project=project,
@@ -99,7 +99,7 @@ class TestDocumentSerializer:
 class TestDocumentCreateSerializer:
     """Test DocumentCreateSerializer"""
     
-    def test_create_document(self, project):
+    def test_create_document(self, project) -> None:
         """Test creating document via serializer"""
         data = {
             'project': project.id,
@@ -118,7 +118,7 @@ class TestDocumentCreateSerializer:
         assert document.display_name == 'New Document'
         assert document.state == 'PENDING'
     
-    def test_create_required_fields(self, project):
+    def test_create_required_fields(self, project) -> None:
         """Test required fields validation"""
         data = {
             'project': project.id,
@@ -129,7 +129,7 @@ class TestDocumentCreateSerializer:
         assert not serializer.is_valid()
         assert 'document_name' in serializer.errors
     
-    def test_create_optional_fields(self, project):
+    def test_create_optional_fields(self, project) -> None:
         """Test optional fields"""
         data = {
             'project': project.id,
@@ -143,7 +143,7 @@ class TestDocumentCreateSerializer:
         assert document.display_name == ''
         assert document.file_size is None
     
-    def test_create_always_pending(self, project):
+    def test_create_always_pending(self, project) -> None:
         """Test created documents always start in PENDING"""
         data = {
             'project': project.id,
@@ -160,7 +160,7 @@ class TestDocumentCreateSerializer:
 class TestDocumentUpdateSerializer:
     """Test DocumentUpdateSerializer"""
     
-    def test_update_display_name(self, project):
+    def test_update_display_name(self, project) -> None:
         """Test updating display_name"""
         document = Document.objects.create(
             project=project,
@@ -175,7 +175,7 @@ class TestDocumentUpdateSerializer:
         updated = serializer.save()
         assert updated.display_name == 'New Name'
     
-    def test_update_state(self, project):
+    def test_update_state(self, project) -> None:
         """Test updating state"""
         document = Document.objects.create(
             project=project,
@@ -190,7 +190,7 @@ class TestDocumentUpdateSerializer:
         updated = serializer.save()
         assert updated.state == 'INDEXED'
     
-    def test_update_error_message(self, project):
+    def test_update_error_message(self, project) -> None:
         """Test updating error message"""
         document = Document.objects.create(
             project=project,
@@ -206,7 +206,7 @@ class TestDocumentUpdateSerializer:
         updated = serializer.save()
         assert updated.error_message == error
     
-    def test_update_multiple_fields(self, project):
+    def test_update_multiple_fields(self, project) -> None:
         """Test updating multiple fields at once"""
         document = Document.objects.create(
             project=project,
@@ -231,7 +231,7 @@ class TestDocumentUpdateSerializer:
 class TestDocumentListSerializer:
     """Test DocumentListSerializer"""
     
-    def test_list_serializer_fields(self, project):
+    def test_list_serializer_fields(self, project) -> None:
         """Test list serializer has correct fields"""
         document = Document.objects.create(
             project=project,
@@ -256,7 +256,7 @@ class TestDocumentListSerializer:
         assert 'file_size' not in data
         assert 'error_message' not in data
     
-    def test_list_serializer_multiple(self, project):
+    def test_list_serializer_multiple(self, project) -> None:
         """Test serializing multiple documents"""
         doc1 = Document.objects.create(
             project=project,
@@ -284,7 +284,7 @@ class TestDocumentListSerializer:
         assert serializer.data[1]['state'] == 'PENDING'
         assert serializer.data[2]['state'] == 'FAILED'
     
-    def test_list_serializer_data_integrity(self, project):
+    def test_list_serializer_data_integrity(self, project) -> None:
         """Test serializer preserves document data"""
         document = Document.objects.create(
             project=project,

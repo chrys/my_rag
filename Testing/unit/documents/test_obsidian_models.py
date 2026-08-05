@@ -11,7 +11,7 @@ from src.apps.documents.models import ObsidianSource, ObsidianFile
 class TestObsidianModels:
     """Test cases for ObsidianSource and ObsidianFile models"""
 
-    def test_create_obsidian_source(self):
+    def test_create_obsidian_source(self) -> None:
         project = Project.objects.create(
             project_id='obsidian_model_test',
             display_name='Obsidian Model Test',
@@ -28,7 +28,7 @@ class TestObsidianModels:
         assert source.source_type == 'obsidian'
         assert source.vault_path == '/tmp/test_vault'
 
-    def test_create_obsidian_file(self):
+    def test_create_obsidian_file(self) -> None:
         project = Project.objects.create(
             project_id='obsidian_file_test',
             display_name='Obsidian File Test',

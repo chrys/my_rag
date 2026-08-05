@@ -28,7 +28,7 @@ class TestEvaluationServices:
 
     @patch("src.apps.evaluate.eval_services._get_postgres_chunks")
     @patch("src.apps.evaluate.eval_services.GoogleGenAI")
-    def test_generate_synthetic_qas_success(self, mock_llm_class, mock_get_chunks, project):
+    def test_generate_synthetic_qas_success(self, mock_llm_class, mock_get_chunks, project) -> None:
         """Test successful generation of synthetic QAs using mocked Gemini LLM"""
         # Mock text chunks
         mock_get_chunks.return_value = [
@@ -61,7 +61,7 @@ class TestEvaluationServices:
     @patch("src.apps.evaluate.eval_services.VectorStoreIndex")
     @patch("src.apps.evaluate.eval_services.GoogleGenAI")
     @patch("src.apps.evaluate.eval_services.GeminiEmbedding")
-    def test_execute_evaluation_run_success(self, mock_embed, mock_llm_class, mock_index_class, mock_get_store, project):
+    def test_execute_evaluation_run_success(self, mock_embed, mock_llm_class, mock_index_class, mock_get_store, project) -> None:
         """Test full RAG evaluation run and scoring under mock environment"""
         # Create validation items in DB
         EvaluationDataset.objects.create(
@@ -109,13 +109,19 @@ class TestEvaluationServices:
         assert metrics[0].faithfulness == 0.9
         assert metrics[0].answer_relevancy == 0.9
 
+        # Test error branch of evaluate metrics via llm fallback
+        from src.apps.evaluate.eval_services import _evaluate_metric_via_llm
+        mock_llm.complete.side_effect = Exception("Fallback Failure")
+        assert _evaluate_metric_via_llm(mock_llm, "faithfulness", "q", ["c"], "a", "gt") == 0.8
+
     @patch("src.apps.evaluate.eval_services.settings")
     @patch("psycopg2.connect")
-    def test_get_postgres_chunks_fallback(self, mock_connect, mock_settings):
+    def test_get_postgres_chunks_fallback(self, mock_connect, mock_settings) -> None:
         """Test _get_postgres_chunks queries metadata_ first, and falls back to metadata on exception"""
         from src.apps.evaluate.eval_services import _get_postgres_chunks
 
-        # Mock settings credentials to pass early check
+        # Test empty credentials fallbacks too
+        from src.apps.evaluate import eval_services
         mock_settings.REMOTE_POSTGRES_CONFIG = {
             "NAME": "test_db",
             "USER": "user",
@@ -149,6 +155,11 @@ class TestEvaluationServices:
         # Run method
         chunks = _get_postgres_chunks("postgres_2026")
         
+        # Also run method when exists is False
+        mock_cursor.fetchone.side_effect = [(False,)]
+        chunks_empty = _get_postgres_chunks("postgres_2026")
+        assert chunks_empty == []
+
         # Verify psycopg2 conn rollback is called on failure of metadata_ query
         mock_conn.rollback.assert_called_once()
         # Verify fallback query was made
@@ -172,7 +183,7 @@ class TestSyntheticQAEvaluator:
         )
 
     @patch("src.apps.evaluate.eval_services.genai.Client")
-    def test_evaluator_initialization(self, mock_client, project):
+    def test_evaluator_initialization(self, mock_client, project) -> None:
         """Test SyntheticQAEvaluator can be initialized and configures settings"""
         from src.apps.evaluate.eval_services import SyntheticQAEvaluator
         evaluator = SyntheticQAEvaluator(project.project_id)
@@ -182,7 +193,7 @@ class TestSyntheticQAEvaluator:
     @patch("src.apps.evaluate.eval_services.genai.Client")
     @patch("psycopg2.connect")
     @patch("src.apps.evaluate.eval_services.settings")
-    def test_fetch_document_nodes(self, mock_settings, mock_connect, mock_client, project):
+    def test_fetch_document_nodes(self, mock_settings, mock_connect, mock_client, project) -> None:
         """Test fetch_document_nodes retrieves nodes from database using psycopg2"""
         from src.apps.evaluate.eval_services import SyntheticQAEvaluator
         mock_settings.REMOTE_POSTGRES_CONFIG = {
@@ -209,7 +220,12 @@ class TestSyntheticQAEvaluator:
         assert nodes[0]["text"] == "Text chunk 1"
 
     @patch("src.apps.evaluate.eval_services.genai.Client")
-    def test_generate_synthetic_questions(self, mock_client_class, project):
+    def test_generate_synthetic_questions(self, mock_client_class, project) -> None:
+        from src.apps.evaluate.eval_services import SyntheticQAEvaluator
+
+        # Test empty text
+        evaluator = SyntheticQAEvaluator(project.project_id)
+        assert evaluator.generate_synthetic_questions("") == []
         """Test generate_synthetic_questions queries Gemini model and parses results"""
         from src.apps.evaluate.eval_services import SyntheticQAEvaluator
         mock_client = MagicMock()
@@ -231,7 +247,7 @@ class TestSyntheticQAEvaluator:
     @patch("src.apps.evaluate.eval_services.get_vector_store")
     @patch("src.apps.evaluate.eval_services.VectorStoreIndex")
     @patch("src.apps.evaluate.eval_services.genai.Client")
-    def test_evaluate_retrieval_recall(self, mock_client_class, mock_index_class, mock_get_store, project):
+    def test_evaluate_retrieval_recall(self, mock_client_class, mock_index_class, mock_get_store, project) -> None:
         """Test evaluate_retrieval_recall flow and scoring"""
         from src.apps.evaluate.eval_services import SyntheticQAEvaluator
         
@@ -265,6 +281,11 @@ class TestSyntheticQAEvaluator:
         assert len(results["logs"]) == 3
         assert results["logs"][0]["success"] is True
 
+        # Test no text nodes return
+        evaluator.fetch_document_nodes = MagicMock(return_value=[])
+        res_empty = evaluator.evaluate_retrieval_recall("test.pdf")
+        assert res_empty["error"] == "No indexed text nodes found for this document in the PostgreSQL store."
+
 
 @pytest.mark.django_db
 class TestRunEvaluationView:
@@ -290,7 +311,7 @@ class TestRunEvaluationView:
 
     @patch("src.apps.evaluate.eval_services.genai.Client")
     @patch("src.apps.evaluate.eval_services.SyntheticQAEvaluator.evaluate_retrieval_recall")
-    def test_run_evaluation_view_post_success(self, mock_eval_recall, mock_client, setup_user_and_project):
+    def test_run_evaluation_view_post_success(self, mock_eval_recall, mock_client, setup_user_and_project) -> None:
         """Test successful POST to RunEvaluationView triggering Synthetic QA"""
         user, project, document = setup_user_and_project
         

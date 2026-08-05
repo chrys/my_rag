@@ -8,6 +8,7 @@ from .base import *
 
 # Override production-specific settings
 DEBUG = False
+CORS_ALLOW_ALL_ORIGINS = False
 
 # Strict ALLOWED_HOSTS for production
 ALLOWED_HOSTS = [

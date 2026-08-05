@@ -18,7 +18,7 @@ OPTIONAL_LOCAL_RAG_VIEW_MODULES = [
 
 
 @pytest.mark.parametrize("module_name", OPTIONAL_GOOGLE_VIEW_MODULES)
-def test_view_modules_import_without_google_file_search(monkeypatch, module_name):
+def test_view_modules_import_without_google_file_search(monkeypatch, module_name) -> None:
     real_import = builtins.__import__
 
     def blocking_import(name, globals=None, locals=None, fromlist=(), level=0):
@@ -36,7 +36,7 @@ def test_view_modules_import_without_google_file_search(monkeypatch, module_name
 
 
 @pytest.mark.parametrize("module_name", OPTIONAL_LOCAL_RAG_VIEW_MODULES)
-def test_view_modules_import_without_local_rag(monkeypatch, module_name):
+def test_view_modules_import_without_local_rag(monkeypatch, module_name) -> None:
     real_import = builtins.__import__
 
     def blocking_import(name, globals=None, locals=None, fromlist=(), level=0):

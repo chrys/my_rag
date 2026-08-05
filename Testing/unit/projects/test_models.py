@@ -13,7 +13,7 @@ from src.apps.projects.models import Project, SystemPrompt
 class TestProjectModel:
     """Test cases for Project model"""
     
-    def test_create_project_local(self):
+    def test_create_project_local(self) -> None:
         """Test creating a local project"""
         project = Project.objects.create(
             project_id='local_20250120_143000_test',
@@ -31,7 +31,7 @@ class TestProjectModel:
         assert project.use_hyde is False
         assert project.disable_thinking is False
 
-    def test_project_disable_thinking_setting(self):
+    def test_project_disable_thinking_setting(self) -> None:
         """Test setting disable_thinking field on Project"""
         project = Project.objects.create(
             project_id='disable_thinking_test',
@@ -40,7 +40,7 @@ class TestProjectModel:
         )
         assert project.disable_thinking is True
 
-    def test_project_llm_and_embedding_model_defaults(self):
+    def test_project_llm_and_embedding_model_defaults(self) -> None:
         """Test llm_model and embedding_model defaults and choices"""
         project = Project.objects.create(
             project_id='model_defaults_test',
@@ -49,7 +49,7 @@ class TestProjectModel:
         assert project.llm_model == 'gemini-2.5-flash-lite'
         assert project.embedding_model == 'models/gemini-embedding-001'
 
-    def test_embedding_model_immutability_guardrail_when_indexed(self):
+    def test_embedding_model_immutability_guardrail_when_indexed(self) -> None:
         """Test clean() raises ValidationError when attempting to change embedding_model after indexing documents"""
         from django.core.exceptions import ValidationError
         project = Project.objects.create(
@@ -64,7 +64,7 @@ class TestProjectModel:
             project.clean()
         assert 'embedding_model' in excinfo.value.message_dict
 
-    def test_project_response_mode_choices(self):
+    def test_project_response_mode_choices(self) -> None:
         """Test setting custom response_mode choices"""
         project = Project.objects.create(
             project_id='response_mode_test',
@@ -75,7 +75,7 @@ class TestProjectModel:
         assert project.response_mode == 'refine'
         assert project.use_hyde is True
     
-    def test_create_project_google(self):
+    def test_create_project_google(self) -> None:
         """Test creating a Google File Search project"""
         project = Project.objects.create(
             project_id='google_test_001',
@@ -87,7 +87,7 @@ class TestProjectModel:
         assert project.storage_type == 'google'
         assert project.external_store_id == 'google_store_123'
     
-    def test_create_project_postgres(self):
+    def test_create_project_postgres(self) -> None:
         """Test creating a PostgreSQL project"""
         project = Project.objects.create(
             project_id='rag_test_001',
@@ -97,7 +97,7 @@ class TestProjectModel:
         
         assert project.storage_type == 'postgres'
         
-    def test_project_id_unique(self):
+    def test_project_id_unique(self) -> None:
         """Test that project_id is unique"""
         Project.objects.create(
             project_id='unique_test_001',
@@ -110,7 +110,7 @@ class TestProjectModel:
                 display_name='Duplicate Project'
             )
     
-    def test_project_timestamps(self):
+    def test_project_timestamps(self) -> None:
         """Test auto-generated timestamps"""
         before_create = timezone.now()
         project = Project.objects.create(
@@ -122,7 +122,7 @@ class TestProjectModel:
         assert before_create <= project.created_at <= after_create
         assert before_create <= project.updated_at <= after_create
     
-    def test_project_str_representation(self):
+    def test_project_str_representation(self) -> None:
         """Test __str__ method"""
         project = Project.objects.create(
             project_id='str_test',
@@ -132,7 +132,7 @@ class TestProjectModel:
         
         assert str(project) == 'String Test (local)'
     
-    def test_project_ordering(self):
+    def test_project_ordering(self) -> None:
         """Test projects are ordered by creation date (newest first)"""
         old_project = Project.objects.create(
             project_id='old_001',
@@ -148,7 +148,7 @@ class TestProjectModel:
         assert projects[0].id == new_project.id
         assert projects[1].id == old_project.id
     
-    def test_project_is_active_default(self):
+    def test_project_is_active_default(self) -> None:
         """Test is_active defaults to True"""
         project = Project.objects.create(
             project_id='active_test',
@@ -157,7 +157,7 @@ class TestProjectModel:
         
         assert project.is_active is True
     
-    def test_project_storage_type_choices(self):
+    def test_project_storage_type_choices(self) -> None:
         """Test valid storage types"""
         valid_types = ['local', 'google', 'postgres']
         
@@ -169,7 +169,7 @@ class TestProjectModel:
             )
             assert project.storage_type == storage_type
 
-    def test_project_validation_blocked_types(self):
+    def test_project_validation_blocked_types(self) -> None:
         """Test that local and google storage types are blocked during full_clean validation"""
         from django.core.exceptions import ValidationError
         
@@ -184,14 +184,14 @@ class TestProjectModel:
             assert 'storage_type' in excinfo.value.message_dict
             assert excinfo.value.message_dict['storage_type'][0] == "This functionality has not been implemented yet."
 
-    def test_project_declares_postgres_storage_choice(self):
+    def test_project_declares_postgres_storage_choice(self) -> None:
         """Test the model exposes postgres as a first-class storage choice."""
         choice_values = [value for value, _label in Project.STORAGE_TYPES]
 
         assert 'postgres' in choice_values
         assert 'rag' not in choice_values
     
-    def test_project_document_count_default(self):
+    def test_project_document_count_default(self) -> None:
         """Test document_count defaults to 0"""
         project = Project.objects.create(
             project_id='doc_count_test',
@@ -200,7 +200,7 @@ class TestProjectModel:
         
         assert project.document_count == 0
     
-    def test_project_last_indexed_at_default(self):
+    def test_project_last_indexed_at_default(self) -> None:
         """Test last_indexed_at is None by default"""
         project = Project.objects.create(
             project_id='indexed_test',
@@ -209,7 +209,7 @@ class TestProjectModel:
         
         assert project.last_indexed_at is None
     
-    def test_project_update(self):
+    def test_project_update(self) -> None:
         """Test updating a project"""
         project = Project.objects.create(
             project_id='update_test',
@@ -229,7 +229,7 @@ class TestProjectModel:
         assert refreshed.created_at == original_created
         assert refreshed.updated_at > original_created
     
-    def test_project_queryset_filter_by_storage_type(self):
+    def test_project_queryset_filter_by_storage_type(self) -> None:
         """Test filtering projects by storage type"""
         Project.objects.create(
             project_id='local_filter_1',
@@ -246,7 +246,7 @@ class TestProjectModel:
         assert local_projects.count() == 1
         assert local_projects.first().display_name == 'Local Project'
     
-    def test_project_queryset_filter_by_active(self):
+    def test_project_queryset_filter_by_active(self) -> None:
         """Test filtering projects by active status"""
         Project.objects.create(
             project_id='active_1',
@@ -263,7 +263,7 @@ class TestProjectModel:
         assert active.count() == 1
         assert active.first().display_name == 'Active Project'
 
-    def test_project_parameter_placeholders_defaults(self):
+    def test_project_parameter_placeholders_defaults(self) -> None:
         """Test that the new parameter placeholders default values are correct."""
         project = Project.objects.create(
             project_id='params_defaults',
@@ -275,7 +275,7 @@ class TestProjectModel:
         assert project.embedding_model == 'models/gemini-embedding-001'
         assert project.custom_prompt is False
 
-    def test_project_parameter_placeholders_custom(self):
+    def test_project_parameter_placeholders_custom(self) -> None:
         """Test that the new parameter placeholders accept custom values."""
         project = Project.objects.create(
             project_id='params_custom',
@@ -297,7 +297,7 @@ class TestProjectModel:
 class TestSystemPromptModel:
     """Test cases for SystemPrompt model"""
     
-    def test_create_system_prompt(self):
+    def test_create_system_prompt(self) -> None:
         """Test creating a system prompt"""
         project = Project.objects.create(
             project_id='prompt_test_proj',
@@ -312,7 +312,7 @@ class TestSystemPromptModel:
         assert prompt.project_id == project.id
         assert prompt.content == 'You are a helpful assistant.'
     
-    def test_system_prompt_one_to_one_relationship(self):
+    def test_system_prompt_one_to_one_relationship(self) -> None:
         """Test SystemPrompt one-to-one relationship with Project"""
         project = Project.objects.create(
             project_id='one_to_one_test',
@@ -331,7 +331,7 @@ class TestSystemPromptModel:
                 content='Second prompt'
             )
     
-    def test_system_prompt_str_representation(self):
+    def test_system_prompt_str_representation(self) -> None:
         """Test __str__ method of SystemPrompt"""
         project = Project.objects.create(
             project_id='str_prompt_test',
@@ -345,7 +345,7 @@ class TestSystemPromptModel:
         
         assert str(prompt) == 'Prompt for String Prompt Test'
     
-    def test_system_prompt_empty_content(self):
+    def test_system_prompt_empty_content(self) -> None:
         """Test creating system prompt with empty content"""
         project = Project.objects.create(
             project_id='empty_prompt_test',
@@ -359,7 +359,7 @@ class TestSystemPromptModel:
         
         assert prompt.content == ''
     
-    def test_system_prompt_timestamps(self):
+    def test_system_prompt_timestamps(self) -> None:
         """Test timestamps on system prompt"""
         project = Project.objects.create(
             project_id='prompt_timestamp_test',
@@ -376,7 +376,7 @@ class TestSystemPromptModel:
         assert before <= prompt.created_at <= after
         assert before <= prompt.updated_at <= after
     
-    def test_system_prompt_cascade_delete(self):
+    def test_system_prompt_cascade_delete(self) -> None:
         """Test that deleting project cascades to prompt"""
         project = Project.objects.create(
             project_id='cascade_test',
@@ -394,7 +394,7 @@ class TestSystemPromptModel:
         # Prompt should be deleted too
         assert SystemPrompt.objects.filter(id=prompt_id).count() == 0
     
-    def test_system_prompt_update(self):
+    def test_system_prompt_update(self) -> None:
         """Test updating system prompt"""
         project = Project.objects.create(
             project_id='update_prompt_test',
@@ -416,7 +416,7 @@ class TestSystemPromptModel:
         assert refreshed.created_at == original_created
         assert refreshed.updated_at > original_created
     
-    def test_system_prompt_related_access(self):
+    def test_system_prompt_related_access(self) -> None:
         """Test accessing related project through prompt"""
         project = Project.objects.create(
             project_id='related_test',

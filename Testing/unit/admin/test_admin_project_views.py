@@ -7,7 +7,7 @@ from src.apps.documents.models import Document
 
 @pytest.mark.django_db
 class TestAdminProjectViews:
-    def test_create_project_google(self):
+    def test_create_project_google(self) -> None:
         factory = RequestFactory()
         request = factory.post('/fake-url/', {
             'display_name': 'Test Google Project',
@@ -21,7 +21,7 @@ class TestAdminProjectViews:
         assert b"This functionality has not been implemented yet." in response.content
         assert not Project.objects.filter(display_name='Test Google Project').exists()
 
-    def test_create_project_postgres(self, mocker):
+    def test_create_project_postgres(self, mocker) -> None:
         mocker.patch('src.apps.projects.views.test_postgres_connection', return_value=(True, ""))
         factory = RequestFactory()
         request = factory.post('/fake-url/', {
@@ -38,7 +38,7 @@ class TestAdminProjectViews:
         assert project.storage_type == 'postgres'
         assert not project.external_store_id
 
-    def test_delete_project_google(self, mocker):
+    def test_delete_project_google(self, mocker) -> None:
         project = Project.objects.create(
             project_id='test_google_id',
             display_name='Test Delete Google',
@@ -57,7 +57,7 @@ class TestAdminProjectViews:
         mock_delete.assert_called_once_with('ext_store_123')
         assert not Project.objects.filter(project_id='test_google_id').exists()
 
-    def test_delete_project_postgres(self, mocker):
+    def test_delete_project_postgres(self, mocker) -> None:
         project = Project.objects.create(
             project_id='test_postgres_id',
             display_name='Test Delete Postgres',
@@ -79,7 +79,7 @@ class TestAdminProjectViews:
         mock_cleanup.assert_called_once_with('test_postgres_id', ['doc1.txt', 'doc2.txt'])
         assert not Project.objects.filter(project_id='test_postgres_id').exists()
 
-    def test_delete_project_postgres_without_optional_ai_dependencies(self, mocker):
+    def test_delete_project_postgres_without_optional_ai_dependencies(self, mocker) -> None:
         project = Project.objects.create(
             project_id='test_postgres_missing_deps',
             display_name='Test Delete Postgres Missing Deps',
@@ -100,7 +100,7 @@ class TestAdminProjectViews:
         assert response.status_code == 200
         assert not Project.objects.filter(project_id='test_postgres_missing_deps').exists()
 
-    def test_delete_project_google_without_gfs_deps_still_deletes_db_record(self, mocker):
+    def test_delete_project_google_without_gfs_deps_still_deletes_db_record(self, mocker) -> None:
         """When gfs cleanup raises (e.g. missing deps), the Django record must still be deleted."""
         project = Project.objects.create(
             project_id='test_google_missing_deps',

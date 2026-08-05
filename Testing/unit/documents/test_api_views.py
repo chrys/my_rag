@@ -30,7 +30,7 @@ def project():
 class TestDocumentViewSet:
     """Test cases for DocumentViewSet"""
     
-    def test_list_documents(self, api_factory, project):
+    def test_list_documents(self, api_factory, project) -> None:
         """Test listing all documents"""
         doc1 = Document.objects.create(
             project=project,
@@ -52,7 +52,7 @@ class TestDocumentViewSet:
         assert response.data['count'] == 2
         assert len(response.data['results']) == 2
     
-    def test_retrieve_document(self, api_factory, project):
+    def test_retrieve_document(self, api_factory, project) -> None:
         """Test retrieving a single document"""
         document = Document.objects.create(
             project=project,
@@ -68,7 +68,7 @@ class TestDocumentViewSet:
         assert response.data['document_name'] == 'retrieve.pdf'
         assert response.data['display_name'] == 'Retrieve Test'
     
-    def test_create_document(self, api_factory, project):
+    def test_create_document(self, api_factory, project) -> None:
         """Test creating a document"""
         data = {
             'project': project.id,
@@ -90,7 +90,7 @@ class TestDocumentViewSet:
         doc = Document.objects.get(document_name='new_doc.pdf')
         assert doc.state == 'PENDING'
     
-    def test_update_document(self, api_factory, project):
+    def test_update_document(self, api_factory, project) -> None:
         """Test updating a document"""
         document = Document.objects.create(
             project=project,
@@ -110,7 +110,7 @@ class TestDocumentViewSet:
         assert response.data['display_name'] == 'Updated Name'
         assert response.data['state'] == 'INDEXED'
     
-    def test_partial_update_document(self, api_factory, project):
+    def test_partial_update_document(self, api_factory, project) -> None:
         """Test partial update of a document"""
         document = Document.objects.create(
             project=project,
@@ -128,7 +128,7 @@ class TestDocumentViewSet:
         assert response.data['state'] == 'INDEXING'
         assert response.data['display_name'] == 'Original'
     
-    def test_delete_document(self, api_factory, project):
+    def test_delete_document(self, api_factory, project) -> None:
         """Test deleting a document"""
         document = Document.objects.create(
             project=project,
@@ -143,7 +143,7 @@ class TestDocumentViewSet:
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert not Document.objects.filter(id=doc_id).exists()
     
-    def test_by_project_action(self, api_factory, project):
+    def test_by_project_action(self, api_factory, project) -> None:
         """Test by_project custom action"""
         doc1 = Document.objects.create(
             project=project,
@@ -169,7 +169,7 @@ class TestDocumentViewSet:
         project_docs = [d for d in docs if d.get('id') == doc1.id]
         assert len(project_docs) == 1
         
-    def test_by_project_action_with_string_id(self, api_factory, project):
+    def test_by_project_action_with_string_id(self, api_factory, project) -> None:
         """Test by_project custom action with string project_id"""
         doc1 = Document.objects.create(
             project=project,
@@ -185,7 +185,7 @@ class TestDocumentViewSet:
         project_docs = [d for d in docs if d.get('id') == doc1.id]
         assert len(project_docs) == 1
     
-    def test_by_project_missing_param(self, api_factory):
+    def test_by_project_missing_param(self, api_factory) -> None:
         """Test by_project requires project_id parameter"""
         request = api_factory.get('/api/documents/by_project/')
         view = DocumentViewSet.as_view({'get': 'by_project'})
@@ -194,7 +194,7 @@ class TestDocumentViewSet:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert 'error' in response.data
     
-    def test_by_state_action(self, api_factory, project):
+    def test_by_state_action(self, api_factory, project) -> None:
         """Test by_state custom action"""
         indexed_doc = Document.objects.create(
             project=project,
@@ -216,7 +216,7 @@ class TestDocumentViewSet:
         indexed_docs = [d for d in docs if d.get('state') == 'INDEXED']
         assert len(indexed_docs) >= 1
     
-    def test_by_state_missing_param(self, api_factory):
+    def test_by_state_missing_param(self, api_factory) -> None:
         """Test by_state requires state parameter"""
         request = api_factory.get('/api/documents/by_state/')
         view = DocumentViewSet.as_view({'get': 'by_state'})
@@ -225,7 +225,7 @@ class TestDocumentViewSet:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert 'error' in response.data
     
-    def test_indexed_action(self, api_factory, project):
+    def test_indexed_action(self, api_factory, project) -> None:
         """Test indexed custom action"""
         indexed_doc = Document.objects.create(
             project=project,
@@ -248,7 +248,7 @@ class TestDocumentViewSet:
         for doc in docs:
             assert doc['state'] == 'INDEXED'
     
-    def test_failed_action(self, api_factory, project):
+    def test_failed_action(self, api_factory, project) -> None:
         """Test failed custom action"""
         failed_doc = Document.objects.create(
             project=project,
@@ -272,7 +272,7 @@ class TestDocumentViewSet:
         for doc in docs:
             assert doc['state'] == 'FAILED'
     
-    def test_get_serializer_class_list(self, api_factory, project):
+    def test_get_serializer_class_list(self, api_factory, project) -> None:
         """Test correct serializer used for list action"""
         Document.objects.create(
             project=project,
@@ -291,7 +291,7 @@ class TestDocumentViewSet:
             assert 'document_name' in doc_data
             assert 'state' in doc_data
     
-    def test_get_serializer_class_create(self, api_factory, project):
+    def test_get_serializer_class_create(self, api_factory, project) -> None:
         """Test correct serializer used for create action"""
         data = {
             'project': project.id,
@@ -307,7 +307,7 @@ class TestDocumentViewSet:
         
         assert response.status_code == status.HTTP_201_CREATED
     
-    def test_get_serializer_class_update(self, api_factory, project):
+    def test_get_serializer_class_update(self, api_factory, project) -> None:
         """Test correct serializer used for update action"""
         document = Document.objects.create(
             project=project,
@@ -321,7 +321,7 @@ class TestDocumentViewSet:
         
         assert response.status_code == status.HTTP_200_OK
     
-    def test_document_filtering_by_state(self, api_factory, project):
+    def test_document_filtering_by_state(self, api_factory, project) -> None:
         """Test filtering documents by state"""
         Document.objects.all().delete()  # Clear for clean test
         Document.objects.create(
@@ -344,7 +344,7 @@ class TestDocumentViewSet:
             indexed_docs = [d for d in response.data['results'] if d['state'] == 'INDEXED']
             assert len(indexed_docs) >= 1
     
-    def test_document_filtering_by_project(self, api_factory, project):
+    def test_document_filtering_by_project(self, api_factory, project) -> None:
         """Test filtering documents by project"""
         Document.objects.all().delete()  # Clear for clean test
         doc1 = Document.objects.create(

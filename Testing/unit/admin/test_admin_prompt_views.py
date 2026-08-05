@@ -7,7 +7,7 @@ from src.apps.chat.views import chat_submit
 
 @pytest.mark.django_db
 class TestAdminPromptViews:
-    def test_postgres_prompt_rejects_non_owner(self):
+    def test_postgres_prompt_rejects_non_owner(self) -> None:
         owner = User.objects.create_user(username='promptowner', password='password')
         intruder = User.objects.create_user(username='promptintruder', password='password')
         Project.objects.create(
@@ -26,7 +26,7 @@ class TestAdminPromptViews:
         assert response.status_code == 403
         assert not SystemPrompt.objects.exists()
 
-    def test_add_custom_prompt_postgres_uses_system_prompt_model(self):
+    def test_add_custom_prompt_postgres_uses_system_prompt_model(self) -> None:
         project = Project.objects.create(
             project_id='postgres_prompt_store',
             display_name='Postgres Prompt Project',
@@ -43,7 +43,7 @@ class TestAdminPromptViews:
         prompt = SystemPrompt.objects.get(project=project)
         assert prompt.content == 'You are a postgres assistant.'
 
-    def test_add_custom_prompt(self, mocker):
+    def test_add_custom_prompt(self, mocker) -> None:
         project = Project.objects.create(
             project_id='test_prompt_store',
             display_name='Test Prompt Project',
@@ -60,7 +60,7 @@ class TestAdminPromptViews:
         assert response.status_code == 200
         mock_storage.set_prompt.assert_called_once_with('test_prompt_store', 'You are a helpful assistant.')
 
-    def test_edit_custom_prompt(self, mocker):
+    def test_edit_custom_prompt(self, mocker) -> None:
         project = Project.objects.create(
             project_id='edit_prompt_store',
             display_name='Edit Prompt Project',
@@ -80,7 +80,7 @@ class TestAdminPromptViews:
         assert response.status_code == 200
         mock_storage.set_prompt.assert_called_once_with('edit_prompt_store', 'Updated New Prompt')
 
-    def test_system_prompt_passed_to_llm(self, mocker):
+    def test_system_prompt_passed_to_llm(self, mocker) -> None:
         project = Project.objects.create(
             project_id='chat_prompt_store',
             display_name='Chat Prompt Project',
@@ -114,7 +114,7 @@ class TestAdminPromptViews:
             system_prompt="System Prompt: Only talk about cats."
         )
 
-    def test_project_admin_form_saves_custom_prompt_text(self):
+    def test_project_admin_form_saves_custom_prompt_text(self) -> None:
         from src.apps.projects.admin import ProjectAdminForm
         project = Project.objects.create(
             project_id='admin_form_prompt_store',
@@ -146,7 +146,7 @@ class TestAdminPromptViews:
         assert saved_prompt.content == 'Act as a senior Django engineer.'
         assert project.custom_prompt is True
 
-    def test_project_admin_form_disables_immutable_fields_when_sources_exist(self):
+    def test_project_admin_form_disables_immutable_fields_when_sources_exist(self) -> None:
         from src.apps.projects.admin import ProjectAdminForm
         project = Project.objects.create(
             project_id='admin_form_sources_exist',

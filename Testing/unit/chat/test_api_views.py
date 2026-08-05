@@ -41,7 +41,7 @@ def project():
 class TestChatMessageViewSet:
     """Test cases for ChatMessageViewSet"""
     
-    def test_list_messages(self, api_factory, project):
+    def test_list_messages(self, api_factory, project) -> None:
         """Test listing all messages"""
         msg1 = ChatMessage.objects.create(
             project=project,
@@ -63,7 +63,7 @@ class TestChatMessageViewSet:
         assert response.data['count'] == 2
         assert len(response.data['results']) == 2
     
-    def test_retrieve_message(self, api_factory, project):
+    def test_retrieve_message(self, api_factory, project) -> None:
         """Test retrieving a single message"""
         message = ChatMessage.objects.create(
             project=project,
@@ -78,7 +78,7 @@ class TestChatMessageViewSet:
         assert response.status_code == status.HTTP_200_OK
         assert response.data['content'] == 'Get this message'
     
-    def test_create_message(self, api_factory, project):
+    def test_create_message(self, api_factory, project) -> None:
         """Test creating a message"""
         data = {
             'project': project.id,
@@ -97,7 +97,7 @@ class TestChatMessageViewSet:
         # Verify in database
         assert ChatMessage.objects.filter(content='New message').exists()
     
-    def test_update_message(self, api_factory, project):
+    def test_update_message(self, api_factory, project) -> None:
         """Test updating a message"""
         message = ChatMessage.objects.create(
             project=project,
@@ -119,7 +119,7 @@ class TestChatMessageViewSet:
         assert response.data['content'] == 'Updated content'
         assert response.data['message_type'] == 'assistant'
     
-    def test_partial_update_message(self, api_factory, project):
+    def test_partial_update_message(self, api_factory, project) -> None:
         """Test partial update of a message"""
         message = ChatMessage.objects.create(
             project=project,
@@ -137,7 +137,7 @@ class TestChatMessageViewSet:
         assert response.data['content'] == 'Partially updated'
         assert response.data['session_id'] == 'session_1'
     
-    def test_delete_message(self, api_factory, project):
+    def test_delete_message(self, api_factory, project) -> None:
         """Test deleting a message"""
         message = ChatMessage.objects.create(
             project=project,
@@ -153,7 +153,7 @@ class TestChatMessageViewSet:
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert not ChatMessage.objects.filter(id=msg_id).exists()
     
-    def test_by_project_action(self, api_factory, project):
+    def test_by_project_action(self, api_factory, project) -> None:
         """Test by_project custom action"""
         msg1 = ChatMessage.objects.create(
             project=project,
@@ -181,7 +181,7 @@ class TestChatMessageViewSet:
         project_msgs = [m for m in messages if m.get('id') == msg1.id]
         assert len(project_msgs) == 1
     
-    def test_by_project_missing_param(self, api_factory):
+    def test_by_project_missing_param(self, api_factory) -> None:
         """Test by_project requires project_id parameter"""
         request = api_factory.get('/api/messages/by_project/')
         view = ChatMessageViewSet.as_view({'get': 'by_project'})
@@ -190,7 +190,7 @@ class TestChatMessageViewSet:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert 'error' in response.data
     
-    def test_by_session_action(self, api_factory, project):
+    def test_by_session_action(self, api_factory, project) -> None:
         """Test by_session custom action"""
         msg1 = ChatMessage.objects.create(
             project=project,
@@ -215,7 +215,7 @@ class TestChatMessageViewSet:
         session_msgs = [m for m in messages if m.get('id') == msg1.id]
         assert len(session_msgs) == 1
     
-    def test_by_session_missing_param(self, api_factory):
+    def test_by_session_missing_param(self, api_factory) -> None:
         """Test by_session requires session_id parameter"""
         request = api_factory.get('/api/messages/by_session/')
         view = ChatMessageViewSet.as_view({'get': 'by_session'})
@@ -224,7 +224,7 @@ class TestChatMessageViewSet:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert 'error' in response.data
     
-    def test_by_user_action_authenticated(self, api_factory, project, authenticated_user):
+    def test_by_user_action_authenticated(self, api_factory, project, authenticated_user) -> None:
         """Test by_user action with authenticated user"""
         msg1 = ChatMessage.objects.create(
             project=project,
@@ -254,7 +254,7 @@ class TestChatMessageViewSet:
         user_msgs = [m for m in messages if m.get('id') == msg1.id]
         assert len(user_msgs) == 1
     
-    def test_by_user_action_unauthenticated(self, api_factory):
+    def test_by_user_action_unauthenticated(self, api_factory) -> None:
         """Test by_user action requires authentication"""
         request = api_factory.get('/api/messages/by_user/')
         view = ChatMessageViewSet.as_view({'get': 'by_user'})
@@ -262,7 +262,7 @@ class TestChatMessageViewSet:
         
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
     
-    def test_get_serializer_class_list(self, api_factory, project):
+    def test_get_serializer_class_list(self, api_factory, project) -> None:
         """Test correct serializer used for list action"""
         ChatMessage.objects.create(
             project=project,
@@ -282,7 +282,7 @@ class TestChatMessageViewSet:
             assert 'id' in msg_data
             assert 'content' in msg_data
     
-    def test_get_serializer_class_create(self, api_factory, project):
+    def test_get_serializer_class_create(self, api_factory, project) -> None:
         """Test correct serializer used for create action"""
         data = {
             'project': project.id,
@@ -298,7 +298,7 @@ class TestChatMessageViewSet:
         assert response.status_code == status.HTTP_201_CREATED
         assert response.data['content'] == 'Test'
     
-    def test_message_filtering_by_type(self, api_factory, project):
+    def test_message_filtering_by_type(self, api_factory, project) -> None:
         """Test filtering messages by type"""
         ChatMessage.objects.all().delete()  # Clear for clean test
         ChatMessage.objects.create(
