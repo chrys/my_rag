@@ -3,7 +3,14 @@ Django settings for testing environment.
 Extends base settings with testing-specific overrides.
 """
 
+
 from .base import *
+
+# In testing environments, fallback to a dummy secret key if none is provided
+import os
+if 'SECRET_KEY' not in os.environ:
+    SECRET_KEY = 'django-insecure-test-key-only'
+
 
 # Override testing-specific settings
 DEBUG = True

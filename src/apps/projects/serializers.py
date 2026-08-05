@@ -30,7 +30,7 @@ class ProjectSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'project_id', 'display_name', 'storage_type',
             'external_store_id', 'description', 'is_active',
-            'embedding_model', 'llm_model',
+            'embedding_model', 'llm_model', 'disable_thinking',
             'document_count', 'last_indexed_at', 'created_at',
             'updated_at', 'system_prompt'
         ]
@@ -42,7 +42,7 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Project
-        fields = ['project_id', 'display_name', 'storage_type', 'description', 'embedding_model', 'llm_model']
+        fields = ['project_id', 'display_name', 'storage_type', 'description', 'embedding_model', 'llm_model', 'disable_thinking']
         
     def validate_storage_type(self, value):
         """Validate storage type"""
@@ -58,7 +58,7 @@ class ProjectUpdateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Project
-        fields = ['display_name', 'description', 'is_active', 'embedding_model', 'llm_model']
+        fields = ['display_name', 'description', 'is_active', 'embedding_model', 'llm_model', 'disable_thinking']
 
     def validate(self, attrs):
         if self.instance:

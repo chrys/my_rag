@@ -50,7 +50,8 @@ APPS_DIR = BASE_DIR / 'src' / 'apps'
 sys.path.insert(0, str(APPS_DIR))
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ['SECRET_KEY']  # Will fail if not set
+# SECRET_KEY must be set in production, but allow fallback for tests and build environments
+SECRET_KEY = os.environ['SECRET_KEY']  # Will fail if not set, no hardcoded fallbacks allowed
 
 # Application definition
 INSTALLED_APPS = [

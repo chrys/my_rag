@@ -166,15 +166,20 @@ class PostgresRAGEngine:
         p = Path(file_path).resolve()
 
         # Verify the file is within expected boundaries (e.g. settings.MEDIA_ROOT)
-        # Using a simple check if MEDIA_ROOT is available
+        from django.conf import settings
+
+        # If it's an uploaded file, it should be in MEDIA_ROOT
         try:
-            from django.conf import settings
             media_root = Path(settings.MEDIA_ROOT).resolve()
             if not str(p).startswith(str(media_root)):
-                # If it's a temp upload, might not be in MEDIA_ROOT, just basic resolution
-                pass
-        except:
-            pass
+                # Also allow reading from the temp dir if it's an uploaded chunk in progress
+                import tempfile
+                temp_dir = Path(tempfile.gettempdir()).resolve()
+                if not str(p).startswith(str(temp_dir)):
+                    raise ValueError(f"Path traversal detected: {p} is outside allowed directories")
+        except AttributeError:
+            pass # testing context without settings
+
 
         file_ext = p.suffix.lower()
         file_path = str(p)
