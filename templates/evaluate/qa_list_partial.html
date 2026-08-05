@@ -22,7 +22,7 @@
                 </span>
                 <button type="button" 
                         class="text-red-500 hover:text-red-700 font-semibold text-xs transition-colors cursor-pointer"
-                        hx-delete="{% url 'evaluate:delete_qa_item' item.id %}"
+                        hx-delete="{% url 'evaluate:delete_qa_item' item.id %}" hx-disabled-elt="this"
                         hx-confirm="Are you sure you want to delete this QA item?"
                         hx-target="#form-message">
                     ✕ Delete

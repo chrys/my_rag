@@ -7,7 +7,7 @@
         </div>
 
         <!-- Source Type Selector -->
-        <form hx-post="{% url 'documents:set_source_type' store_id %}"
+        <form onsubmit="const btn = this.querySelector('button[type=submit]'); if(btn){ btn.disabled = true; btn.innerHTML = 'Uploading...'; }" hx-post="{% url 'documents:set_source_type' store_id %}" hx-disabled-elt="find input[type='radio']"
               hx-target="#project-document-manager"
               hx-swap="innerHTML"
               class="flex items-center gap-4 bg-white dark:bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -75,6 +75,7 @@
 
             <!-- Upload Button -->
             <button type="submit"
+                hx-disabled-elt="this"
                 class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-md text-sm font-medium transition-all shadow-sm hover:shadow flex items-center gap-1.5 select-none active:scale-[0.98]">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
                     stroke="currentColor">
