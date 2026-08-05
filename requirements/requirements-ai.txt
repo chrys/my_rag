@@ -4,9 +4,7 @@ llama-index-core
 llama-index-vector-stores-postgres
 llama-index-embeddings-gemini
 llama-index-llms-gemini
-google-generativeai==0.5.4
-google-ai-generativelanguage==0.6.4
-google-api-core==2.25.2
+google-generativeai
 llama-index-embeddings-google
 llama-index-llms-google-genai
 
