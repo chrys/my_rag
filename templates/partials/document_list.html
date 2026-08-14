@@ -42,6 +42,7 @@
               hx-encoding="multipart/form-data"
               hx-target="#document-list"
               hx-swap="innerHTML"
+              onsubmit="event.preventDefault();"
               class="flex flex-wrap items-center gap-3">
             
             <!-- Custom Styled Choose File Button -->
@@ -87,7 +88,12 @@
             </div>
 
             <!-- Upload Button -->
-            <button type="submit"
+            <button type="button"
+                hx-post="{{ url_prefix }}/documents/{{ store_id }}/upload/"
+                hx-encoding="multipart/form-data"
+                hx-include="#file-uploader-input, #chunking-strategy-select, #is-expired-checkbox, #expiration-date-picker"
+                hx-target="#document-list"
+                hx-swap="innerHTML"
                 hx-disabled-elt="this"
                 class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-md text-sm font-medium transition-all shadow-sm hover:shadow flex items-center gap-1.5 select-none active:scale-[0.98]">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
