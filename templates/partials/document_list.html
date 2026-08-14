@@ -5,7 +5,6 @@
             <h2 class="font-semibold text-gray-700">{{ project_name }}</h2>
             <p class="text-xs text-gray-500">{{ store_id }}</p>
         </div>
-
         <!-- Source Type Selector -->
         <form onsubmit="const btn = this.querySelector('button[type=submit]'); if(btn){ btn.disabled = true; btn.innerHTML = 'Uploading...'; }" hx-post="{% url 'documents:set_source_type' store_id %}" hx-disabled-elt="find input[type='radio']"
               hx-target="#project-document-manager"
@@ -24,12 +23,27 @@
                        class="text-purple-600 focus:ring-purple-500">
                 <span>Obsidian</span>
             </label>
+            <label class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 cursor-pointer">
+                <input type="radio" name="source_type" value="google_calendar" {% if source_type == 'google_calendar' %}checked{% endif %}
+                       onchange="htmx.trigger(this.form, 'submit')"
+                       class="text-emerald-600 focus:ring-emerald-500">
+                <span>Google Calendar</span>
+            </label>
         </form>
     </div>
 
     {% if source_type == 'obsidian' %}
         {% include 'partials/obsidian_section.html' %}
+    {% elif source_type == 'google_calendar' %}
+        {% include 'partials/google_calendar_section.html' %}
     {% else %}
+    <div class="p-4 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
+        <form hx-post="{{ url_prefix }}/documents/{{ store_id }}/upload/"
+              hx-encoding="multipart/form-data"
+              hx-target="#document-list"
+              hx-swap="innerHTML"
+              onsubmit="event.preventDefault();"
+              class="flex flex-wrap items-center gap-3">
             
             <!-- Custom Styled Choose File Button -->
             <div class="flex items-center gap-2">
@@ -74,7 +88,12 @@
             </div>
 
             <!-- Upload Button -->
-            <button type="submit"
+            <button type="button"
+                hx-post="{{ url_prefix }}/documents/{{ store_id }}/upload/"
+                hx-encoding="multipart/form-data"
+                hx-include="#file-uploader-input, #chunking-strategy-select, #is-expired-checkbox, #expiration-date-picker"
+                hx-target="#document-list"
+                hx-swap="innerHTML"
                 hx-disabled-elt="this"
                 class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-md text-sm font-medium transition-all shadow-sm hover:shadow flex items-center gap-1.5 select-none active:scale-[0.98]">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
@@ -115,6 +134,7 @@
         {% include 'partials/document_items.html' %}
     </div>
     {% endif %}
+
 </div>
 
 <script>
