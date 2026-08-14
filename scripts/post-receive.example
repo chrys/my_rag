@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Set environment
+export DJANGO_ENV="production"
+export DJANGO_SETTINGS_MODULE="src.apps.my_rag_project.settings"
+
 # Set variables
 WORK_TREE="/srv/rag-dashboard"
 GIT_DIR="/srv/git/rag-dashboard.git"

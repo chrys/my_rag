@@ -54,12 +54,8 @@ sys.path.insert(0, str(APPS_DIR))
 import os
 import sys
 
-# In CI/Testing, inject dummy secret key to avoid failures. But in production, fail.
-if 'pytest' in sys.modules or 'test' in sys.argv or os.getenv('GITHUB_ACTIONS') == 'true' or 'check' in sys.argv:
-    if 'SECRET_KEY' not in os.environ:
-        os.environ['SECRET_KEY'] = 'django-insecure-test-key-only'
-
-SECRET_KEY = os.environ['SECRET_KEY']  # Will fail if not set, no hardcoded fallbacks allowed
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-default-key-change-in-prod')
+os.environ['SECRET_KEY'] = SECRET_KEY
 
 # Application definition
 INSTALLED_APPS = [

@@ -130,6 +130,7 @@ class ObsidianSource(models.Model):
     SOURCE_TYPES = [
         ('document', 'Document'),
         ('obsidian', 'Obsidian'),
+        ('google_calendar', 'Google Calendar'),
     ]
 
     project = models.OneToOneField(
@@ -142,7 +143,7 @@ class ObsidianSource(models.Model):
         max_length=20,
         choices=SOURCE_TYPES,
         default='document',
-        help_text="Selected source type for this project (Document or Obsidian)"
+        help_text="Selected source type for this project (Document, Obsidian, or Google Calendar)"
     )
     vault_path = models.CharField(
         max_length=1024,
@@ -217,3 +218,122 @@ class ObsidianFile(models.Model):
 
     def __str__(self):
         return f"{self.relative_path} [{self.status}]"
+
+
+class GoogleCalendarSource(models.Model):
+    """
+    Represents a Google Calendar integration configuration for a project.
+    """
+    SYNC_STATUSES = [
+        ('IDLE', 'Idle'),
+        ('SYNCING', 'Syncing Events'),
+        ('INDEXING', 'Indexing Vectors'),
+        ('COMPLETED', 'Completed'),
+        ('FAILED', 'Failed'),
+    ]
+
+    project = models.OneToOneField(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='google_calendar_source',
+        help_text="The project this Google Calendar source is attached to"
+    )
+    access_token = models.TextField(
+        blank=True,
+        help_text="OAuth access token"
+    )
+    refresh_token = models.TextField(
+        blank=True,
+        help_text="OAuth refresh token"
+    )
+    token_expiry = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="OAuth access token expiration timestamp"
+    )
+    selected_calendars = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of calendar IDs to sync (e.g. ['primary', 'work_cal_id'])"
+    )
+    lookback_days = models.IntegerField(
+        default=30,
+        help_text="Lookback window in days (past events)"
+    )
+    lookahead_days = models.IntegerField(
+        default=365,
+        help_text="Lookahead window in days (future events)"
+    )
+    sync_token = models.CharField(
+        max_length=512,
+        blank=True,
+        help_text="Google Calendar API syncToken for incremental delta sync"
+    )
+    sync_status = models.CharField(
+        max_length=20,
+        choices=SYNC_STATUSES,
+        default='IDLE',
+        help_text="Current background synchronization status"
+    )
+    total_events_count = models.IntegerField(default=0)
+    indexed_events_count = models.IntegerField(default=0)
+    pending_events_count = models.IntegerField(default=0)
+    failed_events_count = models.IntegerField(default=0)
+    error_message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Google Calendar Source for {self.project.display_name}"
+
+
+class GoogleCalendarEvent(models.Model):
+    """
+    Tracks individual Google Calendar events and their vector indexing status.
+    """
+    EVENT_STATES = [
+        ('PENDING', 'Pending Indexing'),
+        ('INDEXED', 'Successfully Indexed'),
+        ('FAILED', 'Indexing Failed'),
+    ]
+
+    calendar_source = models.ForeignKey(
+        GoogleCalendarSource,
+        on_delete=models.CASCADE,
+        related_name='events',
+        help_text="The Google Calendar source this event belongs to"
+    )
+    event_id = models.CharField(
+        max_length=255,
+        help_text="Unique Google Calendar Event ID"
+    )
+    summary = models.CharField(
+        max_length=500,
+        help_text="Event summary / title"
+    )
+    relative_path = models.CharField(
+        max_length=1024,
+        help_text="Relative file path of generated Markdown note (e.g. Calendar/2026-08-05_Sync.md)"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=EVENT_STATES,
+        default='PENDING',
+        help_text="Indexing status of this calendar event"
+    )
+    event_start = models.DateTimeField(null=True, blank=True)
+    event_end = models.DateTimeField(null=True, blank=True)
+    last_synced_at = models.DateTimeField(auto_now=True)
+    last_indexed_at = models.DateTimeField(null=True, blank=True)
+    error_message = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-event_start']
+        unique_together = [['calendar_source', 'event_id']]
+
+    def __str__(self):
+        return f"{self.summary} [{self.status}]"
+

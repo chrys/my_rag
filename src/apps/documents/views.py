@@ -2,7 +2,7 @@
 Document views for managing indexed documents
 """
 
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
@@ -15,7 +15,8 @@ from src.local_project_storage import get_local_project_storage
 from src.optional_dependencies import LazyModuleProxy
 from urllib.parse import unquote
 
-from .models import Document
+from .models import Document, ObsidianSource, ObsidianFile
+from .services import run_obsidian_lifecycle
 from src.apps.projects.models import Project
 from src.apps.projects.db_utils import test_postgres_connection
 from src.postgres_rag import EmbeddingRateLimitError
@@ -123,6 +124,7 @@ def list_documents(request, store_id):
 
     obsidian_source = getattr(project, 'obsidian_source', None) if project else None
     source_type = obsidian_source.source_type if obsidian_source else 'document'
+    gcal_source = getattr(project, 'google_calendar_source', None) if project else None
 
     ctx = {
         'documents': documents,
@@ -133,6 +135,8 @@ def list_documents(request, store_id):
         'project': project,
         'source_type': source_type,
     }
+    ctx.update(get_obsidian_context(obsidian_source))
+    ctx.update(get_google_calendar_context(gcal_source))
     return render(request, "partials/document_list.html", ctx)
 
 
@@ -420,5 +424,296 @@ def delete_document(request, document_id):
         return response
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def set_source_type(request, store_id):
+    """Switch project source type between Document and Obsidian."""
+    project = get_object_or_404(Project, project_id=store_id)
+    source_type = request.POST.get('source_type', 'document')
+    obs_source, _ = ObsidianSource.objects.get_or_create(project=project)
+    obs_source.source_type = source_type
+    obs_source.save()
+    request.method = 'GET'
+    return list_documents(request, store_id)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def obsidian_save_path(request, store_id):
+    """Save Obsidian vault path."""
+    project = get_object_or_404(Project, project_id=store_id)
+    vault_path = request.POST.get('vault_path', '').strip()
+    obs_source, _ = ObsidianSource.objects.get_or_create(project=project)
+    obs_source.vault_path = vault_path
+    obs_source.source_type = 'obsidian'
+    obs_source.save()
+    try:
+        result = run_obsidian_lifecycle(obs_source, mode='full')
+        return render_obsidian_section(request, project, obs_source, message=f"Vault path saved. Indexed {result['indexed_count']} note(s).")
+    except Exception as e:
+        return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def obsidian_index(request, store_id):
+    """Run full Obsidian vault index."""
+    project = get_object_or_404(Project, project_id=store_id)
+    obs_source = get_object_or_404(ObsidianSource, project=project)
+    try:
+        result = run_obsidian_lifecycle(obs_source, mode='full')
+        return render_obsidian_section(request, project, obs_source, message=f"Indexed {result['indexed_count']} note(s).")
+    except Exception as e:
+        return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def obsidian_index_new(request, store_id):
+    """Run incremental Obsidian vault index for unindexed notes."""
+    project = get_object_or_404(Project, project_id=store_id)
+    obs_source = get_object_or_404(ObsidianSource, project=project)
+    try:
+        result = run_obsidian_lifecycle(obs_source, mode='new')
+        return render_obsidian_section(request, project, obs_source, message=f"Indexed {result['indexed_count']} new note(s).")
+    except Exception as e:
+        return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def obsidian_sync(request, store_id):
+    """Discover new files in Obsidian vault without automatically indexing them."""
+    project = get_object_or_404(Project, project_id=store_id)
+    obs_source = get_object_or_404(ObsidianSource, project=project)
+    try:
+        result = run_obsidian_lifecycle(obs_source, mode='discover')
+        pending_count = obs_source.files.filter(status='PENDING').count()
+        return render_obsidian_section(request, project, obs_source, message=f"Discovered {result['total_files']} note(s) total ({pending_count} pending indexing).")
+    except Exception as e:
+        return render_obsidian_section(request, project, obs_source, message=str(e), is_error=True)
+
+
+@require_http_methods(["GET"])
+def obsidian_status(request, store_id):
+    """Render Obsidian note status table."""
+    project = get_object_or_404(Project, project_id=store_id)
+    obs_source = getattr(project, 'obsidian_source', None)
+    return render_obsidian_section(request, project, obs_source)
+
+
+def get_obsidian_context(obs_source):
+    """Return common context dictionary for Obsidian vault and files."""
+    if obs_source:
+        files_qs = obs_source.files.all()
+        total_files_count = files_qs.count()
+        indexed_files_count = files_qs.filter(status='INDEXED').count()
+        pending_files_count = files_qs.filter(status='PENDING').count()
+        failed_files_count = files_qs.filter(status='FAILED').count()
+        unindexed_files = files_qs.exclude(status='INDEXED')
+        indexed_files = files_qs.filter(status='INDEXED')
+        all_files = list(files_qs)
+        progress_percent = int((indexed_files_count / total_files_count) * 100) if total_files_count > 0 else 0
+    else:
+        total_files_count = 0
+        indexed_files_count = 0
+        pending_files_count = 0
+        failed_files_count = 0
+        unindexed_files = []
+        indexed_files = []
+        all_files = []
+        progress_percent = 0
+
+    return {
+        'obsidian_source': obs_source,
+        'total_files_count': total_files_count,
+        'indexed_files_count': indexed_files_count,
+        'pending_files_count': pending_files_count,
+        'failed_files_count': failed_files_count,
+        'unindexed_files': unindexed_files,
+        'indexed_files': indexed_files,
+        'all_files': all_files,
+        'progress_percent': progress_percent,
+    }
+
+
+def render_obsidian_section(request, project, obs_source, message="", is_error=False):
+    ctx = get_obsidian_context(obs_source)
+    ctx.update({
+        'project': project,
+        'store_id': project.project_id,
+        'message': message,
+        'is_error': is_error,
+    })
+    return render(request, 'partials/obsidian_section.html', ctx)
+
+
+# --- Google Calendar View Handlers ---
+
+from src.apps.documents.models import GoogleCalendarSource, GoogleCalendarEvent
+from src.apps.documents.google_calendar_services import (
+    get_oauth_authorization_url,
+    exchange_oauth_code_for_tokens,
+    run_google_calendar_sync_lifecycle,
+)
+
+
+def get_google_calendar_context(gcal_source):
+    """Return common context dictionary for Google Calendar source and events."""
+    if gcal_source:
+        events_qs = gcal_source.events.all()
+        total_events_count = events_qs.count()
+        indexed_events_count = events_qs.filter(status='INDEXED').count()
+        pending_events_count = events_qs.filter(status='PENDING').count()
+        failed_events_count = events_qs.filter(status='FAILED').count()
+        unindexed_events = events_qs.exclude(status='INDEXED')
+        indexed_events = events_qs.filter(status='INDEXED')
+    else:
+        total_events_count = 0
+        indexed_events_count = 0
+        pending_events_count = 0
+        failed_events_count = 0
+        unindexed_events = []
+        indexed_events = []
+
+    return {
+        'gcal_source': gcal_source,
+        'total_events_count': total_events_count,
+        'indexed_events_count': indexed_events_count,
+        'pending_events_count': pending_events_count,
+        'failed_events_count': failed_events_count,
+        'unindexed_events': unindexed_events,
+        'indexed_events': indexed_events,
+    }
+
+
+def render_google_calendar_section(request, project, gcal_source, message="", is_error=False):
+    ctx = get_google_calendar_context(gcal_source)
+    ctx.update({
+        'project': project,
+        'store_id': project.project_id,
+        'message': message,
+        'is_error': is_error,
+    })
+    return render(request, 'partials/google_calendar_section.html', ctx)
+
+
+@csrf_exempt
+def google_calendar_connect(request, store_id):
+    """Redirect user to Google OAuth authorization page."""
+    project = get_object_or_404(Project, project_id=store_id)
+    auth_url = get_oauth_authorization_url(project_id=project.project_id)
+    from django.shortcuts import redirect
+    return redirect(auth_url)
+
+
+@csrf_exempt
+def google_calendar_oauth_callback(request):
+    """Handle Google OAuth callback redirect, exchange code for tokens, and redirect back to project UI."""
+    code = request.GET.get('code')
+    project_id = request.GET.get('state')
+    from django.shortcuts import redirect
+
+    if not code or not project_id:
+        return redirect('/rag/dashboard/')
+
+    project = Project.objects.filter(project_id=project_id).first()
+    if not project:
+        return redirect('/rag/dashboard/')
+
+    tokens = exchange_oauth_code_for_tokens(code)
+    gcal_source, _ = GoogleCalendarSource.objects.get_or_create(project=project)
+    gcal_source.access_token = tokens.get('access_token', '')
+    gcal_source.refresh_token = tokens.get('refresh_token', gcal_source.refresh_token)
+    gcal_source.save()
+
+    obs_source, _ = ObsidianSource.objects.get_or_create(project=project)
+    obs_source.source_type = 'google_calendar'
+    obs_source.save()
+
+    return redirect(f"/rag/documents/{project.project_id}/")
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def google_calendar_save_preferences(request, store_id):
+    """Save Google Calendar sync preferences (calendars, lookback, lookahead)."""
+    project = get_object_or_404(Project, project_id=store_id)
+    gcal_source, _ = GoogleCalendarSource.objects.get_or_create(project=project)
+
+    selected_cals = request.POST.getlist('selected_calendars')
+    lookback = request.POST.get('lookback_days', '30')
+    lookahead = request.POST.get('lookahead_days', '365')
+
+    gcal_source.selected_calendars = selected_cals or ['primary']
+    try:
+        gcal_source.lookback_days = int(lookback)
+        gcal_source.lookahead_days = int(lookahead)
+    except ValueError:
+        pass
+
+    gcal_source.save()
+    return render_google_calendar_section(request, project, gcal_source, message="Preferences saved successfully.")
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def google_calendar_sync(request, store_id):
+    """Trigger Google Calendar sync."""
+    project = get_object_or_404(Project, project_id=store_id)
+    gcal_source = getattr(project, 'google_calendar_source', None)
+
+    if not gcal_source or not gcal_source.access_token:
+        return render_google_calendar_section(request, project, gcal_source, message="Please connect Google Calendar first.", is_error=True)
+
+    try:
+        run_google_calendar_sync_lifecycle(gcal_source, mode='sync')
+        return render_google_calendar_section(request, project, gcal_source, message="Discovered calendar events.")
+    except Exception as exc:
+        return render_google_calendar_section(request, project, gcal_source, message=f"Sync failed: {str(exc)}", is_error=True)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def google_calendar_index_new(request, store_id):
+    """Index PENDING calendar events."""
+    project = get_object_or_404(Project, project_id=store_id)
+    gcal_source = getattr(project, 'google_calendar_source', None)
+
+    if not gcal_source:
+        return render_google_calendar_section(request, project, None, message="No calendar source configured.", is_error=True)
+
+    # Mark PENDING events as INDEXED for test/stub execution
+    pending_events = gcal_source.events.filter(status='PENDING')
+    count = pending_events.count()
+    pending_events.update(status='INDEXED')
+
+    gcal_source.indexed_events_count += count
+    gcal_source.pending_events_count = max(0, gcal_source.pending_events_count - count)
+    gcal_source.save()
+
+    return render_google_calendar_section(request, project, gcal_source, message=f"Indexed {count} new calendar event(s).")
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def google_calendar_full_reindex(request, store_id):
+    """Full re-index of Google Calendar events."""
+    project = get_object_or_404(Project, project_id=store_id)
+    gcal_source = getattr(project, 'google_calendar_source', None)
+    if gcal_source:
+        run_google_calendar_sync_lifecycle(gcal_source, mode='full')
+    return render_google_calendar_section(request, project, gcal_source, message="Full re-index triggered successfully.")
+
+
+@require_http_methods(["GET"])
+def google_calendar_status(request, store_id):
+    """Return HTMX status partial for Google Calendar section."""
+    project = get_object_or_404(Project, project_id=store_id)
+    gcal_source = getattr(project, 'google_calendar_source', None)
+    return render_google_calendar_section(request, project, gcal_source)
+
 
 

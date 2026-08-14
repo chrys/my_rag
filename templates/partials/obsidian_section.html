@@ -114,6 +114,45 @@
     </div>
     {% endif %}
 
+    <!-- Indexed Obsidian Files Table -->
+    {% if indexed_files %}
+    <div class="mt-4 border border-emerald-200 dark:border-emerald-800/60 rounded-lg overflow-hidden shadow-sm">
+        <div class="bg-emerald-50/60 dark:bg-emerald-950/40 px-4 py-3 border-b border-emerald-200 dark:border-emerald-800/60 flex justify-between items-center">
+            <h3 class="text-sm font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                <svg class="h-4 w-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Indexed Obsidian Notes
+            </h3>
+            <span class="text-xs text-emerald-700 dark:text-emerald-400 font-mono font-semibold">{{ indexed_files|length }} Note(s)</span>
+        </div>
+        <div class="overflow-x-auto max-h-72">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-emerald-100/50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-200 uppercase font-semibold border-b border-emerald-200 dark:border-emerald-800">
+                    <tr>
+                        <th class="px-4 py-2.5">Relative Path</th>
+                        <th class="px-4 py-2.5">Folder</th>
+                        <th class="px-4 py-2.5">Status</th>
+                        <th class="px-4 py-2.5">Last Indexed</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-800 text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-900">
+                    {% for file in indexed_files %}
+                    <tr class="hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20">
+                        <td class="px-4 py-2.5 font-mono font-medium">{{ file.relative_path }}</td>
+                        <td class="px-4 py-2.5 font-medium text-gray-600 dark:text-gray-400">{{ file.folder_name }}</td>
+                        <td class="px-4 py-2.5">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">INDEXED</span>
+                        </td>
+                        <td class="px-4 py-2.5 text-gray-500 font-mono">{{ file.last_indexed_at|date:"M d, Y, g:i a"|default:"Recently" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Unindexed / Pending Obsidian File Status Table -->
     <div class="mt-4 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
         <div class="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
