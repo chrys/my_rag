@@ -1,0 +1,193 @@
+<div id="google-calendar-section-container" class="p-6 bg-white dark:bg-gray-900 rounded-xl space-y-6">
+
+    <!-- Loading Indicator -->
+    <div id="gcal-loading-indicator" class="htmx-indicator p-4 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200 text-sm font-medium flex items-center gap-3 animate-pulse">
+        <svg class="animate-spin h-5 w-5 text-indigo-600 dark:text-indigo-400 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <div>
+            <div class="font-semibold text-indigo-800 dark:text-indigo-200">⚡ Google Calendar Sync in Progress...</div>
+            <div class="text-xs text-indigo-600 dark:text-indigo-300">Fetching events from Google Calendar API and building local Markdown notes. Please wait...</div>
+        </div>
+    </div>
+
+    <!-- Message Banner -->
+    {% if message %}
+    <div class="p-4 rounded-lg {% if is_error %}bg-red-50 dark:bg-red-900/30 border border-red-200 text-red-800{% else %}bg-blue-50 dark:bg-blue-900/30 border border-blue-200 text-blue-800{% endif %} text-sm font-medium">
+        <span>{{ message }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Connect OAuth Button or Settings -->
+    {% if not gcal_source or not gcal_source.access_token %}
+    <div class="p-8 text-center bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 space-y-4">
+        <div class="inline-flex p-3 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+        </div>
+        <div>
+            <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">Connect Google Calendar</h3>
+            <p class="text-xs text-gray-500 max-w-md mx-auto mt-1">Authorize one-time Google Calendar access to index your schedule and events into this RAG workspace.</p>
+        </div>
+        <a href="{% url 'documents:google_calendar_connect' store_id %}"
+           class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C6.721,2,2,6.721,2,12.545S6.721,23.09,12.545,23.09c6.536,0,10.871-4.597,10.871-11.053c0-0.735-0.081-1.285-0.198-1.798H12.545z"/>
+            </svg>
+            Connect with Google
+        </a>
+    </div>
+    {% else %}
+    <!-- Sync Preferences Form -->
+    <form hx-post="{% url 'documents:google_calendar_save_preferences' store_id %}"
+          hx-target="#google-calendar-section-container"
+          hx-swap="outerHTML"
+          hx-indicator="#gcal-loading-indicator"
+          class="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 space-y-4">
+        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200">Google Calendar Sync Preferences</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div>
+                <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Select Calendars:</label>
+                <div class="space-y-1">
+                    <label class="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                        <input type="checkbox" name="selected_calendars" value="primary" checked class="rounded text-blue-600">
+                        <span>Primary Calendar</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                        <input type="checkbox" name="selected_calendars" value="work" {% if 'work' in gcal_source.selected_calendars %}checked{% endif %} class="rounded text-blue-600">
+                        <span>Work Calendar</span>
+                    </label>
+                </div>
+            </div>
+            <div>
+                <label for="lookback-days" class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Lookback Days (Past):</label>
+                <input type="number" id="lookback-days" name="lookback_days" value="{{ gcal_source.lookback_days|default:30 }}" min="1" max="365"
+                       class="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 font-mono">
+            </div>
+            <div>
+                <label for="lookahead-days" class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Lookahead Days (Future):</label>
+                <input type="number" id="lookahead-days" name="lookahead_days" value="{{ gcal_source.lookahead_days|default:365 }}" min="1" max="365"
+                       class="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 font-mono">
+            </div>
+        </div>
+        <div class="flex justify-end">
+            <button type="submit" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium shadow-sm transition-all">
+                Save Preferences
+            </button>
+        </div>
+    </form>
+
+    <!-- Summary Cards -->
+    {% if total_events_count > 0 %}
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700">
+        <div class="p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm text-center">
+            <span class="text-xs font-semibold text-gray-500 uppercase block">Total Discovered</span>
+            <span class="text-lg font-bold text-gray-800 dark:text-gray-100 font-mono">{{ total_events_count }}</span>
+        </div>
+        <div class="p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm text-center">
+            <span class="text-xs font-semibold text-green-600 uppercase block">Indexed</span>
+            <span class="text-lg font-bold text-green-700 font-mono">{{ indexed_events_count }}</span>
+        </div>
+        <div class="p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm text-center">
+            <span class="text-xs font-semibold text-amber-600 uppercase block">Pending</span>
+            <span class="text-lg font-bold text-amber-700 font-mono">{{ pending_events_count }}</span>
+        </div>
+        <div class="p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm text-center">
+            <span class="text-xs font-semibold text-red-600 uppercase block">Failed</span>
+            <span class="text-lg font-bold text-red-700 font-mono">{{ failed_events_count }}</span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="flex flex-wrap items-center gap-3 pt-2">
+        <button hx-post="{% url 'documents:google_calendar_sync' store_id %}"
+                hx-target="#google-calendar-section-container"
+                hx-swap="outerHTML"
+                hx-indicator="#gcal-loading-indicator"
+                class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700">
+            Sync Events
+        </button>
+        <button hx-post="{% url 'documents:google_calendar_index_new' store_id %}"
+                hx-target="#google-calendar-section-container"
+                hx-swap="outerHTML"
+                hx-indicator="#gcal-loading-indicator"
+                class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-amber-600 hover:bg-amber-700">
+            Index New Events
+        </button>
+        <button hx-post="{% url 'documents:google_calendar_full_reindex' store_id %}"
+                hx-target="#google-calendar-section-container"
+                hx-swap="outerHTML"
+                hx-indicator="#gcal-loading-indicator"
+                class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+            Full Re-Index
+        </button>
+    </div>
+
+    <!-- Indexed Events Table -->
+    {% if indexed_events %}
+    <div class="mt-4 border border-emerald-200 rounded-lg overflow-hidden">
+        <div class="bg-emerald-50 px-4 py-3 border-b border-emerald-200 flex justify-between items-center">
+            <h3 class="text-sm font-semibold text-emerald-800">Indexed Calendar Events</h3>
+            <span class="text-xs font-mono font-semibold">{{ indexed_events|length }} Event(s)</span>
+        </div>
+        <div class="overflow-x-auto max-h-72">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-emerald-100 text-emerald-900 uppercase font-semibold">
+                    <tr>
+                        <th class="px-4 py-2.5">Summary</th>
+                        <th class="px-4 py-2.5">Relative Path</th>
+                        <th class="px-4 py-2.5">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for event in indexed_events %}
+                    <tr>
+                        <td class="px-4 py-2.5 font-medium">{{ event.summary }}</td>
+                        <td class="px-4 py-2.5 font-mono">{{ event.relative_path }}</td>
+                        <td class="px-4 py-2.5">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">INDEXED</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Pending Events Table -->
+    {% if unindexed_events %}
+    <div class="mt-4 border border-gray-200 rounded-lg overflow-hidden">
+        <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-sm font-semibold text-gray-700">Pending / Failed Calendar Events</h3>
+            <span class="text-xs text-gray-500 font-mono">{{ unindexed_events|length }} Event(s)</span>
+        </div>
+        <div class="overflow-x-auto max-h-72">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-gray-100 text-gray-600 uppercase font-semibold">
+                    <tr>
+                        <th class="px-4 py-2.5">Summary</th>
+                        <th class="px-4 py-2.5">Relative Path</th>
+                        <th class="px-4 py-2.5">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for event in unindexed_events %}
+                    <tr>
+                        <td class="px-4 py-2.5 font-medium">{{ event.summary }}</td>
+                        <td class="px-4 py-2.5 font-mono">{{ event.relative_path }}</td>
+                        <td class="px-4 py-2.5">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">{{ event.status }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>

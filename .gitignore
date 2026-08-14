@@ -32,3 +32,5 @@ src/codebundle.md
 .venv/
 #local only 
 db.sqlite3
+tmp_test_dir/
+.tmp/
