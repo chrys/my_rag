@@ -23,6 +23,7 @@ live_configuration/
 config.py 
 .coverage 
 src/codebundle.md
+run.sh 
 
 # Editor / IDE
 .vscode/
