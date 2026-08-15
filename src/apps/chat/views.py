@@ -76,8 +76,15 @@ def _extract_source_documents(source_nodes) -> list[str]:
 @csrf_exempt
 def chat(request):
     """Handle chat messages and generate responses"""
+    # Extract API Key from headers (X-API-Key or Bearer token)
+    api_key_value = request.META.get('HTTP_X_API_KEY')
+    if not api_key_value and 'HTTP_AUTHORIZATION' in request.META:
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '').strip()
+        if auth_header.startswith('Bearer ') or auth_header.startswith('Api-Key '):
+            api_key_value = auth_header.split(' ', 1)[1].strip()
+
     # Programmatic fallback for Basic Authentication
-    if not getattr(request.user, 'is_authenticated', False) and 'HTTP_AUTHORIZATION' in request.META:
+    if not api_key_value and not getattr(request.user, 'is_authenticated', False) and 'HTTP_AUTHORIZATION' in request.META:
         import base64
         from django.contrib.auth import authenticate
         auth_header = request.META.get('HTTP_AUTHORIZATION', '')
@@ -98,12 +105,28 @@ def chat(request):
         store_id = data.get('store_id')
         query = data.get('query')
         system_prompt = data.get('system_prompt', '')
+        customer_profile = data.get('customer_profile')
         
         if not store_id or not query:
             return JsonResponse({'error': 'Missing store_id or query'}, status=400)
 
         # Look up project for storage type
         project = Project.objects.filter(project_id=store_id).first()
+
+        # If API key was provided, validate it and enforce project scoping
+        if api_key_value:
+            from src.apps.api.models import APIKey
+            from django.utils import timezone
+            api_key_obj = APIKey.objects.filter(key=api_key_value, is_active=True).select_related('user', 'project').first()
+            if not api_key_obj:
+                return JsonResponse({'error': 'Invalid or inactive API key'}, status=401)
+            
+            # Enforce project scoping
+            if api_key_obj.project and api_key_obj.project.project_id != store_id:
+                return JsonResponse({'error': 'API key is not authorized for this project'}, status=403)
+            
+            request.user = api_key_obj.user
+            APIKey.objects.filter(id=api_key_obj.id).update(last_used_at=timezone.now())
 
         if not _user_can_access_project(project, request.user):
             return JsonResponse({'error': 'Forbidden'}, status=403)

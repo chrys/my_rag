@@ -53,15 +53,49 @@ The `Aug1` branch restores the **Native Obsidian Vault Integration** and deliver
 
 ---
 
-## 🧪 Unit Test Suite (`Testing/unit/documents/`)
+---
 
-7 unit test suites in `Testing/unit/documents/`:
-1. `test_google_calendar_models.py`
-2. `test_google_calendar_services.py`
-3. `test_google_calendar_views.py`
-4. `test_obsidian_models.py`
-5. `test_obsidian_services.py`
-6. `test_obsidian_lifecycle.py`
-7. `test_obsidian_views.py`
+### 3. Dynamic `<customer_profile>` Context Support in Chat
+- **Chat Formatting & System Prompt Services (`src/apps/chat/services.py`)**:
+  - `format_customer_profile(customer_profile)`: Formats string or dictionary profile inputs into `<customer_profile>\n...\n</customer_profile>` tags. Returns `""` if missing or empty.
+  - `build_effective_system_prompt(system_prompt, customer_profile)`: Appends the formatted `<customer_profile>` block to the base system prompt when present, and completely omits `<customer_profile>` tags when missing or empty.
+- **Chat Views & RAG Routing (`src/apps/chat/views.py`)**:
+  - `chat` (`POST /rag/api/chat/`) & `chat_submit` (`POST /rag/submit/`): Injects `customer_profile` dynamically into system context across all backends (PostgreSQL/LlamaIndex, Fallback LLM Router, Google File Search, and Local RAG).
 
-**Test Run Result:** `377 passed` across the entire unit & regression test suite.
+---
+
+### 4. Project-Scoped API Keys & Project Admin Tab UI
+- **Database Model & Migration (`src/apps/api/models.py`, `src/apps/api/migrations/0002_apikey_project.py`)**:
+  - Added `project` ForeignKey on `APIKey` so keys are strictly scoped to a single project.
+  - Auto-generation of secure prefixed keys (`rag_key_...`) on save.
+- **Project Admin Tab UI (`src/apps/projects/admin.py` & templates)**:
+  - Added third fieldset tab: `Parameters` | `Sources` | **`API Keys`**.
+  - `templates/admin/projects/project_apikey_tab.html` & `templates/partials/project_apikey_section.html`: Interactive HTMX management providing key creation, one-click copy, active toggle, revocation, and ready-to-use cURL integration snippets.
+- **Dashboard Sidebar Navigation (`src/apps/my_rag_project/settings/base.py`, `src/apps/api/admin.py`)**:
+  - Registered `APIKey` and `APIUsage` with `custom_admin_site` (Unfold) and added **"API Keys"** item (🔑) to sidebar navigation.
+- **Chat API Authentication & Scoping Enforcement (`src/apps/chat/views.py`)**:
+  - Validates `X-API-Key` and `Authorization: Bearer <key>` headers.
+  - Blocks cross-project key queries with `403 Forbidden`.
+  - Tracks `last_used_at` timestamps on successful queries.
+
+---
+
+## 🧪 Unit Test Suite
+
+- **Google Calendar & Obsidian Suites (`Testing/unit/documents/`)**:
+  1. `test_google_calendar_models.py`
+  2. `test_google_calendar_services.py`
+  3. `test_google_calendar_views.py`
+  4. `test_obsidian_models.py`
+  5. `test_obsidian_services.py`
+  6. `test_obsidian_lifecycle.py`
+  7. `test_obsidian_views.py`
+
+- **Customer Profile & Chat Prompt Suite (`Testing/unit/chat/`)**:
+  8. `test_customer_profile_prompt.py`: 10 test cases.
+
+- **Project-Scoped API Keys Suite (`Testing/unit/api/`)**:
+  9. `test_project_scoped_apikey.py`: 9 test cases.
+
+**Test Run Result:** `372 passed` (unit) + `15 passed` (regression) across the entire test suite.
+

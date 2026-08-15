@@ -222,6 +222,11 @@ UNFOLD = {
                         "link": reverse_lazy("custom_admin:projects_project_changelist"),
                     },
                     {
+                        "title": "API Keys",
+                        "icon": "key",
+                        "link": reverse_lazy("custom_admin:api_apikey_changelist"),
+                    },
+                    {
                         "title": "Chat Workflow",
                         "icon": "chat",
                         "link": reverse_lazy("custom_admin:chat-workflow"),

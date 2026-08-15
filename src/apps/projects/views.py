@@ -171,3 +171,96 @@ def delete_project(request, store_id):
     return render(request, 'partials/project_list.html', {'stores': stores})
 
 
+@login_required
+@require_http_methods(["GET"])
+def project_api_keys(request, store_id):
+    """Render the API Keys section for a specific project"""
+    from django.shortcuts import get_object_or_404
+    from src.apps.api.models import APIKey
+    
+    project = get_object_or_404(Project, project_id=store_id)
+    if not _user_can_access_project(project, request.user):
+        return HttpResponse("Forbidden", status=403)
+    
+    api_keys = APIKey.objects.filter(project=project).order_by('-created_at')
+    
+    return render(request, 'partials/project_apikey_section.html', {
+        'project': project,
+        'api_keys': api_keys,
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def create_project_api_key(request, store_id):
+    """Generate a new API key scoped to this project"""
+    from django.shortcuts import get_object_or_404
+    from src.apps.api.models import APIKey
+    
+    project = get_object_or_404(Project, project_id=store_id)
+    if not _user_can_access_project(project, request.user):
+        return HttpResponse("Forbidden", status=403)
+    
+    key_name = request.POST.get('name', '').strip() or f"{project.display_name} API Key"
+    new_key = APIKey.objects.create(
+        user=request.user if project.user is None else project.user,
+        project=project,
+        name=key_name,
+        is_active=True
+    )
+    
+    api_keys = APIKey.objects.filter(project=project).order_by('-created_at')
+    
+    return render(request, 'partials/project_apikey_section.html', {
+        'project': project,
+        'api_keys': api_keys,
+        'just_created_key': new_key,
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def toggle_project_api_key(request, store_id, key_id):
+    """Toggle an API key between active and inactive"""
+    from django.shortcuts import get_object_or_404
+    from src.apps.api.models import APIKey
+    
+    project = get_object_or_404(Project, project_id=store_id)
+    if not _user_can_access_project(project, request.user):
+        return HttpResponse("Forbidden", status=403)
+    
+    api_key = get_object_or_404(APIKey, id=key_id, project=project)
+    api_key.is_active = not api_key.is_active
+    api_key.save(update_fields=['is_active'])
+    
+    api_keys = APIKey.objects.filter(project=project).order_by('-created_at')
+    
+    return render(request, 'partials/project_apikey_section.html', {
+        'project': project,
+        'api_keys': api_keys,
+    })
+
+
+@login_required
+@require_http_methods(["POST", "DELETE"])
+def delete_project_api_key(request, store_id, key_id):
+    """Revoke and delete an API key"""
+    from django.shortcuts import get_object_or_404
+    from src.apps.api.models import APIKey
+    
+    project = get_object_or_404(Project, project_id=store_id)
+    if not _user_can_access_project(project, request.user):
+        return HttpResponse("Forbidden", status=403)
+    
+    api_key = get_object_or_404(APIKey, id=key_id, project=project)
+    api_key.delete()
+    
+    api_keys = APIKey.objects.filter(project=project).order_by('-created_at')
+    
+    return render(request, 'partials/project_apikey_section.html', {
+        'project': project,
+        'api_keys': api_keys,
+    })
+
+
+

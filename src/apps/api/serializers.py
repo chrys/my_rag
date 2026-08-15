@@ -9,12 +9,13 @@ from .models import APIKey, APIUsage
 class APIKeySerializer(serializers.ModelSerializer):
     """Serializer for APIKey model"""
     user_username = serializers.CharField(source='user.username', read_only=True)
+    project_display_name = serializers.CharField(source='project.display_name', read_only=True, default=None)
     
     class Meta:
         model = APIKey
         fields = [
-            'id', 'user', 'user_username', 'key', 'name',
-            'is_active', 'created_at', 'last_used_at'
+            'id', 'user', 'user_username', 'project', 'project_display_name',
+            'key', 'name', 'is_active', 'created_at', 'last_used_at'
         ]
         read_only_fields = ['key', 'created_at', 'last_used_at']
 
@@ -25,7 +26,7 @@ class APIKeyCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = APIKey
-        fields = ['name', 'is_active', 'key']
+        fields = ['name', 'project', 'is_active', 'key']
     
     def create(self, validated_data):
         """Create API key with generated token"""
@@ -35,11 +36,12 @@ class APIKeyCreateSerializer(serializers.ModelSerializer):
 
 class APIKeyListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for listing API keys"""
+    project_display_name = serializers.CharField(source='project.display_name', read_only=True, default=None)
     
     class Meta:
         model = APIKey
         fields = [
-            'id', 'name', 'is_active', 'created_at', 'last_used_at'
+            'id', 'name', 'project', 'project_display_name', 'is_active', 'created_at', 'last_used_at'
         ]
 
 

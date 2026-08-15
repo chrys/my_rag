@@ -1,24 +1,28 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin
+from src.apps.my_rag_project.admin import custom_admin_site
 from .models import APIKey, APIUsage
 
 
-@admin.register(APIKey)
-class APIKeyAdmin(admin.ModelAdmin):
-    list_display = ('name', 'user', 'is_active', 'created_at', 'last_used_at')
-    list_filter = ('is_active', 'created_at')
-    search_fields = ('name', 'user__username', 'key')
+@admin.register(APIKey, site=custom_admin_site)
+class APIKeyAdmin(ModelAdmin):
+    list_display = ('name', 'project', 'user', 'is_active', 'created_at', 'last_used_at')
+    list_filter = ('project', 'is_active', 'created_at')
+    search_fields = ('name', 'user__username', 'project__display_name', 'key')
     readonly_fields = ('key', 'created_at', 'last_used_at')
+    autocomplete_fields = ('project',)
     fieldsets = (
-        ('User', {'fields': ('user',)}),
+        ('Scope & Ownership', {'fields': ('project', 'user')}),
         ('Key Info', {'fields': ('name', 'key', 'is_active')}),
         ('Activity', {'fields': ('created_at', 'last_used_at')}),
     )
 
 
-@admin.register(APIUsage)
-class APIUsageAdmin(admin.ModelAdmin):
+@admin.register(APIUsage, site=custom_admin_site)
+class APIUsageAdmin(ModelAdmin):
     list_display = ('endpoint', 'method', 'status_code', 'response_time_ms', 'created_at')
     list_filter = ('method', 'status_code', 'endpoint', 'created_at')
     search_fields = ('endpoint', 'ip_address', 'api_key__user__username')
     readonly_fields = ('created_at',)
     date_hierarchy = 'created_at'
+

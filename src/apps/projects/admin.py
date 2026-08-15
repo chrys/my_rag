@@ -81,7 +81,7 @@ class ProjectAdmin(ModelAdmin):
     list_display = ("display_name", "storage_type", "document_count", "created_at", "is_active")
     list_filter = ("storage_type", "is_active", "created_at")
     search_fields = ("display_name", "project_id", "external_store_id")
-    readonly_fields = ("project_id", "created_at", "updated_at", "document_uploader_and_list")
+    readonly_fields = ("project_id", "created_at", "updated_at", "document_uploader_and_list", "api_key_manager")
     fieldsets = (
         (
             "Parameters",
@@ -121,6 +121,15 @@ class ProjectAdmin(ModelAdmin):
                 ),
             },
         ),
+        (
+            "API Keys",
+            {
+                "classes": ("tab",),
+                "fields": (
+                    "api_key_manager",
+                ),
+            },
+        ),
     )
 
     class Media:
@@ -137,6 +146,18 @@ class ProjectAdmin(ModelAdmin):
         from django.utils.safestring import mark_safe
         return mark_safe(render_to_string("admin/projects/project_sources_tab.html", {"project": obj}))
     document_uploader_and_list.short_description = "Document Manager"
+
+    def api_key_manager(self, obj):
+        """
+        Custom admin field to render the project-scoped API key manager 
+        using HTMX dynamic endpoints inside the API Keys tab.
+        """
+        if not obj or not obj.id:
+            return "Please save the project first to manage API keys."
+        from django.template.loader import render_to_string
+        from django.utils.safestring import mark_safe
+        return mark_safe(render_to_string("admin/projects/project_apikey_tab.html", {"project": obj}))
+    api_key_manager.short_description = "API Key Manager"
 
 
 @admin.register(SystemPrompt, site=custom_admin_site)

@@ -10,7 +10,7 @@ from django.contrib.auth.models import User
 class APIKey(models.Model):
     """
     API key for programmatic access to the API.
-    Replaces HTTP Basic Auth for better token management.
+    Scoped per project or user for better token management.
     """
     
     user = models.ForeignKey(
@@ -18,6 +18,15 @@ class APIKey(models.Model):
         on_delete=models.CASCADE,
         related_name='api_keys',
         help_text="The user this API key belongs to"
+    )
+    
+    project = models.ForeignKey(
+        'projects.Project',
+        on_delete=models.CASCADE,
+        related_name='api_keys',
+        null=True,
+        blank=True,
+        help_text="The specific project this API key is authorized for"
     )
     
     key = models.CharField(
@@ -47,12 +56,18 @@ class APIKey(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.name} ({self.user.username})"
+        proj_str = f" [{self.project.display_name}]" if self.project else ""
+        return f"{self.name}{proj_str} ({self.user.username})"
     
     @staticmethod
     def generate_key():
-        """Generate a secure random API key"""
-        return secrets.token_urlsafe(32)
+        """Generate a secure random API key with rag_key_ prefix"""
+        return f"rag_key_{secrets.token_urlsafe(28)}"
+
+    def save(self, *args, **kwargs):
+        if not self.key:
+            self.key = self.generate_key()
+        super().save(*args, **kwargs)
 
 
 class APIUsage(models.Model):
