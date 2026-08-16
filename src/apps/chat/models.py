@@ -87,3 +87,63 @@ class ChatMessage(models.Model):
     def __str__(self):
         preview = self.content[:50] + '...' if len(self.content) > 50 else self.content
         return f"{self.get_message_type_display()}: {preview}"
+
+
+class ChatFeedback(models.Model):
+    """
+    Stores user feedback (thumbs up / down) for chat messages.
+    Segregated per project.
+    """
+    VALUE_CHOICES = [
+        ('up', 'Thumbs Up'),
+        ('down', 'Thumbs Down'),
+    ]
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='feedbacks',
+        help_text="The project this feedback belongs to"
+    )
+    message_id = models.CharField(
+        max_length=255,
+        db_index=True,
+        help_text="The ID of the message being evaluated"
+    )
+    conversation_id = models.CharField(
+        max_length=255,
+        blank=True,
+        db_index=True,
+        help_text="Conversation or session identifier"
+    )
+    customer_id = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="External customer identifier"
+    )
+    value = models.CharField(
+        max_length=20,
+        choices=VALUE_CHOICES,
+        help_text="Feedback value ('up' or 'down')"
+    )
+    timestamp = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp sent from client"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Server creation timestamp"
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['project', '-created_at']),
+            models.Index(fields=['project', 'value']),
+            models.Index(fields=['message_id']),
+        ]
+
+    def __str__(self):
+        return f"{self.project.display_name} - {self.value} (Message: {self.message_id[:16]})"
+

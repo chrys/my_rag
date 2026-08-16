@@ -69,7 +69,8 @@ The `Aug1` branch restores the **Native Obsidian Vault Integration** and deliver
   - Added `project` ForeignKey on `APIKey` so keys are strictly scoped to a single project.
   - Auto-generation of secure prefixed keys (`rag_key_...`) on save.
 - **Project Admin Tab UI (`src/apps/projects/admin.py` & templates)**:
-  - Added third fieldset tab: `Parameters` | `Sources` | **`API Keys`**.
+  - Configured dedicated tabs: `Parameters` | `Prompt` | `Sources` | `API Keys` | `Feedback`.
+  - Dedicated **Prompt** tab for viewing and editing the project's custom system prompt with auto-save synchronization to `SystemPrompt`.
   - `templates/admin/projects/project_apikey_tab.html` & `templates/partials/project_apikey_section.html`: Interactive HTMX management providing key creation, one-click copy, active toggle, revocation, and ready-to-use cURL integration snippets.
 - **Dashboard Sidebar Navigation (`src/apps/my_rag_project/settings/base.py`, `src/apps/api/admin.py`)**:
   - Registered `APIKey` and `APIUsage` with `custom_admin_site` (Unfold) and added **"API Keys"** item (🔑) to sidebar navigation.
@@ -77,6 +78,18 @@ The `Aug1` branch restores the **Native Obsidian Vault Integration** and deliver
   - Validates `X-API-Key` and `Authorization: Bearer <key>` headers.
   - Blocks cross-project key queries with `403 Forbidden`.
   - Tracks `last_used_at` timestamps on successful queries.
+
+---
+
+### 5. Chatbot Feedback API & Project Admin Feedback Tab
+- **Database Model & Migration (`src/apps/chat/models.py`, `src/apps/chat/migrations/0002_chatfeedback.py`)**:
+  - `ChatFeedback` model: stores `project`, `message_id`, `conversation_id`, `customer_id`, `value` (`up`/`down`), `timestamp`, and `created_at`.
+- **API Endpoint (`/api/chatbot/feedback/` & `/rag/api/chatbot/feedback/`)**:
+  - `chatbot_feedback` view in `src/apps/chat/views.py`: parses thumbs up / down feedback, validates payload, resolves target project via `store_id` or `X-API-Key`, and persists feedback record.
+- **Project Admin Feedback Tab (`src/apps/projects/admin.py`, `templates/admin/projects/project_feedback_tab.html`, `templates/partials/project_feedback_section.html`)**:
+  - Added **Feedback** tab under Project Admin.
+  - Live metrics bar displaying: Total feedback count, 👍 Thumbs Up count & %, 👎 Thumbs Down count & %.
+  - Chronological feedback log table with copyable message IDs, conversation IDs, customer IDs, and client/server timestamps.
 
 ---
 
@@ -97,5 +110,9 @@ The `Aug1` branch restores the **Native Obsidian Vault Integration** and deliver
 - **Project-Scoped API Keys Suite (`Testing/unit/api/`)**:
   9. `test_project_scoped_apikey.py`: 9 test cases.
 
-**Test Run Result:** `372 passed` (unit) + `15 passed` (regression) across the entire test suite.
+- **Chatbot Feedback Suite (`Testing/unit/chat/`)**:
+  10. `test_chatbot_feedback.py`: 6 test cases.
+
+**Test Run Result:** `378 passed` (unit) + `15 passed` (regression) across the entire test suite (total 393 passed).
+
 

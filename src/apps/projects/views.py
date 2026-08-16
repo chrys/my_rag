@@ -263,4 +263,34 @@ def delete_project_api_key(request, store_id, key_id):
     })
 
 
+@login_required
+@require_http_methods(["GET"])
+def project_feedback(request, store_id):
+    """Render the Feedback section and metrics for a specific project"""
+    from django.shortcuts import get_object_or_404
+    from src.apps.chat.models import ChatFeedback
+    
+    project = get_object_or_404(Project, project_id=store_id)
+    if not _user_can_access_project(project, request.user):
+        return HttpResponse("Forbidden", status=403)
+    
+    feedbacks = ChatFeedback.objects.filter(project=project).order_by('-created_at')
+    total_count = feedbacks.count()
+    up_count = feedbacks.filter(value='up').count()
+    down_count = feedbacks.filter(value='down').count()
+    up_pct = round((up_count / total_count * 100), 1) if total_count > 0 else 0
+    down_pct = round((down_count / total_count * 100), 1) if total_count > 0 else 0
+
+    return render(request, 'partials/project_feedback_section.html', {
+        'project': project,
+        'feedbacks': feedbacks,
+        'total_count': total_count,
+        'up_count': up_count,
+        'down_count': down_count,
+        'up_pct': up_pct,
+        'down_pct': down_pct,
+    })
+
+
+
 

@@ -17,4 +17,5 @@ urlpatterns = [
     path('projects/<str:store_id>/api-keys/create/', views.create_project_api_key, name='create_project_api_key'),
     path('projects/<str:store_id>/api-keys/<int:key_id>/toggle/', views.toggle_project_api_key, name='toggle_project_api_key'),
     path('projects/<str:store_id>/api-keys/<int:key_id>/delete/', views.delete_project_api_key, name='delete_project_api_key'),
+    path('projects/<str:store_id>/feedback/', views.project_feedback, name='project_feedback'),
 ]

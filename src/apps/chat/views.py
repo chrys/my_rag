@@ -426,3 +426,103 @@ def chat_submit(request):
         from django.http import HttpResponse
         return HttpResponse(f"Error: {str(e)}", status=500)
 
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def chatbot_feedback(request):
+    """
+    Ingest user feedback (thumbs up / thumbs down) for chat messages.
+    Supports authentication via X-API-Key, Authorization: Bearer <key>, Basic Auth, or Session.
+    """
+    # Extract API Key from headers if provided
+    api_key_value = request.META.get('HTTP_X_API_KEY')
+    if not api_key_value and 'HTTP_AUTHORIZATION' in request.META:
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '').strip()
+        if auth_header.startswith('Bearer ') or auth_header.startswith('Api-Key '):
+            api_key_value = auth_header.split(' ', 1)[1].strip()
+
+    # Programmatic fallback for Basic Authentication
+    if not api_key_value and not getattr(request.user, 'is_authenticated', False) and 'HTTP_AUTHORIZATION' in request.META:
+        import base64
+        from django.contrib.auth import authenticate
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        if auth_header.startswith('Basic '):
+            try:
+                encoded_credentials = auth_header.split(' ', 1)[1]
+                decoded_credentials = base64.b64decode(encoded_credentials).decode('utf-8')
+                username, password = decoded_credentials.split(':', 1)
+                user = authenticate(username=username, password=password)
+                if user is not None:
+                    request.user = user
+            except Exception:
+                pass
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({'error': 'Invalid JSON body'}, status=400)
+
+    message_id = data.get('message_id')
+    value = (data.get('value') or '').lower().strip()
+    conversation_id = data.get('conversation_id', '')
+    customer_id = str(data.get('customer_id', '') or '')
+    timestamp_str = data.get('timestamp')
+    store_id = data.get('store_id') or data.get('project_id')
+
+    if not message_id:
+        return JsonResponse({'error': 'Missing required field: message_id'}, status=400)
+
+    if value not in ['up', 'down']:
+        return JsonResponse({'error': 'Invalid feedback value. Expected "up" or "down"'}, status=400)
+
+    # Resolve project
+    project = None
+    if api_key_value:
+        from src.apps.api.models import APIKey
+        from django.utils import timezone
+        api_key_obj = APIKey.objects.filter(key=api_key_value, is_active=True).select_related('user', 'project').first()
+        if not api_key_obj:
+            return JsonResponse({'error': 'Invalid or inactive API key'}, status=401)
+        if api_key_obj.project:
+            project = api_key_obj.project
+            if store_id and project.project_id != store_id:
+                return JsonResponse({'error': 'API key is not authorized for this project'}, status=403)
+        APIKey.objects.filter(id=api_key_obj.id).update(last_used_at=timezone.now())
+
+    if not project and store_id:
+        project = Project.objects.filter(project_id=store_id).first()
+
+    if not project:
+        if store_id:
+            return JsonResponse({'error': f'Project "{store_id}" not found'}, status=404)
+        return JsonResponse({'error': 'Could not identify target project. Please provide store_id or use a project-scoped API key.'}, status=400)
+
+    # Parse timestamp if given
+    parsed_timestamp = None
+    if timestamp_str:
+        try:
+            from django.utils.dateparse import parse_datetime
+            parsed_timestamp = parse_datetime(timestamp_str)
+        except Exception:
+            pass
+
+    from src.apps.chat.models import ChatFeedback
+    feedback = ChatFeedback.objects.create(
+        project=project,
+        message_id=message_id,
+        conversation_id=conversation_id,
+        customer_id=customer_id,
+        value=value,
+        timestamp=parsed_timestamp
+    )
+
+    return JsonResponse({
+        'status': 'success',
+        'feedback_id': feedback.id,
+        'project_id': project.project_id,
+        'message_id': feedback.message_id,
+        'value': feedback.value,
+        'created_at': feedback.created_at.isoformat()
+    }, status=201)
+
+

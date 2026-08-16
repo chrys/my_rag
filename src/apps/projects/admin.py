@@ -8,7 +8,7 @@ from .models import Project, SystemPrompt
 class ProjectAdminForm(forms.ModelForm):
     custom_prompt_text = forms.CharField(
         widget=forms.Textarea(attrs={
-            'rows': 4,
+            'rows': 8,
             'placeholder': 'Enter system prompt rules, instructions, or role definition...',
             'style': 'width: 100%; font-family: monospace;',
         }),
@@ -81,7 +81,7 @@ class ProjectAdmin(ModelAdmin):
     list_display = ("display_name", "storage_type", "document_count", "created_at", "is_active")
     list_filter = ("storage_type", "is_active", "created_at")
     search_fields = ("display_name", "project_id", "external_store_id")
-    readonly_fields = ("project_id", "created_at", "updated_at", "document_uploader_and_list", "api_key_manager")
+    readonly_fields = ("project_id", "created_at", "updated_at", "document_uploader_and_list", "api_key_manager", "feedback_manager")
     fieldsets = (
         (
             "Parameters",
@@ -101,9 +101,17 @@ class ProjectAdmin(ModelAdmin):
                     "embedding_model",
                     "llm_model",
                     "disable_thinking",
+                    "use_markitdown",
+                ),
+            },
+        ),
+        (
+            "Prompt",
+            {
+                "classes": ("tab",),
+                "fields": (
                     "custom_prompt",
                     "custom_prompt_text",
-                    "use_markitdown",
                 ),
             },
         ),
@@ -127,6 +135,15 @@ class ProjectAdmin(ModelAdmin):
                 "classes": ("tab",),
                 "fields": (
                     "api_key_manager",
+                ),
+            },
+        ),
+        (
+            "Feedback",
+            {
+                "classes": ("tab",),
+                "fields": (
+                    "feedback_manager",
                 ),
             },
         ),
@@ -158,6 +175,18 @@ class ProjectAdmin(ModelAdmin):
         from django.utils.safestring import mark_safe
         return mark_safe(render_to_string("admin/projects/project_apikey_tab.html", {"project": obj}))
     api_key_manager.short_description = "API Key Manager"
+
+    def feedback_manager(self, obj):
+        """
+        Custom admin field to render customer feedback and ratings 
+        using HTMX dynamic endpoints inside the Feedback tab.
+        """
+        if not obj or not obj.id:
+            return "Please save the project first to view feedback."
+        from django.template.loader import render_to_string
+        from django.utils.safestring import mark_safe
+        return mark_safe(render_to_string("admin/projects/project_feedback_tab.html", {"project": obj}))
+    feedback_manager.short_description = "Feedback Manager"
 
 
 @admin.register(SystemPrompt, site=custom_admin_site)
