@@ -126,6 +126,16 @@ class ChatFeedback(models.Model):
         choices=VALUE_CHOICES,
         help_text="Feedback value ('up' or 'down')"
     )
+    query = models.TextField(
+        blank=True,
+        default="",
+        help_text="The user question/query associated with this feedback"
+    )
+    reply = models.TextField(
+        blank=True,
+        default="",
+        help_text="The assistant reply associated with this feedback"
+    )
     timestamp = models.DateTimeField(
         null=True,
         blank=True,

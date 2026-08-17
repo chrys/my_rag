@@ -82,14 +82,16 @@ The `Aug1` branch restores the **Native Obsidian Vault Integration** and deliver
 ---
 
 ### 5. Chatbot Feedback API & Project Admin Feedback Tab
-- **Database Model & Migration (`src/apps/chat/models.py`, `src/apps/chat/migrations/0002_chatfeedback.py`)**:
-  - `ChatFeedback` model: stores `project`, `message_id`, `conversation_id`, `customer_id`, `value` (`up`/`down`), `timestamp`, and `created_at`.
+- **Database Model & Migrations (`src/apps/chat/models.py`, `src/apps/chat/migrations/0002_chatfeedback.py`, `0003_chatfeedback_query_chatfeedback_reply.py`)**:
+  - `ChatFeedback` model: stores `project`, `message_id`, `conversation_id`, `customer_id`, `value` (`up`/`down`), `query`, `reply`, `timestamp`, and `created_at`.
 - **API Endpoint (`/api/chatbot/feedback/` & `/rag/api/chatbot/feedback/`)**:
-  - `chatbot_feedback` view in `src/apps/chat/views.py`: parses thumbs up / down feedback, validates payload, resolves target project via `store_id` or `X-API-Key`, and persists feedback record.
-- **Project Admin Feedback Tab (`src/apps/projects/admin.py`, `templates/admin/projects/project_feedback_tab.html`, `templates/partials/project_feedback_section.html`)**:
+  - `chatbot_feedback` view in `src/apps/chat/views.py`: parses thumbs up / down feedback, extracts `query` and `reply` (from payload or session lookup), validates payload, resolves target project via `store_id` or `X-API-Key`, and persists feedback record.
+- **Project Admin Feedback Tab & CSV Export (`src/apps/projects/admin.py`, `src/apps/projects/views.py`, `templates/admin/projects/project_feedback_tab.html`, `templates/partials/project_feedback_section.html`)**:
   - Added **Feedback** tab under Project Admin.
   - Live metrics bar displaying: Total feedback count, 👍 Thumbs Up count & %, 👎 Thumbs Down count & %.
-  - Chronological feedback log table with copyable message IDs, conversation IDs, customer IDs, and client/server timestamps.
+  - Interactive Filter Bar: allows filtering feedback records by client submission datetime range (`start_date`, `end_date`) and rating (`up`/`down`).
+  - Formatted feedback table displaying exact 5 columns: **Feedback**, **Customer ID**, **Timestamp**, **Query**, and **Reply**.
+  - **Export to CSV**: Added `export_feedback_csv` endpoint (`/rag/projects/<store_id>/feedback/export-csv/`) with a dedicated "Export CSV" button that exports either all feedback or the currently filtered slice with full UTF-8 formatting and standard CSV headers.
 
 ---
 
@@ -110,9 +112,12 @@ The `Aug1` branch restores the **Native Obsidian Vault Integration** and deliver
 - **Project-Scoped API Keys Suite (`Testing/unit/api/`)**:
   9. `test_project_scoped_apikey.py`: 9 test cases.
 
-- **Chatbot Feedback Suite (`Testing/unit/chat/`)**:
-  10. `test_chatbot_feedback.py`: 6 test cases.
+- **Chatbot Feedback & CSV Export Suite (`Testing/unit/chat/`)**:
+  10. `test_chatbot_feedback.py`: 9 test cases.
 
-**Test Run Result:** `378 passed` (unit) + `15 passed` (regression) across the entire test suite (total 393 passed).
+**Test Run Result:** `381 passed` (unit) + `15 passed` (regression) across the entire test suite (total 396 passed).
+
+
+
 
 

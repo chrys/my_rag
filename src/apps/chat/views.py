@@ -500,8 +500,8 @@ def chatbot_feedback(request):
         project = Project.objects.filter(project_id=store_id).first()
 
     # Fallback: check if message_id exists in ChatMessage to get its project
-    if not project:
-        msg_obj = ChatMessage.objects.filter(id=message_id).select_related('project').first()
+    if not project and str(message_id).isdigit():
+        msg_obj = ChatMessage.objects.filter(id=int(message_id)).select_related('project').first()
         if msg_obj:
             project = msg_obj.project
 
@@ -515,6 +515,38 @@ def chatbot_feedback(request):
         if store_id:
             return JsonResponse({'error': f'Project "{store_id}" not found'}, status=404)
         return JsonResponse({'error': 'Could not identify target project. Please provide store_id or use a project-scoped API key.'}, status=400)
+
+    # Extract query and reply if sent in payload
+    user_query = (
+        data.get('query')
+        or data.get('user_message')
+        or data.get('prompt')
+        or data.get('question')
+        or ''
+    )
+    bot_reply = (
+        data.get('reply')
+        or data.get('response')
+        or data.get('bot_response')
+        or data.get('answer')
+        or ''
+    )
+
+    # Fallback to ChatMessage records if query or reply missing
+    if (not user_query or not bot_reply) and str(message_id).isdigit():
+        msg_obj = ChatMessage.objects.filter(id=int(message_id)).first()
+        if msg_obj:
+            if not bot_reply and msg_obj.message_type == 'assistant':
+                bot_reply = msg_obj.content
+            elif not user_query and msg_obj.message_type == 'user':
+                user_query = msg_obj.content
+    elif (not user_query or not bot_reply) and conversation_id:
+        conv_msgs = ChatMessage.objects.filter(session_id=conversation_id).order_by('-created_at')[:2]
+        for m in conv_msgs:
+            if not bot_reply and m.message_type == 'assistant':
+                bot_reply = m.content
+            elif not user_query and m.message_type == 'user':
+                user_query = m.content
 
     # Parse timestamp if given
     parsed_timestamp = None
@@ -532,6 +564,8 @@ def chatbot_feedback(request):
         conversation_id=conversation_id,
         customer_id=customer_id,
         value=value,
+        query=user_query,
+        reply=bot_reply,
         timestamp=parsed_timestamp
     )
 
@@ -541,6 +575,8 @@ def chatbot_feedback(request):
         'project_id': project.project_id,
         'message_id': feedback.message_id,
         'value': feedback.value,
+        'query': feedback.query,
+        'reply': feedback.reply,
         'created_at': feedback.created_at.isoformat()
     }, status=201)
 

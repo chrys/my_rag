@@ -263,18 +263,66 @@ def delete_project_api_key(request, store_id, key_id):
     })
 
 
+def _filter_feedback_queryset(project, request):
+    """Helper to apply date and rating filters on ChatFeedback queryset"""
+    from django.utils.dateparse import parse_date, parse_datetime
+    from django.utils import timezone
+    import datetime
+    from src.apps.chat.models import ChatFeedback
+
+    start_date_str = request.GET.get('start_date', '').strip()
+    end_date_str = request.GET.get('end_date', '').strip()
+    rating_filter = request.GET.get('rating', '').strip().lower()
+
+    queryset = ChatFeedback.objects.filter(project=project)
+
+    if start_date_str:
+        parsed_start = parse_datetime(start_date_str)
+        if not parsed_start:
+            d = parse_date(start_date_str)
+            if d:
+                parsed_start = timezone.make_aware(datetime.datetime.combine(d, datetime.time.min))
+        elif timezone.is_naive(parsed_start):
+            parsed_start = timezone.make_aware(parsed_start)
+
+        if parsed_start:
+            queryset = queryset.filter(
+                models.Q(timestamp__gte=parsed_start) | (models.Q(timestamp__isnull=True) & models.Q(created_at__gte=parsed_start))
+            )
+
+    if end_date_str:
+        parsed_end = parse_datetime(end_date_str)
+        if not parsed_end:
+            d = parse_date(end_date_str)
+            if d:
+                parsed_end = timezone.make_aware(datetime.datetime.combine(d, datetime.time.max))
+        elif timezone.is_naive(parsed_end):
+            parsed_end = timezone.make_aware(parsed_end)
+
+        if parsed_end:
+            queryset = queryset.filter(
+                models.Q(timestamp__lte=parsed_end) | (models.Q(timestamp__isnull=True) & models.Q(created_at__lte=parsed_end))
+            )
+
+    if rating_filter in ['up', 'down']:
+        queryset = queryset.filter(value=rating_filter)
+
+    return queryset, start_date_str, end_date_str, rating_filter
+
+
 @login_required
 @require_http_methods(["GET"])
 def project_feedback(request, store_id):
-    """Render the Feedback section and metrics for a specific project"""
+    """Render the Feedback section and metrics for a specific project with date and rating filters"""
     from django.shortcuts import get_object_or_404
-    from src.apps.chat.models import ChatFeedback
     
     project = get_object_or_404(Project, project_id=store_id)
     if not _user_can_access_project(project, request.user):
         return HttpResponse("Forbidden", status=403)
     
-    feedbacks = ChatFeedback.objects.filter(project=project).order_by('-created_at')
+    queryset, start_date_str, end_date_str, rating_filter = _filter_feedback_queryset(project, request)
+
+    feedbacks = queryset.order_by('-created_at')
     total_count = feedbacks.count()
     up_count = feedbacks.filter(value='up').count()
     down_count = feedbacks.filter(value='down').count()
@@ -289,7 +337,59 @@ def project_feedback(request, store_id):
         'down_count': down_count,
         'up_pct': up_pct,
         'down_pct': down_pct,
+        'start_date': start_date_str,
+        'end_date': end_date_str,
+        'rating': rating_filter,
     })
+
+
+@login_required
+@require_http_methods(["GET"])
+def export_feedback_csv(request, store_id):
+    """Export feedback entries to CSV format (all feedback or filtered)"""
+    import csv
+    from django.http import HttpResponse
+    from django.shortcuts import get_object_or_404
+    from django.utils import timezone
+
+    project = get_object_or_404(Project, project_id=store_id)
+    if not _user_can_access_project(project, request.user):
+        return HttpResponse("Forbidden", status=403)
+
+    queryset, _, _, _ = _filter_feedback_queryset(project, request)
+    feedbacks = queryset.order_by('-created_at')
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    timestamp_tag = timezone.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"feedback_{project.project_id}_{timestamp_tag}.csv"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Feedback',
+        'Customer ID',
+        'Client Timestamp',
+        'Recorded At',
+        'Query',
+        'Reply',
+        'Message ID',
+        'Conversation ID'
+    ])
+
+    for item in feedbacks:
+        writer.writerow([
+            item.value,
+            item.customer_id,
+            item.timestamp.isoformat() if item.timestamp else '',
+            item.created_at.isoformat() if item.created_at else '',
+            item.query,
+            item.reply,
+            item.message_id,
+            item.conversation_id
+        ])
+
+    return response
+
 
 
 

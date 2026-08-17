@@ -21,14 +21,22 @@ class ChatMessageAdmin(ModelAdmin):
 
 @admin.register(ChatFeedback, site=custom_admin_site)
 class ChatFeedbackAdmin(ModelAdmin):
-    list_display = ('project', 'value', 'message_id', 'customer_id', 'timestamp', 'created_at')
+    list_display = ('project', 'value', 'customer_id', 'query_preview', 'timestamp', 'created_at')
     list_filter = ('value', 'project', 'created_at')
-    search_fields = ('message_id', 'conversation_id', 'customer_id', 'project__display_name')
+    search_fields = ('message_id', 'conversation_id', 'customer_id', 'query', 'reply', 'project__display_name')
     readonly_fields = ('created_at',)
     autocomplete_fields = ('project',)
     fieldsets = (
         ('Feedback Info', {'fields': ('project', 'value', 'message_id')}),
         ('Customer & Session', {'fields': ('conversation_id', 'customer_id')}),
+        ('Interaction Content', {'fields': ('query', 'reply')}),
         ('Timestamps', {'fields': ('timestamp', 'created_at')}),
     )
+
+    def query_preview(self, obj):
+        if obj.query:
+            return obj.query[:40] + '...' if len(obj.query) > 40 else obj.query
+        return '-'
+    query_preview.short_description = 'Query'
+
 
