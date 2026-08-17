@@ -222,25 +222,44 @@ def chat(request):
         elapsed_seconds = round(time.time() - start_time, 2)
         response_time_str = f"{elapsed_seconds:.2f}s"
         
-        # Store in database if user is authenticated
-        if request.user.is_authenticated:
-            from django.db import transaction
+        # Extract conversation/session ID if provided
+        session_id = (
+            data.get('session_id')
+            or data.get('conversation_id')
+            or request.META.get('HTTP_X_SESSION_ID')
+            or request.META.get('HTTP_X_CONVERSATION_ID')
+            or ''
+        )
+
+        # Store in database
+        from django.db import transaction
+        user_for_msg = request.user if getattr(request.user, 'is_authenticated', False) else None
+        user_msg = None
+        bot_msg = None
+        try:
             with transaction.atomic():
-                ChatMessage.objects.create(
+                user_msg = ChatMessage.objects.create(
                     project=project,
-                    user=request.user,
+                    user=user_for_msg,
+                    session_id=session_id,
                     message_type='user',
                     content=query
                 )
-                ChatMessage.objects.create(
+                bot_msg = ChatMessage.objects.create(
                     project=project,
-                    user=request.user,
+                    user=user_for_msg,
+                    session_id=session_id,
                     message_type='assistant',
                     content=bot_response,
                     response_html=bot_response_html
                 )
+        except Exception as db_err:
+            import logging
+            logging.getLogger(__name__).warning("Failed to store ChatMessage: %s", db_err)
         
         return JsonResponse({
+            'message_id': str(bot_msg.id) if bot_msg else '',
+            'conversation_id': session_id,
             'user_message': query,
             'bot_response': bot_response,
             'bot_response_html': bot_response_html,
@@ -522,6 +541,7 @@ def chatbot_feedback(request):
         or data.get('user_message')
         or data.get('prompt')
         or data.get('question')
+        or data.get('message')
         or ''
     )
     bot_reply = (
@@ -529,10 +549,11 @@ def chatbot_feedback(request):
         or data.get('response')
         or data.get('bot_response')
         or data.get('answer')
+        or data.get('assistant_message')
         or ''
     )
 
-    # Fallback to ChatMessage records if query or reply missing
+    # 1. Fallback by numeric message_id
     if (not user_query or not bot_reply) and str(message_id).isdigit():
         msg_obj = ChatMessage.objects.filter(id=int(message_id)).first()
         if msg_obj:
@@ -540,9 +561,38 @@ def chatbot_feedback(request):
                 bot_reply = msg_obj.content
             elif not user_query and msg_obj.message_type == 'user':
                 user_query = msg_obj.content
-    elif (not user_query or not bot_reply) and conversation_id:
-        conv_msgs = ChatMessage.objects.filter(session_id=conversation_id).order_by('-created_at')[:2]
+            if msg_obj.session_id:
+                if not user_query:
+                    umsg = ChatMessage.objects.filter(session_id=msg_obj.session_id, message_type='user', created_at__lte=msg_obj.created_at).order_by('-created_at').first()
+                    if umsg:
+                        user_query = umsg.content
+                if not bot_reply:
+                    bmsg = ChatMessage.objects.filter(session_id=msg_obj.session_id, message_type='assistant', created_at__gte=msg_obj.created_at).order_by('created_at').first()
+                    if bmsg:
+                        bot_reply = bmsg.content
+
+    # 2. Fallback by conversation_id
+    if (not user_query or not bot_reply) and conversation_id:
+        conv_msgs = ChatMessage.objects.filter(session_id=conversation_id).order_by('-created_at')
         for m in conv_msgs:
+            if not bot_reply and m.message_type == 'assistant':
+                bot_reply = m.content
+            elif not user_query and m.message_type == 'user':
+                user_query = m.content
+
+    # 3. Fallback by message_id as session_id string
+    if (not user_query or not bot_reply) and message_id:
+        conv_msgs = ChatMessage.objects.filter(session_id=message_id).order_by('-created_at')
+        for m in conv_msgs:
+            if not bot_reply and m.message_type == 'assistant':
+                bot_reply = m.content
+            elif not user_query and m.message_type == 'user':
+                user_query = m.content
+
+    # 4. Fallback: most recent messages in this project
+    if (not user_query or not bot_reply) and project:
+        latest_msgs = ChatMessage.objects.filter(project=project).order_by('-created_at')[:4]
+        for m in latest_msgs:
             if not bot_reply and m.message_type == 'assistant':
                 bot_reply = m.content
             elif not user_query and m.message_type == 'user':

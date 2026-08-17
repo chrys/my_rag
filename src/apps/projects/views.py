@@ -329,9 +329,35 @@ def project_feedback(request, store_id):
     up_pct = round((up_count / total_count * 100), 1) if total_count > 0 else 0
     down_pct = round((down_count / total_count * 100), 1) if total_count > 0 else 0
 
+    from src.apps.chat.models import ChatMessage
+    feedback_list = list(feedbacks)
+    for fb in feedback_list:
+        if not fb.query or not fb.reply:
+            if fb.conversation_id:
+                c_msgs = ChatMessage.objects.filter(session_id=fb.conversation_id).order_by('-created_at')
+                for m in c_msgs:
+                    if not fb.reply and m.message_type == 'assistant':
+                        fb.reply = m.content
+                    elif not fb.query and m.message_type == 'user':
+                        fb.query = m.content
+            if (not fb.query or not fb.reply) and str(fb.message_id).isdigit():
+                m = ChatMessage.objects.filter(id=int(fb.message_id)).first()
+                if m:
+                    if not fb.reply and m.message_type == 'assistant':
+                        fb.reply = m.content
+                    elif not fb.query and m.message_type == 'user':
+                        fb.query = m.content
+            if (not fb.query or not fb.reply) and fb.message_id:
+                c_msgs = ChatMessage.objects.filter(session_id=fb.message_id).order_by('-created_at')
+                for m in c_msgs:
+                    if not fb.reply and m.message_type == 'assistant':
+                        fb.reply = m.content
+                    elif not fb.query and m.message_type == 'user':
+                        fb.query = m.content
+
     return render(request, 'partials/project_feedback_section.html', {
         'project': project,
-        'feedbacks': feedbacks,
+        'feedbacks': feedback_list,
         'total_count': total_count,
         'up_count': up_count,
         'down_count': down_count,
@@ -351,13 +377,30 @@ def export_feedback_csv(request, store_id):
     from django.http import HttpResponse
     from django.shortcuts import get_object_or_404
     from django.utils import timezone
+    from src.apps.chat.models import ChatMessage
 
     project = get_object_or_404(Project, project_id=store_id)
     if not _user_can_access_project(project, request.user):
         return HttpResponse("Forbidden", status=403)
 
     queryset, _, _, _ = _filter_feedback_queryset(project, request)
-    feedbacks = queryset.order_by('-created_at')
+    feedbacks = list(queryset.order_by('-created_at'))
+    for fb in feedbacks:
+        if not fb.query or not fb.reply:
+            if fb.conversation_id:
+                c_msgs = ChatMessage.objects.filter(session_id=fb.conversation_id).order_by('-created_at')
+                for m in c_msgs:
+                    if not fb.reply and m.message_type == 'assistant':
+                        fb.reply = m.content
+                    elif not fb.query and m.message_type == 'user':
+                        fb.query = m.content
+            if (not fb.query or not fb.reply) and str(fb.message_id).isdigit():
+                m = ChatMessage.objects.filter(id=int(fb.message_id)).first()
+                if m:
+                    if not fb.reply and m.message_type == 'assistant':
+                        fb.reply = m.content
+                    elif not fb.query and m.message_type == 'user':
+                        fb.query = m.content
 
     response = HttpResponse(content_type='text/csv; charset=utf-8')
     timestamp_tag = timezone.now().strftime('%Y%m%d_%H%M%S')
@@ -389,6 +432,7 @@ def export_feedback_csv(request, store_id):
         ])
 
     return response
+
 
 
 
