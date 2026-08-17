@@ -6,14 +6,19 @@ The `urlpatterns` list routes URLs to views. For more information please see:
 """
 from django.contrib import admin
 from django.urls import path, include
-from src.apps.my_rag_project.admin import custom_admin_site
+from django.views.generic import RedirectView
+from src.apps.my_rag_project.admin import custom_admin_site, CustomLoginView
 from src.apps.chat.views import chat as chat_api_view, chatbot_feedback as feedback_api_view
 
 urlpatterns = [
+    # Root path redirect to /rag/
+    path('', RedirectView.as_view(url='/rag/', permanent=False)),
     # Custom Unfold Admin Site under /rag/
     path('rag/dashboard/', custom_admin_site.urls),
     # Admin at root level under /rag/
     path('rag/admin/', admin.site.urls),
+    # Custom login route before default auth urls
+    path('rag/accounts/login/', CustomLoginView.as_view(), name='login'),
     # Auth routes under /rag/
     path('rag/accounts/', include('django.contrib.auth.urls')),
     # Preserved DRF API routes

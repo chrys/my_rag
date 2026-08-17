@@ -1,0 +1,219 @@
+{% load evaluate_tags %}
+<div class="p-6 space-y-8 animate-fadeIn" id="local-llm-scorecard-workspace">
+    <!-- Header Banner with Model Comparison and Export Button -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-gradient-to-r from-purple-900/90 via-indigo-900/90 to-purple-950/90 text-white rounded-2xl shadow-md border border-purple-800">
+        <div>
+            <div class="flex items-center gap-2.5 mb-1.5">
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-purple-400/20 text-purple-200 border border-purple-400/30">
+                    ⚡ Local LLM Benchmark
+                </span>
+                <span class="text-xs text-purple-200/80">
+                    {{ run.completed_at|date:"M d, Y H:i" }}
+                </span>
+            </div>
+            <h2 class="text-2xl font-black tracking-tight text-white">
+                Benchmark Scorecard: {{ project.display_name }}
+            </h2>
+            <p class="text-xs text-purple-200/90 mt-1">
+                Evaluated {{ models|length }} model(s) across {{ total_questions }} Q&A item(s) on a 0 – 10 normalized scale.
+            </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <a href="{% url 'custom_admin:local-llm-export-csv' run.id %}" 
+               class="px-4 py-2.5 bg-white text-purple-900 hover:bg-purple-50 font-black text-xs rounded-xl shadow transition-all flex items-center gap-2">
+                <span>📥 Download Benchmark CSV</span>
+            </a>
+        </div>
+    </div>
+
+    {% if best_model %}
+    <!-- Best Model Highlight Banner -->
+    <div class="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 rounded-2xl flex items-center justify-between shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 flex items-center justify-center text-xl font-bold">
+                🏆
+            </div>
+            <div>
+                <span class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Top Performing Local Model</span>
+                <span class="text-base font-black text-emerald-900 dark:text-emerald-100 font-mono">{{ best_model }}</span>
+            </div>
+        </div>
+        <div class="text-right">
+            <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">Overall Score</span>
+            <span class="text-2xl font-black text-emerald-700 dark:text-emerald-300">{{ best_overall_score|floatformat:1 }} <span class="text-sm font-bold text-gray-400">/ 10</span></span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Comparative Summary Scorecard Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div class="p-4 bg-gray-50 dark:bg-gray-750 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <span>📊</span>
+                <span>Multi-Model Comparative Criteria Breakdown</span>
+            </h3>
+            <span class="text-xs text-gray-400 font-medium">Scores normalized from 0.0 to 10.0</span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="bg-gray-100/75 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
+                        <th class="p-3.5 font-bold uppercase tracking-wider">Evaluation Criterion</th>
+                        {% for model_name in models %}
+                        <th class="p-3.5 font-bold uppercase tracking-wider text-center font-mono {% if model_name == best_model %}text-purple-700 dark:text-purple-300 bg-purple-50/50 dark:bg-purple-950/20{% endif %}">
+                            {{ model_name }}
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700 text-gray-800 dark:text-gray-200">
+                    <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-750/30">
+                        <td class="p-3.5 font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                            <span>🎯</span> <span>Faithfulness / Hallucination</span>
+                        </td>
+                        {% for model_name in models %}
+                        <td class="p-3.5 text-center font-bold font-mono">
+                            {{ summary_scores|dict_key:model_name|dict_key:"faithfulness"|default:"0.0" }}
+                        </td>
+                        {% endfor %}
+                    </tr>
+
+                    <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-750/30">
+                        <td class="p-3.5 font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                            <span>🔍</span> <span>Context Utilization</span>
+                        </td>
+                        {% for model_name in models %}
+                        <td class="p-3.5 text-center font-bold font-mono">
+                            {{ summary_scores|dict_key:model_name|dict_key:"context_utilization"|default:"0.0" }}
+                        </td>
+                        {% endfor %}
+                    </tr>
+
+                    <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-750/30">
+                        <td class="p-3.5 font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                            <span>🏷️</span> <span>Citation Accuracy</span>
+                        </td>
+                        {% for model_name in models %}
+                        <td class="p-3.5 text-center font-bold font-mono">
+                            {{ summary_scores|dict_key:model_name|dict_key:"citation_accuracy"|default:"0.0" }}
+                        </td>
+                        {% endfor %}
+                    </tr>
+
+                    <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-750/30">
+                        <td class="p-3.5 font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                            <span>⚡</span> <span>Tokens Per Second (TPS)</span>
+                        </td>
+                        {% for model_name in models %}
+                        <td class="p-3.5 text-center font-bold font-mono">
+                            {{ summary_scores|dict_key:model_name|dict_key:"tokens_per_second"|default:"0.0" }}
+                        </td>
+                        {% endfor %}
+                    </tr>
+
+                    <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-750/30">
+                        <td class="p-3.5 font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                            <span>⏱️</span> <span>Reply Time</span>
+                        </td>
+                        {% for model_name in models %}
+                        <td class="p-3.5 text-center font-bold font-mono">
+                            {{ summary_scores|dict_key:model_name|dict_key:"reply_time"|default:"0.0" }}
+                        </td>
+                        {% endfor %}
+                    </tr>
+
+                    <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-750/30">
+                        <td class="p-3.5 font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                            <span>📋</span> <span>Instruction Following</span>
+                        </td>
+                        {% for model_name in models %}
+                        <td class="p-3.5 text-center font-bold font-mono">
+                            {{ summary_scores|dict_key:model_name|dict_key:"instruction_following"|default:"0.0" }}
+                        </td>
+                        {% endfor %}
+                    </tr>
+
+                    <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-750/30">
+                        <td class="p-3.5 font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                            <span>📝</span> <span>Markdown Compatibility</span>
+                        </td>
+                        {% for model_name in models %}
+                        <td class="p-3.5 text-center font-bold font-mono">
+                            {{ summary_scores|dict_key:model_name|dict_key:"markdown_compatibility"|default:"0.0" }}
+                        </td>
+                        {% endfor %}
+                    </tr>
+
+                    <!-- Final Overall Score Row -->
+                    <tr class="bg-purple-50/80 dark:bg-purple-950/40 border-t-2 border-purple-200 dark:border-purple-800">
+                        <td class="p-4 font-black text-sm text-purple-900 dark:text-purple-100 flex items-center gap-2">
+                            <span>🌟</span> <span>Overall Score (Average)</span>
+                        </td>
+                        {% for model_name in models %}
+                        <td class="p-4 text-center font-black text-base font-mono text-purple-700 dark:text-purple-300">
+                            {{ summary_scores|dict_key:model_name|dict_key:"overall_score"|default:"0.0" }}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Per-Question Detailed Breakdown -->
+    <div class="space-y-4">
+        <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <span>🔍</span>
+            <span>Per-Question Comparative Details ({{ total_questions }})</span>
+        </h3>
+
+        <div class="space-y-4">
+            {% for item_group in items_by_question %}
+            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 space-y-4 shadow-sm">
+                <div class="border-b border-gray-100 dark:border-gray-700 pb-3">
+                    <span class="text-[11px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider block">Question {{ forloop.counter }}</span>
+                    <h4 class="text-sm font-bold text-gray-900 dark:text-white mt-1">{{ item_group.question }}</h4>
+                    <div class="mt-2 p-2.5 bg-gray-50 dark:bg-gray-750 rounded-xl text-xs text-gray-600 dark:text-gray-300">
+                        <span class="font-bold text-gray-700 dark:text-gray-200 block mb-0.5">Reference Ground Truth:</span>
+                        {{ item_group.ground_truth }}
+                    </div>
+                </div>
+
+                <!-- Model Answers Grid -->
+                <div class="grid grid-cols-1 {% if models|length > 1 %}md:grid-cols-2{% endif %} gap-4">
+                    {% for res in item_group.model_results %}
+                    <div class="p-4 bg-gray-50/70 dark:bg-gray-750/50 border border-gray-200 dark:border-gray-700 rounded-xl space-y-3">
+                        <div class="flex items-center justify-between border-b border-gray-200/60 dark:border-gray-700/60 pb-2">
+                            <span class="text-xs font-mono font-black text-purple-700 dark:text-purple-300">{{ res.model_name }}</span>
+                            <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                Score: {{ res.overall_score|floatformat:1 }} / 10
+                            </span>
+                        </div>
+
+                        <div>
+                            <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Generated Response</span>
+                            <div class="text-xs text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-sans bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 max-h-48 overflow-y-auto">
+                                {{ res.model_answer }}
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 text-[11px] pt-1">
+                            <div class="p-1.5 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 text-center">
+                                <span class="text-gray-400 block text-[10px]">Speed</span>
+                                <span class="font-bold text-gray-800 dark:text-gray-200 font-mono">{{ res.tokens_per_second|floatformat:1 }} tok/s</span>
+                            </div>
+                            <div class="p-1.5 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 text-center">
+                                <span class="text-gray-400 block text-[10px]">Latency</span>
+                                <span class="font-bold text-gray-800 dark:text-gray-200 font-mono">{{ res.reply_time|floatformat:2 }}s</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>

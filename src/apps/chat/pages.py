@@ -10,14 +10,18 @@ from django.contrib.auth.decorators import login_required
 @login_required
 @require_http_methods(["GET"])
 def index(request):
-    """Home page - redirects to unfold dashboard"""
+    """Home page - redirects to Django admin for admin users and unfold dashboard for regular users"""
+    if request.user.is_staff or request.user.is_superuser:
+        return redirect('/rag/admin/')
     return redirect('/rag/dashboard/')
 
 
 @login_required
 @require_http_methods(["GET"])
 def admin_page(request):
-    """Admin dashboard - redirects to unfold dashboard"""
+    """Admin dashboard - redirects to Django admin for admin users and unfold dashboard for regular users"""
+    if request.user.is_staff or request.user.is_superuser:
+        return redirect('/rag/admin/')
     return redirect('/rag/dashboard/')
 
 

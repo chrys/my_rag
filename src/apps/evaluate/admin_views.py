@@ -4,6 +4,7 @@ Admin views for the evaluate application, integrated with django-unfold.
 
 import csv
 import io
+import threading
 from django.views import View
 from django.views.generic import TemplateView
 from django.shortcuts import get_object_or_404, redirect, render
@@ -19,10 +20,16 @@ from src.apps.evaluate.models import (
     EvaluationResultMetrics,
     ManualEvaluationRun,
     ManualEvaluationItem,
+    LocalLLMEvaluationRun,
+    LocalLLMResultMetric,
 )
 from src.apps.evaluate.eval_services import (
     generate_answer_for_manual_item,
     batch_generate_manual_answers,
+    fetch_available_ollama_models,
+    parse_benchmark_csv,
+    run_local_llm_benchmark_pipeline,
+    get_local_llm_progress,
 )
 
 
@@ -399,6 +406,198 @@ class RateManualItemView(UnfoldModelAdminViewMixin, View):
             item.save()
         context = get_manual_workspace_context(item.run)
         return render(request, "evaluate/manual_eval_workspace.html", context)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class LocalLLMModelListView(UnfoldModelAdminViewMixin, View):
+    """
+    GET endpoint to discover and list available local Ollama models.
+    """
+    permission_required = ()
+
+    def get(self, request, *args, **kwargs):
+        models = fetch_available_ollama_models()
+        return render(request, "admin/partials/local_llms_controls.html", {
+            "models": models,
+            "ollama_online": len(models) > 0,
+        })
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class RunLocalLLMBenchmarkView(UnfoldModelAdminViewMixin, View):
+    """
+    POST endpoint to initialize and launch multi-model local LLM benchmark evaluation.
+    """
+    permission_required = ()
+
+    def post(self, request, *args, **kwargs):
+        project_id = request.POST.get("project_id", "").strip()
+        project = Project.objects.filter(project_id=project_id).first()
+        if not project:
+            return HttpResponse(
+                '<div class="p-4 bg-red-50 text-red-700 rounded-xl font-bold">❌ Error: Target project not found. Please select a valid project.</div>',
+                status=400
+            )
+
+        # Retrieve selected models (from checkboxes)
+        selected_models = request.POST.getlist("selected_models")
+        if not selected_models:
+            # Check for comma-separated or single model fallback
+            single_model = request.POST.get("selected_model", "").strip()
+            if single_model:
+                selected_models = [single_model]
+
+        if not selected_models:
+            return HttpResponse(
+                '<div class="p-4 bg-red-50 text-red-700 rounded-xl font-bold">❌ Error: Please select at least one local LLM model to evaluate.</div>',
+                status=400
+            )
+
+        # Parse CSV file
+        csv_file = request.FILES.get("csv_file")
+        if not csv_file:
+            return HttpResponse(
+                '<div class="p-4 bg-red-50 text-red-700 rounded-xl font-bold">❌ Error: Please upload a benchmark CSV file containing questions and answers.</div>',
+                status=400
+            )
+
+        try:
+            dataset = parse_benchmark_csv(csv_file.read())
+        except Exception as parse_err:
+            return HttpResponse(
+                f'<div class="p-4 bg-red-50 text-red-700 rounded-xl font-bold">❌ CSV Parsing Error: {parse_err}</div>',
+                status=400
+            )
+
+        # Create evaluation run record
+        run = LocalLLMEvaluationRun.objects.create(
+            project=project,
+            models_evaluated=selected_models,
+            dataset_name=csv_file.name,
+            total_questions=len(dataset),
+            status="RUNNING"
+        )
+
+        # Spawn asynchronous benchmark thread
+        benchmark_thread = threading.Thread(
+            target=run_local_llm_benchmark_pipeline,
+            args=(project, selected_models, dataset, run)
+        )
+        benchmark_thread.daemon = True
+        benchmark_thread.start()
+
+        progress = get_local_llm_progress(str(run.id))
+        context = {
+            "run": run,
+            "project": project,
+            "progress": progress
+        }
+        return render(request, "admin/partials/local_llm_progress.html", context)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class LocalLLMBenchmarkStatusView(UnfoldModelAdminViewMixin, View):
+    """
+    GET polling endpoint to query the execution status and progress of a local LLM benchmark run.
+    """
+    permission_required = ()
+
+    def get(self, request, run_id, *args, **kwargs):
+        run = get_object_or_404(LocalLLMEvaluationRun, id=run_id)
+
+        if run.status == "SUCCESS":
+            # Group item metrics by question for detailed comparative breakdown
+            items = run.item_metrics.all()
+            questions_map = {}
+            for item in items:
+                if item.question not in questions_map:
+                    questions_map[item.question] = {
+                        "question": item.question,
+                        "ground_truth": item.ground_truth,
+                        "retrieved_context": item.retrieved_context,
+                        "model_results": []
+                    }
+                questions_map[item.question]["model_results"].append(item)
+
+            context = {
+                "run": run,
+                "project": run.project,
+                "models": run.models_evaluated,
+                "summary_scores": run.summary_scores,
+                "best_model": run.best_model,
+                "best_overall_score": run.best_overall_score,
+                "items_by_question": list(questions_map.values()),
+                "total_questions": run.total_questions,
+            }
+            return render(request, "admin/local_llm_scorecard.html", context)
+
+        elif run.status == "FAILED":
+            return HttpResponse(
+                f'<div class="p-6 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-2xl space-y-2">'
+                f'<div class="text-red-800 dark:text-red-200 font-bold text-sm">❌ Benchmark Execution Failed</div>'
+                f'<div class="text-xs text-red-700 dark:text-red-300 font-mono">{run.error_message}</div>'
+                f'</div>',
+                status=500
+            )
+        else:
+            # Still RUNNING
+            progress = get_local_llm_progress(str(run.id))
+            context = {
+                "run": run,
+                "project": run.project,
+                "progress": progress
+            }
+            return render(request, "admin/partials/local_llm_progress.html", context)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class ExportLocalLLMCSVEvaluationView(UnfoldModelAdminViewMixin, View):
+    """
+    GET endpoint to export benchmark evaluation results as a 12-column CSV file.
+    """
+    permission_required = ()
+
+    def get(self, request, run_id, *args, **kwargs):
+        run = get_object_or_404(LocalLLMEvaluationRun, id=run_id)
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = f'attachment; filename="local_llm_benchmark_{run.id}.csv"'
+
+        writer = csv.writer(response)
+        # Write exact 12-column header specified in aug2-specs.md
+        writer.writerow([
+            "model_name",
+            "question",
+            "answer",
+            "model_answer",
+            "faithfulness",
+            "context_utilization",
+            "citation_accuracy",
+            "tokens_per_second",
+            "reply_time",
+            "instruction_following",
+            "markdown_compatibility",
+            "overall_score"
+        ])
+
+        items = run.item_metrics.all().order_by("model_name", "created_at")
+        for item in items:
+            writer.writerow([
+                item.model_name,
+                item.question,
+                item.ground_truth,
+                item.model_answer,
+                f"{item.faithfulness:.1f}",
+                f"{item.context_utilization:.1f}",
+                f"{item.citation_accuracy:.1f}",
+                f"{item.tokens_per_second:.1f}",
+                f"{item.reply_time:.1f}",
+                f"{item.instruction_following:.1f}",
+                f"{item.markdown_compatibility:.1f}",
+                f"{item.overall_score:.1f}",
+            ])
+
+        return response
+
 
 
 

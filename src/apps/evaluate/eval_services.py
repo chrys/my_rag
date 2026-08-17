@@ -2,6 +2,10 @@ import os
 import json
 import logging
 import threading
+import csv
+import io
+import re
+import requests
 from django.conf import settings
 from django.utils import timezone
 from src.apps.evaluate.models import (
@@ -10,6 +14,8 @@ from src.apps.evaluate.models import (
     EvaluationResultMetrics,
     ManualEvaluationRun,
     ManualEvaluationItem,
+    LocalLLMEvaluationRun,
+    LocalLLMResultMetric,
 )
 from src.apps.projects.models import Project
 from src.apps.documents.services import get_vector_store
@@ -817,4 +823,626 @@ def batch_generate_manual_answers(run_id: str) -> None:
     items = run.items.filter(status__in=["PENDING", "FAILED"])
     for item in items:
         generate_answer_for_manual_item(str(item.id))
+
+
+# ==============================================================================
+# Local LLM Benchmark Evaluation Services
+# ==============================================================================
+
+def get_ollama_base_url() -> str:
+    """
+    Returns the configured Ollama base URL.
+    """
+    return os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+
+
+def fetch_available_ollama_models(base_url: str = None) -> list[dict]:
+    """
+    Queries local Ollama daemon for available model tags.
+    """
+    url = (base_url or get_ollama_base_url()) + "/api/tags"
+    try:
+        resp = requests.get(url, timeout=3)
+        if resp.status_code == 200:
+            data = resp.json()
+            models = []
+            for m in data.get("models", []):
+                name = m.get("name") or m.get("model")
+                if name:
+                    models.append({
+                        "name": name,
+                        "size": m.get("size", 0),
+                        "details": m.get("details", {}),
+                        "modified_at": m.get("modified_at", "")
+                    })
+            return models
+    except Exception as exc:
+        logger.warning(f"Failed to query Ollama models at {url}: {exc}")
+    return []
+
+
+def parse_benchmark_csv(csv_content: str | bytes) -> list[dict]:
+    """
+    Parses benchmark CSV with flexible column matching, ignoring extra columns.
+    Returns list of dicts: [{"question": ..., "ground_truth": ...}, ...]
+    """
+    if isinstance(csv_content, bytes):
+        try:
+            text = csv_content.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            text = csv_content.decode("latin-1", errors="replace")
+    else:
+        text = str(csv_content)
+
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        raise ValueError("CSV contains no valid header row.")
+
+    # Find question and answer column names (case-insensitive)
+    question_candidates = ["question", "questions", "query", "prompt", "q"]
+    answer_candidates = ["answer", "answers", "ground_truth", "groundtruth", "gold_answer", "reference", "a"]
+
+    q_col = None
+    a_col = None
+
+    for field in reader.fieldnames:
+        clean_field = field.strip().lower()
+        if not q_col and clean_field in question_candidates:
+            q_col = field
+        if not a_col and clean_field in answer_candidates:
+            a_col = field
+
+    if not q_col:
+        raise ValueError("CSV must contain a 'question' (or 'questions', 'query') column.")
+    if not a_col:
+        raise ValueError("CSV must contain an 'answer' (or 'answers', 'ground_truth') column.")
+
+    items = []
+    for row in reader:
+        q = (row.get(q_col) or "").strip()
+        a = (row.get(a_col) or "").strip()
+        if q and a:
+            items.append({
+                "question": q,
+                "ground_truth": a
+            })
+
+    if not items:
+        raise ValueError("CSV contains no valid Q&A data rows.")
+
+    return items
+
+
+def is_postgres_port_open(host: str = "127.0.0.1", port: int = 5432, timeout: float = 0.2) -> bool:
+    """
+    Fast pre-flight check to verify if the local Postgres/PGVector port is reachable.
+    """
+    import socket
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except (socket.timeout, ConnectionRefusedError, OSError):
+        return False
+
+
+def retrieve_project_context_chunks(project: Project, query: str, top_k: int = 3) -> list[str]:
+    """
+    Retrieves context text chunks from the project's vector store.
+    """
+    try:
+        # If project uses PostgreSQL, verify port is reachable first to prevent noisy retry traces
+        if getattr(project, "storage_type", "") == "postgres" or "postgres" in str(project.project_id).lower():
+            if not is_postgres_port_open("127.0.0.1", 5432):
+                return ["PostgreSQL vector database (localhost:5432) is offline or unreachable."]
+
+        api_key = os.getenv("GOOGLE_API_KEY", "")
+        embed_model = GeminiEmbedding(
+            model_name="models/gemini-embedding-001",
+            api_key=api_key
+        ) if api_key else None
+
+        if embed_model:
+            Settings.embed_model = embed_model
+
+        vector_store = get_vector_store(project.project_id)
+        index = VectorStoreIndex.from_vector_store(
+            vector_store,
+            embed_model=embed_model or Settings.embed_model
+        )
+        retriever = index.as_retriever(similarity_top_k=top_k)
+        nodes = retriever.retrieve(query)
+        contexts = [n.text for n in nodes if hasattr(n, "text") and n.text]
+        if contexts:
+            return contexts
+    except Exception as exc:
+        logger.warning(f"Context retrieval exception for project {project.project_id}: {exc}")
+    return ["No project context retrieved."]
+
+
+def query_local_ollama_model(
+    model_name: str,
+    prompt: str,
+    system_prompt: str = "",
+    base_url: str = None,
+    warmup: bool = False
+) -> dict:
+    """
+    Executes inference against a local Ollama model and extracts timing telemetry.
+    """
+    url = (base_url or get_ollama_base_url()) + "/api/generate"
+
+    # Optional 1-token warmup to load model into VRAM
+    if warmup:
+        try:
+            requests.post(url, json={"model": model_name, "prompt": ".", "stream": False}, timeout=30)
+        except Exception as warm_exc:
+            logger.debug(f"Warmup ping for {model_name} failed: {warm_exc}")
+
+    payload = {
+        "model": model_name,
+        "prompt": prompt,
+        "system": system_prompt,
+        "stream": False
+    }
+
+    try:
+        resp = requests.post(url, json=payload, timeout=90)
+        if resp.status_code == 200:
+            data = resp.json()
+            answer_text = (data.get("response") or "").strip()
+            total_ns = data.get("total_duration", 0)
+            load_ns = data.get("load_duration", 0)
+            prompt_eval_ns = data.get("prompt_eval_duration", 0)
+            eval_ns = data.get("eval_duration", 0)
+            eval_count = data.get("eval_count", 0)
+
+            # Isolate pure generation speed (TPS)
+            eval_sec = eval_ns / 1e9 if eval_ns > 0 else 0.0
+            tps = (eval_count / eval_sec) if eval_sec > 0 else 0.0
+
+            # Reply time = Prompt prefill + token generation time (excluding model loading swap)
+            prompt_eval_sec = prompt_eval_ns / 1e9 if prompt_eval_ns > 0 else 0.0
+            reply_time = prompt_eval_sec + eval_sec
+            if reply_time <= 0 and total_ns > 0:
+                reply_time = (total_ns - load_ns) / 1e9 if (total_ns - load_ns) > 0 else total_ns / 1e9
+
+            return {
+                "answer": answer_text,
+                "tps": round(tps, 2),
+                "reply_time": round(reply_time, 2),
+                "eval_count": eval_count,
+                "eval_duration": eval_ns,
+                "prompt_eval_duration": prompt_eval_ns,
+                "total_duration": total_ns
+            }
+        else:
+            return {
+                "answer": f"[Ollama Error: Status {resp.status_code}]",
+                "tps": 0.0,
+                "reply_time": 0.0,
+                "eval_count": 0,
+                "eval_duration": 0,
+                "prompt_eval_duration": 0,
+                "total_duration": 0
+            }
+    except Exception as exc:
+        logger.error(f"Error querying Ollama model {model_name}: {exc}")
+        return {
+            "answer": f"[Error: {exc}]",
+            "tps": 0.0,
+            "reply_time": 0.0,
+            "eval_count": 0,
+            "eval_duration": 0,
+            "prompt_eval_duration": 0,
+            "total_duration": 0
+        }
+
+
+# ==============================================================================
+# 7-Criterion Scoring Normalization Algorithms (0.0 to 10.0)
+# ==============================================================================
+
+def score_tokens_per_second(tps: float) -> float:
+    """
+    Normalizes Tokens Per Second to a 0.0 - 10.0 score.
+    """
+    if tps <= 0.0:
+        return 0.0
+    if tps >= 35.0:
+        return 10.0
+    if tps >= 20.0:
+        # 20.0 -> 6.5, 35.0 -> 10.0
+        score = 6.5 + (tps - 20.0) / 15.0 * 3.5
+    elif tps >= 10.0:
+        # 10.0 -> 3.3, 20.0 -> 6.5
+        score = 3.3 + (tps - 10.0) / 10.0 * 3.2
+    else:
+        # 0.0 -> 0.0, 10.0 -> 3.3
+        score = (tps / 10.0) * 3.3
+    return round(min(max(score, 0.0), 10.0), 1)
+
+
+def score_reply_time(seconds: float) -> float:
+    """
+    Normalizes reply time in seconds to a 0.0 - 10.0 score (shorter is better).
+    """
+    if seconds <= 0.0:
+        return 0.0
+    if seconds <= 1.5:
+        return 10.0
+    if seconds <= 3.0:
+        # 1.5s -> 10.0, 3.0s -> 8.0
+        score = 10.0 - (seconds - 1.5) / 1.5 * 2.0
+    elif seconds <= 6.0:
+        # 3.0s -> 8.0, 6.0s -> 5.0
+        score = 8.0 - (seconds - 3.0) / 3.0 * 3.0
+    elif seconds <= 12.0:
+        # 6.0s -> 5.0, 12.0s -> 2.0
+        score = 5.0 - (seconds - 6.0) / 6.0 * 3.0
+    else:
+        score = max(0.5, 2.0 - (seconds - 12.0) / 10.0)
+    return round(min(max(score, 0.0), 10.0), 1)
+
+
+def score_markdown_compatibility(text: str) -> float:
+    """
+    Evaluates markdown structural syntax and formatting integrity (0.0 to 10.0).
+    """
+    if not text or not text.strip():
+        return 0.0
+
+    score = 10.0
+
+    # Code block fence balance check (must have paired ```)
+    fences = len(re.findall(r"^```", text, re.MULTILINE))
+    if fences % 2 != 0:
+        score -= 2.5
+
+    # Bold/italic balance check
+    double_asterisks = len(re.findall(r"\*\*", text))
+    if double_asterisks % 2 != 0:
+        score -= 1.0
+
+    # Unclosed links / wikilinks
+    open_brackets = text.count("[[")
+    close_brackets = text.count("]]")
+    if open_brackets != close_brackets:
+        score -= 1.5
+
+    # Mismatched standard markdown link syntax e.g. [text](url without closing parenthesis
+    unclosed_md_links = len(re.findall(r"\[[^\]]+\]\([^)\n]*$", text, re.MULTILINE))
+    if unclosed_md_links > 0:
+        score -= 1.5
+
+    return round(min(max(score, 0.0), 10.0), 1)
+
+
+def score_qualitative_metrics_with_judge(
+    question: str,
+    ground_truth: str,
+    context: str,
+    model_answer: str
+) -> dict:
+    """
+    Evaluates qualitative criteria using Gemini / LLM Judge, returning scores out of 10.
+    """
+    api_key = os.getenv("GOOGLE_API_KEY", "")
+    if not api_key or not model_answer.strip() or model_answer.startswith("[Error"):
+        # Fallback heuristic scoring if offline or error answer
+        if not model_answer.strip() or model_answer.startswith("[Error"):
+            return {
+                "faithfulness": 0.0,
+                "context_utilization": 0.0,
+                "citation_accuracy": 0.0,
+                "instruction_following": 0.0,
+            }
+        # Simple lexical overlap heuristic
+        words_truth = set(ground_truth.lower().split())
+        words_ans = set(model_answer.lower().split())
+        overlap = len(words_truth.intersection(words_ans)) / max(len(words_truth), 1)
+        score = round(min(max(overlap * 10.0, 2.0), 10.0), 1)
+        return {
+            "faithfulness": score,
+            "context_utilization": score,
+            "citation_accuracy": score,
+            "instruction_following": score,
+        }
+
+    judge_prompt = f"""You are an expert RAG benchmarking judge. Evaluate the following model answer against the retrieved context and reference ground truth.
+Grade each of the 4 criteria on a strict numeric scale from 0.0 to 10.0 (where 10.0 is perfect):
+
+1. faithfulness: Does the model answer strictly adhere to the retrieved context without hallucinating unverified details?
+2. context_utilization: Did the model effectively extract and use the specific relevant facts from the context?
+3. citation_accuracy: Does the model accurately cite sources, notes, or match the ground truth references?
+4. instruction_following: Does the answer directly answer the question in clear, concise language without conversational filler?
+
+Question: {question}
+Ground Truth: {ground_truth}
+Retrieved Context:
+{context}
+
+Model Answer:
+{model_answer}
+
+Respond ONLY with a valid JSON object matching this exact schema:
+{{
+  "faithfulness": 8.5,
+  "context_utilization": 9.0,
+  "citation_accuracy": 8.0,
+  "instruction_following": 9.5
+}}"""
+
+    try:
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash-lite",
+            contents=judge_prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.0,
+                response_mime_type="application/json"
+            )
+        )
+        data = json.loads(response.text)
+        return {
+            "faithfulness": round(min(max(float(data.get("faithfulness", 5.0)), 0.0), 10.0), 1),
+            "context_utilization": round(min(max(float(data.get("context_utilization", 5.0)), 0.0), 10.0), 1),
+            "citation_accuracy": round(min(max(float(data.get("citation_accuracy", 5.0)), 0.0), 10.0), 1),
+            "instruction_following": round(min(max(float(data.get("instruction_following", 5.0)), 0.0), 10.0), 1),
+        }
+    except Exception as judge_exc:
+        logger.warning(f"Judge model evaluation error: {judge_exc}")
+        # Fallback to moderate baseline score
+        return {
+            "faithfulness": 7.0,
+            "context_utilization": 7.0,
+            "citation_accuracy": 7.0,
+            "instruction_following": 7.0,
+        }
+
+
+def calculate_overall_score(metrics_dict: dict) -> float:
+    """
+    Computes exact arithmetic mean of all 7 criteria (out of 10.0).
+    """
+    keys = [
+        "faithfulness",
+        "context_utilization",
+        "citation_accuracy",
+        "tokens_per_second",
+        "reply_time",
+        "instruction_following",
+        "markdown_compatibility"
+    ]
+    vals = [float(metrics_dict.get(k, 0.0)) for k in keys]
+    avg = sum(vals) / len(keys)
+    return round(avg, 1)
+
+
+# Global in-memory dictionary to track async Local LLM benchmark run progress
+# Mapped: run_id -> {"status": str, "model": str, "model_idx": int, "total_models": int, "q_idx": int, "total_q": int, "stage": str, "percent": int}
+LOCAL_LLM_RUN_PROGRESS = {}
+
+
+def get_local_llm_progress(run_id: str) -> dict:
+    return LOCAL_LLM_RUN_PROGRESS.get(str(run_id), {
+        "status": "RUNNING",
+        "model": "",
+        "model_idx": 0,
+        "total_models": 1,
+        "q_idx": 0,
+        "total_q": 1,
+        "stage": "Initializing benchmark...",
+        "percent": 5
+    })
+
+
+def run_local_llm_benchmark_pipeline(
+    project: Project,
+    models: list[str],
+    dataset: list[dict],
+    run: LocalLLMEvaluationRun
+) -> LocalLLMEvaluationRun:
+    """
+    Executes the full multi-model benchmark evaluation pipeline and persists all metrics.
+    """
+    from django.db import connection
+    try:
+        connection.close()
+    except Exception:
+        pass
+
+    run_id_str = str(run.id)
+    run.status = "RUNNING"
+    run.started_at = timezone.now()
+    run.save()
+
+    total_models = len(models)
+    total_q = len(dataset)
+    total_steps = max(total_models * total_q, 1)
+
+    LOCAL_LLM_RUN_PROGRESS[run_id_str] = {
+        "status": "RUNNING",
+        "model": models[0] if models else "",
+        "model_idx": 1,
+        "total_models": total_models,
+        "q_idx": 0,
+        "total_q": total_q,
+        "stage": "Warming up local models...",
+        "percent": 5
+    }
+
+    logger.info(f"🚀 [Local LLM Benchmark] Starting run {run.id} for {len(models)} model(s) on {len(dataset)} question(s).")
+    print(f"\n🚀 [Local LLM Benchmark] Starting run {run.id} for models: {models} on {len(dataset)} question(s)")
+
+    try:
+        summary_scores = {}
+        base_system_prompt = getattr(getattr(project, "system_prompt", None), "content", "") or ""
+
+        for m_idx, model_name in enumerate(models):
+            # Send initial warmup ping per model
+            LOCAL_LLM_RUN_PROGRESS[run_id_str] = {
+                "status": "RUNNING",
+                "model": model_name,
+                "model_idx": m_idx + 1,
+                "total_models": total_models,
+                "q_idx": 0,
+                "total_q": total_q,
+                "stage": f"Warming up {model_name} in VRAM...",
+                "percent": int(((m_idx * total_q) / total_steps) * 90) + 5
+            }
+            logger.info(f"🔥 [Local LLM Benchmark] Warming up {model_name}...")
+            print(f"🔥 [Local LLM Benchmark] [{m_idx + 1}/{total_models}] Warming up {model_name}...")
+            query_local_ollama_model(model_name, ".", base_url=None, warmup=True)
+
+            model_metrics_accum = {
+                "faithfulness": [],
+                "context_utilization": [],
+                "citation_accuracy": [],
+                "tokens_per_second": [],
+                "reply_time": [],
+                "instruction_following": [],
+                "markdown_compatibility": [],
+                "overall_score": []
+            }
+
+            for q_idx, item in enumerate(dataset):
+                question = item["question"]
+                ground_truth = item["ground_truth"]
+                current_step = m_idx * total_q + q_idx
+                percent_complete = max(5, min(95, int((current_step / total_steps) * 90) + 5))
+
+                LOCAL_LLM_RUN_PROGRESS[run_id_str] = {
+                    "status": "RUNNING",
+                    "model": model_name,
+                    "model_idx": m_idx + 1,
+                    "total_models": total_models,
+                    "q_idx": q_idx + 1,
+                    "total_q": total_q,
+                    "stage": f"Model {m_idx + 1}/{total_models} ({model_name}) — Question {q_idx + 1}/{total_q}: Retrieving context & querying model...",
+                    "percent": percent_complete
+                }
+                logger.info(f"👉 [Local LLM Benchmark] [{model_name}] ({q_idx + 1}/{total_q}) Query: {question[:60]}...")
+                print(f"👉 [Local LLM Benchmark] [{model_name}] Q {q_idx + 1}/{total_q}: '{question[:50]}'...")
+
+                # 1. Retrieve project context
+                context_chunks = retrieve_project_context_chunks(project, question, top_k=3)
+                context_text = "\n---\n".join(context_chunks)
+
+                # 2. Build RAG prompt & query local Ollama model
+                full_prompt = (
+                    f"Context:\n{context_text}\n\n"
+                    f"Question: {question}\n"
+                    f"Answer accurately and concisely using the provided context."
+                )
+                ollama_res = query_local_ollama_model(
+                    model_name=model_name,
+                    prompt=full_prompt,
+                    system_prompt=base_system_prompt
+                )
+
+                model_answer = ollama_res["answer"]
+                raw_tps = ollama_res["tps"]
+                raw_reply_time = ollama_res["reply_time"]
+                print(f"   ⚡ [{model_name}] Answer received: {raw_reply_time:.2f}s, {raw_tps:.1f} tok/s")
+
+                # 3. Compute normalized speed & formatting metrics
+                tps_score = score_tokens_per_second(raw_tps)
+                reply_score = score_reply_time(raw_reply_time)
+                md_score = score_markdown_compatibility(model_answer)
+
+                # 4. Compute qualitative metrics via judge
+                LOCAL_LLM_RUN_PROGRESS[run_id_str]["stage"] = f"Model {m_idx + 1}/{total_models} ({model_name}) — Question {q_idx + 1}/{total_q}: Scoring with Gemini Judge..."
+                qualitative_scores = score_qualitative_metrics_with_judge(
+                    question=question,
+                    ground_truth=ground_truth,
+                    context=context_text,
+                    model_answer=model_answer
+                )
+
+                item_scores = {
+                    "faithfulness": qualitative_scores["faithfulness"],
+                    "context_utilization": qualitative_scores["context_utilization"],
+                    "citation_accuracy": qualitative_scores["citation_accuracy"],
+                    "tokens_per_second": tps_score,
+                    "reply_time": reply_score,
+                    "instruction_following": qualitative_scores["instruction_following"],
+                    "markdown_compatibility": md_score,
+                }
+                item_overall = calculate_overall_score(item_scores)
+                print(f"   ⚖️ [{model_name}] Scored Q {q_idx + 1}: Overall = {item_overall:.1f}/10 (Faith: {item_scores['faithfulness']}, TPS: {tps_score})")
+
+                # 5. Persist item metric
+                LocalLLMResultMetric.objects.create(
+                    run=run,
+                    model_name=model_name,
+                    question=question,
+                    ground_truth=ground_truth,
+                    retrieved_context=context_text,
+                    model_answer=model_answer,
+                    faithfulness=item_scores["faithfulness"],
+                    context_utilization=item_scores["context_utilization"],
+                    citation_accuracy=item_scores["citation_accuracy"],
+                    tokens_per_second=tps_score,
+                    reply_time=reply_score,
+                    instruction_following=item_scores["instruction_following"],
+                    markdown_compatibility=md_score,
+                    overall_score=item_overall
+                )
+
+                for k, v in item_scores.items():
+                    model_metrics_accum[k].append(v)
+                model_metrics_accum["overall_score"].append(item_overall)
+
+            # Compute model summary averages
+            summary_scores[model_name] = {
+                k: round(sum(v) / max(len(v), 1), 1)
+                for k, v in model_metrics_accum.items()
+            }
+            print(f"📊 [{model_name}] Summary Overall Score: {summary_scores[model_name]['overall_score']:.1f}/10")
+
+        # Identify best model
+        best_model_name = ""
+        best_score = -1.0
+        for m_name, m_scores in summary_scores.items():
+            ov = m_scores.get("overall_score", 0.0)
+            if ov > best_score:
+                best_score = ov
+                best_model_name = m_name
+
+        run.summary_scores = summary_scores
+        run.best_model = best_model_name
+        run.best_overall_score = best_score
+        run.status = "SUCCESS"
+        run.completed_at = timezone.now()
+        run.save()
+
+        LOCAL_LLM_RUN_PROGRESS[run_id_str] = {
+            "status": "SUCCESS",
+            "percent": 100,
+            "stage": "Benchmark complete!"
+        }
+        logger.info(f"🎉 [Local LLM Benchmark] Completed run {run.id}. Top model: {best_model_name} ({best_score:.1f}/10)")
+        print(f"🎉 [Local LLM Benchmark] Completed run {run.id}. Top model: {best_model_name} ({best_score:.1f}/10)\n")
+        return run
+
+    except Exception as pipe_exc:
+        logger.error(f"❌ [Local LLM Benchmark] Run {run.id} failed: {pipe_exc}")
+        print(f"❌ [Local LLM Benchmark] Run {run.id} failed: {pipe_exc}\n")
+        run.status = "FAILED"
+        run.error_message = str(pipe_exc)
+        run.completed_at = timezone.now()
+        run.save()
+        LOCAL_LLM_RUN_PROGRESS[run_id_str] = {
+            "status": "FAILED",
+            "error": str(pipe_exc),
+            "stage": f"Failed: {pipe_exc}",
+            "percent": 100
+        }
+        return run
+    finally:
+        try:
+            connection.close()
+        except Exception:
+            pass
+
 

@@ -132,6 +132,7 @@
                         <option value="ragas">RAGAS</option>
                         <option value="synthetic_qa">Synthetic QA</option>
                         <option value="manual">Manual Evaluation</option>
+                        <option value="local_llms">Local LLMs</option>
                     </select>
                 </div>
 
@@ -242,6 +243,65 @@
                         </button>
                     </form>
                 </div>
+
+                <!-- Local LLMs Workspace Controls -->
+                <div id="local-llms-controls" class="hidden space-y-6">
+                    <form id="local-llm-eval-form" 
+                          hx-post="{% url 'custom_admin:local-llm-run' %}" 
+                          hx-disabled-elt="find button[type='submit']"
+                          hx-target="#evaluation-content-pane" 
+                          hx-swap="innerHTML"
+                          hx-indicator="#local-eval-spinner"
+                          enctype="multipart/form-data">
+                        <input type="hidden" name="project_id" id="local-form-project-id" value="">
+
+                        <!-- Dynamic Local Models Picker Container -->
+                        <div id="local-models-picker-container" class="space-y-3">
+                            <p class="text-xs text-gray-400 p-3 text-center animate-pulse bg-gray-50 dark:bg-gray-750 rounded-xl">
+                                🔍 Scanning local Ollama models...
+                            </p>
+                        </div>
+
+                        <!-- Benchmark CSV Ingestion -->
+                        <div class="mt-5 space-y-2">
+                            <label class="block text-xs font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Benchmark Q&A Dataset (CSV)</label>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                Upload CSV containing <code class="bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded font-mono font-bold">question</code> and <code class="bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded font-mono font-bold">answer</code> columns.
+                            </p>
+
+                            <!-- Dropzone Box -->
+                            <div onclick="document.getElementById('local-csv-file-input').click()" 
+                                 class="border-2 border-dashed border-purple-300 dark:border-purple-700 hover:border-purple-500 dark:hover:border-purple-500 bg-purple-50/40 hover:bg-purple-50/80 dark:bg-purple-950/20 dark:hover:bg-purple-950/40 rounded-2xl p-4 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5 group">
+                                <div class="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-300 flex items-center justify-center text-xl font-bold group-hover:scale-110 transition-transform">
+                                    📊
+                                </div>
+                                <span class="text-xs font-bold text-purple-700 dark:text-purple-300 block">Select Benchmark CSV</span>
+                                <div id="local-csv-name-display" class="hidden mt-1 px-3 py-1 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 text-xs font-semibold rounded-full border border-emerald-300 dark:border-emerald-700 flex items-center gap-1.5 shadow-sm">
+                                    <span>✓ Selected:</span>
+                                    <span id="local-csv-filename-text" class="font-bold"></span>
+                                </div>
+                            </div>
+                            <input type="file" id="local-csv-file-input" name="csv_file" accept=".csv" class="hidden" onchange="handleLocalCsvFileSelect(this)">
+                        </div>
+
+                        <!-- Spinner & Progress State Indicator -->
+                        <div id="local-eval-spinner" class="htmx-indicator mt-4 p-4 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-xl flex items-center gap-3">
+                            <div class="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+                            <div class="space-y-0.5 text-xs text-purple-900 dark:text-purple-200 font-medium">
+                                <span class="font-bold block">Running Benchmark Evaluation...</span>
+                                <span class="text-[11px] text-purple-700 dark:text-purple-300">Retrieving context chunks, executing local inference & scoring criteria.</span>
+                            </div>
+                        </div>
+
+                        <!-- Run Benchmark Evaluation Button -->
+                        <button type="submit" id="run-local-benchmark-btn"
+                            class="mt-5 btn-primary-forced w-full flex items-center justify-center gap-2 py-3 rounded-xl shadow-md hover:shadow-lg transition-all font-extrabold text-sm">
+                            <span>⚡ Run Benchmark Evaluation</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
             </div>
         </div>
 
@@ -273,6 +333,7 @@
     function handleProjectChange(projectId) {
         document.getElementById("hidden-project-id").value = projectId;
         document.getElementById("manual-form-project-id").value = projectId;
+        document.getElementById("local-form-project-id").value = projectId;
 
         // Show the method selector container
         const methodContainer = document.getElementById("eval-method-container");
@@ -285,6 +346,7 @@
         document.getElementById("ragas-controls").classList.add("hidden");
         document.getElementById("synthetic-qa-controls").classList.add("hidden");
         document.getElementById("manual-controls").classList.add("hidden");
+        document.getElementById("local-llms-controls").classList.add("hidden");
         
         // Clear previous documents and selected doc
         document.getElementById("selected-document-id").value = "";
@@ -298,11 +360,13 @@
         const ragasControls = document.getElementById("ragas-controls");
         const syntheticControls = document.getElementById("synthetic-qa-controls");
         const manualControls = document.getElementById("manual-controls");
+        const localControls = document.getElementById("local-llms-controls");
 
         if (method === "ragas") {
             ragasControls.classList.remove("hidden");
             syntheticControls.classList.add("hidden");
             manualControls.classList.add("hidden");
+            localControls.classList.add("hidden");
 
             // Update info box for RAGAS
             const selectEl = document.getElementById("eval-project-select");
@@ -335,6 +399,7 @@
             ragasControls.classList.add("hidden");
             syntheticControls.classList.remove("hidden");
             manualControls.classList.add("hidden");
+            localControls.classList.add("hidden");
 
             // Fetch documents dynamically via HTMX
             const projectId = document.getElementById("eval-project-select").value;
@@ -349,9 +414,35 @@
             ragasControls.classList.add("hidden");
             syntheticControls.classList.add("hidden");
             manualControls.classList.remove("hidden");
+            localControls.classList.add("hidden");
 
             const projectId = document.getElementById("eval-project-select").value;
             document.getElementById("manual-form-project-id").value = projectId;
+        } else if (method === "local_llms") {
+            ragasControls.classList.add("hidden");
+            syntheticControls.classList.add("hidden");
+            manualControls.classList.add("hidden");
+            localControls.classList.remove("hidden");
+
+            const projectId = document.getElementById("eval-project-select").value;
+            document.getElementById("local-form-project-id").value = projectId;
+
+            // Load local Ollama models dynamically
+            htmx.ajax("GET", "{% url 'custom_admin:local-llm-models' %}", {
+                target: "#local-models-picker-container",
+                swap: "innerHTML"
+            });
+        }
+    }
+
+    function handleLocalCsvFileSelect(input) {
+        const display = document.getElementById("local-csv-name-display");
+        const filenameText = document.getElementById("local-csv-filename-text");
+        if (input.files && input.files[0]) {
+            filenameText.textContent = input.files[0].name;
+            display.classList.remove("hidden");
+        } else {
+            display.classList.add("hidden");
         }
     }
 

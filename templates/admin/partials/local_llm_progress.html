@@ -1,0 +1,50 @@
+<div id="local-eval-progress-container" 
+     hx-get="{% url 'custom_admin:local-llm-status' run.id %}" 
+     hx-trigger="every 1.5s" 
+     hx-target="#evaluation-content-pane" 
+     hx-swap="innerHTML"
+     class="p-8 space-y-6 flex flex-col items-center justify-center min-h-[450px] text-center animate-fadeIn">
+    
+    <!-- Animated Pulse Icon -->
+    <div class="relative flex items-center justify-center">
+        <div class="w-20 h-20 rounded-full bg-purple-100 dark:bg-purple-950/60 border-2 border-purple-300 dark:border-purple-700 flex items-center justify-center text-3xl animate-pulse">
+            ⚡
+        </div>
+        <div class="absolute -top-1 -right-1 w-6 h-6 border-3 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+
+    <div class="space-y-2 max-w-md">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-extrabold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-700">
+            <span class="w-2 h-2 rounded-full bg-purple-600 animate-ping"></span>
+            <span>Running Local LLM Benchmark</span>
+        </div>
+        <h3 class="text-xl font-black text-gray-900 dark:text-white">
+            Benchmarking {{ project.display_name }}
+        </h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400 font-mono">
+            {{ progress.stage|default:"Executing local inference and multi-criteria scoring..." }}
+        </p>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="w-full max-w-md space-y-2">
+        <div class="flex justify-between text-xs font-bold text-gray-600 dark:text-gray-350">
+            <span>
+                {% if progress.model %}
+                Model {{ progress.model_idx }}/{{ progress.total_models }}: <span class="font-mono text-purple-700 dark:text-purple-300">{{ progress.model }}</span> (Q {{ progress.q_idx }}/{{ progress.total_q }})
+                {% else %}
+                Progress
+                {% endif %}
+            </span>
+            <span class="font-mono text-purple-700 dark:text-purple-300">{{ progress.percent }}%</span>
+        </div>
+        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden shadow-inner">
+            <div class="bg-gradient-to-r from-purple-600 to-indigo-600 h-2.5 rounded-full transition-all duration-500 ease-out" 
+                 style="width: {{ progress.percent }}%"></div>
+        </div>
+    </div>
+
+    <p class="text-[11px] text-gray-400 max-w-xs">
+        Results update automatically when complete. Terminal logs show real-time TPS and judge scoring.
+    </p>
+</div>
