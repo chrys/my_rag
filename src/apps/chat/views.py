@@ -467,7 +467,14 @@ def chatbot_feedback(request):
     conversation_id = data.get('conversation_id', '')
     customer_id = str(data.get('customer_id', '') or '')
     timestamp_str = data.get('timestamp')
-    store_id = data.get('store_id') or data.get('project_id')
+    store_id = (
+        data.get('store_id')
+        or data.get('project_id')
+        or request.GET.get('store_id')
+        or request.GET.get('project_id')
+        or request.META.get('HTTP_X_STORE_ID')
+        or request.META.get('HTTP_X_PROJECT_ID')
+    )
 
     if not message_id:
         return JsonResponse({'error': 'Missing required field: message_id'}, status=400)
@@ -491,6 +498,18 @@ def chatbot_feedback(request):
 
     if not project and store_id:
         project = Project.objects.filter(project_id=store_id).first()
+
+    # Fallback: check if message_id exists in ChatMessage to get its project
+    if not project:
+        msg_obj = ChatMessage.objects.filter(id=message_id).select_related('project').first()
+        if msg_obj:
+            project = msg_obj.project
+
+    # Fallback: if only 1 project exists in the system
+    if not project:
+        projects_count = Project.objects.count()
+        if projects_count == 1:
+            project = Project.objects.first()
 
     if not project:
         if store_id:

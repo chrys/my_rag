@@ -19,7 +19,10 @@ urlpatterns = [
     # Preserved DRF API routes
     path('rag/api/chat/', chat_api_view, name='chat_api'),
     path('rag/api/chatbot/feedback/', feedback_api_view, name='chatbot_feedback'),
+    path('rag/api/feedback/', feedback_api_view, name='rag_api_feedback'),
+    path('rag/chatbot/feedback/', feedback_api_view, name='rag_chatbot_feedback'),
     path('api/chatbot/feedback/', feedback_api_view, name='chatbot_feedback_direct'),
+    path('api/feedback/', feedback_api_view, name='api_feedback_direct'),
     path('rag/api/', include('src.apps.api.api_urls')),
     path('rag/', include('src.apps.documents.urls')),
     path('rag/', include('src.apps.projects.urls')),
