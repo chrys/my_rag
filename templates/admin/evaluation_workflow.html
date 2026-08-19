@@ -132,7 +132,7 @@
                         <option value="ragas">RAGAS</option>
                         <option value="synthetic_qa">Synthetic QA</option>
                         <option value="manual">Manual Evaluation</option>
-                        <option value="local_llms">Local LLMs</option>
+                        <option value="compare_llms">Compare LLMs</option>
                     </select>
                 </div>
 
@@ -289,7 +289,7 @@
                             <div class="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
                             <div class="space-y-0.5 text-xs text-purple-900 dark:text-purple-200 font-medium">
                                 <span class="font-bold block">Running Benchmark Evaluation...</span>
-                                <span class="text-[11px] text-purple-700 dark:text-purple-300">Retrieving context chunks, executing local inference & scoring criteria.</span>
+                                <span class="text-[11px] text-purple-700 dark:text-purple-300">Retrieving context chunks, executing LLM inference & scoring criteria.</span>
                             </div>
                         </div>
 
@@ -418,7 +418,7 @@
 
             const projectId = document.getElementById("eval-project-select").value;
             document.getElementById("manual-form-project-id").value = projectId;
-        } else if (method === "local_llms") {
+        } else if (method === "compare_llms" || method === "local_llms") {
             ragasControls.classList.add("hidden");
             syntheticControls.classList.add("hidden");
             manualControls.classList.add("hidden");

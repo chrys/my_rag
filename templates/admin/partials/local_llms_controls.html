@@ -1,45 +1,96 @@
-{% if ollama_online %}
-    <div class="space-y-2">
+<div class="space-y-5">
+    <!-- Section 1: Google Gemini Cloud Models -->
+    <div class="space-y-3 p-4 bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200/80 dark:border-purple-800/80 rounded-2xl">
         <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Available Local Models</span>
-            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Ollama Online
+            <div class="flex items-center gap-2">
+                <input type="checkbox" name="enable_gemini" id="enable-gemini-checkbox" value="1" checked
+                       onchange="document.getElementById('gemini-config-panel').classList.toggle('opacity-50', !this.checked)"
+                       class="w-4 h-4 text-purple-600 bg-white border-gray-300 rounded focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 cursor-pointer">
+                <label for="enable-gemini-checkbox" class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider cursor-pointer flex items-center gap-1.5">
+                    <span>✨ Google Gemini Model</span>
+                </label>
+            </div>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 border border-purple-300 dark:border-purple-700">
+                Cloud API
             </span>
         </div>
-        <p class="text-xs text-gray-400">Select one or more local models to benchmark comparatively:</p>
-        
-        <div class="max-h-48 overflow-y-auto space-y-1.5 p-2 bg-gray-50 dark:bg-gray-750 border border-gray-200 dark:border-gray-700 rounded-xl">
-            {% for m in models %}
-            <label class="flex items-center justify-between p-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/30 cursor-pointer border border-transparent hover:border-purple-200 dark:hover:border-purple-800 transition-colors group">
-                <div class="flex items-center gap-2.5">
-                    <input type="checkbox" name="selected_models" value="{{ m.name }}"
-                           class="w-4 h-4 text-purple-600 bg-white border-gray-300 rounded focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600">
-                    <span class="text-xs font-bold text-gray-800 dark:text-gray-200 group-hover:text-purple-700 dark:group-hover:text-purple-300 font-mono">{{ m.name }}</span>
-                </div>
-                {% if m.size %}
-                <span class="text-[10px] font-semibold text-gray-400 bg-gray-200/60 dark:bg-gray-600/60 px-1.5 py-0.5 rounded">
-                    {{ m.size|filesizeformat }}
-                </span>
-                {% endif %}
+
+        <div id="gemini-config-panel" class="space-y-2.5 transition-opacity">
+            <label for="gemini-model-input" class="block text-[11px] font-semibold text-gray-600 dark:text-gray-350">
+                Enter Gemini Model ID:
             </label>
-            {% endfor %}
+            <div class="relative">
+                <input type="text" 
+                       id="gemini-model-input"
+                       name="gemini_model_name" 
+                       value="gemini-2.5-flash-lite"
+                       placeholder="e.g. gemini-2.5-flash-lite, gemini-2.5-flash, gemini-2.5-pro"
+                       class="w-full bg-white dark:bg-gray-800 border border-purple-300 dark:border-purple-700 text-gray-900 dark:text-white text-xs rounded-xl p-2.5 font-mono focus:ring-purple-500 focus:border-purple-500 shadow-sm">
+            </div>
+
+            <!-- Quick Presets -->
+            <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <span class="text-[10px] text-gray-400 font-medium mr-1">Presets:</span>
+                <button type="button" onclick="document.getElementById('gemini-model-input').value='gemini-2.5-flash-lite'"
+                        class="px-2 py-0.5 text-[10px] font-mono font-bold rounded-lg bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 hover:border-purple-500 dark:hover:border-purple-400 text-gray-700 dark:text-gray-200 transition-colors">
+                    gemini-2.5-flash-lite
+                </button>
+                <button type="button" onclick="document.getElementById('gemini-model-input').value='gemini-2.5-flash'"
+                        class="px-2 py-0.5 text-[10px] font-mono font-bold rounded-lg bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 hover:border-purple-500 dark:hover:border-purple-400 text-gray-700 dark:text-gray-200 transition-colors">
+                    gemini-2.5-flash
+                </button>
+                <button type="button" onclick="document.getElementById('gemini-model-input').value='gemini-2.5-pro'"
+                        class="px-2 py-0.5 text-[10px] font-mono font-bold rounded-lg bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 hover:border-purple-500 dark:hover:border-purple-400 text-gray-700 dark:text-gray-200 transition-colors">
+                    gemini-2.5-pro
+                </button>
+            </div>
         </div>
     </div>
-{% else %}
-    <div class="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl space-y-2">
-        <div class="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-bold text-xs">
-            <span>⚠️</span>
-            <span>Ollama Offline / No Local Models Found</span>
+
+    <!-- Section 2: Local Ollama Models -->
+    {% if ollama_online %}
+        <div class="space-y-2">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Local Ollama Models</span>
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Ollama Online
+                </span>
+            </div>
+            <p class="text-xs text-gray-400">Select one or more local models to compare:</p>
+            
+            <div class="max-h-48 overflow-y-auto space-y-1.5 p-2 bg-gray-50 dark:bg-gray-750 border border-gray-200 dark:border-gray-700 rounded-xl">
+                {% for m in models %}
+                <label class="flex items-center justify-between p-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/30 cursor-pointer border border-transparent hover:border-purple-200 dark:hover:border-purple-800 transition-colors group">
+                    <div class="flex items-center gap-2.5">
+                        <input type="checkbox" name="selected_models" value="{{ m.name }}"
+                               class="w-4 h-4 text-purple-600 bg-white border-gray-300 rounded focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600">
+                        <span class="text-xs font-bold text-gray-800 dark:text-gray-200 group-hover:text-purple-700 dark:group-hover:text-purple-300 font-mono">{{ m.name }}</span>
+                    </div>
+                    {% if m.size %}
+                    <span class="text-[10px] font-semibold text-gray-400 bg-gray-200/60 dark:bg-gray-600/60 px-1.5 py-0.5 rounded">
+                        {{ m.size|filesizeformat }}
+                    </span>
+                    {% endif %}
+                </label>
+                {% endfor %}
+            </div>
         </div>
-        <p class="text-[11px] text-amber-700 dark:text-amber-400 leading-relaxed">
-            Could not detect local models via <code class="font-mono bg-amber-100 dark:bg-amber-900 px-1 py-0.5 rounded">http://localhost:11434</code>. Please ensure Ollama is running (`ollama serve`) and models are pulled (`ollama pull llama3.1`).
-        </p>
-        <button type="button" 
-                hx-get="{% url 'custom_admin:local-llm-models' %}" 
-                hx-target="#local-models-picker-container" 
-                hx-swap="innerHTML"
-                class="mt-1 px-3 py-1.5 bg-amber-200 dark:bg-amber-800 hover:bg-amber-300 dark:hover:bg-amber-700 text-amber-900 dark:text-amber-100 text-xs font-bold rounded-lg transition-colors flex items-center gap-1">
-            <span>🔄 Retry Connection</span>
-        </button>
-    </div>
-{% endif %}
+    {% else %}
+        <div class="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl space-y-2">
+            <div class="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-bold text-xs">
+                <span>⚠️</span>
+                <span>Ollama Offline / No Local Models</span>
+            </div>
+            <p class="text-[11px] text-amber-700 dark:text-amber-400 leading-relaxed">
+                Could not detect local models via <code class="font-mono bg-amber-100 dark:bg-amber-900 px-1 py-0.5 rounded">http://localhost:11434</code>. You can still benchmark using Gemini cloud models above, or start Ollama and retry.
+            </p>
+            <button type="button" 
+                    hx-get="{% url 'custom_admin:local-llm-models' %}" 
+                    hx-target="#local-models-picker-container" 
+                    hx-swap="innerHTML"
+                    class="mt-1 px-3 py-1.5 bg-amber-200 dark:bg-amber-800 hover:bg-amber-300 dark:hover:bg-amber-700 text-amber-900 dark:text-amber-100 text-xs font-bold rounded-lg transition-colors flex items-center gap-1">
+                <span>🔄 Retry Ollama Connection</span>
+            </button>
+        </div>
+    {% endif %}
+</div>

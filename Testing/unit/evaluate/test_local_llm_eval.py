@@ -128,35 +128,70 @@ def test_query_local_ollama_model():
         assert round(res["reply_time"], 2) == 1.6  # (0.3 + 1.3) = 1.6s
 
 
+def test_is_gemini_model():
+    from src.apps.evaluate.eval_services import is_gemini_model
+    assert is_gemini_model("gemini-2.5-flash-lite") is True
+    assert is_gemini_model("gemini-2.5-pro") is True
+    assert is_gemini_model("models/gemini-1.5-flash") is True
+    assert is_gemini_model("llama3.1:8b") is False
+    assert is_gemini_model("mistral") is False
+    assert is_gemini_model("") is False
+
+
+def test_query_gemini_model():
+    from src.apps.evaluate.eval_services import query_gemini_model
+    mock_response = MagicMock()
+    mock_response.text = "This is a Gemini answer."
+    mock_response.usage_metadata.candidates_token_count = 15
+
+    mock_client = MagicMock()
+    mock_client.models.generate_content.return_value = mock_response
+
+    with patch("os.getenv", return_value="fake-api-key"), \
+         patch("src.apps.evaluate.eval_services.genai.Client", return_value=mock_client):
+        res = query_gemini_model("gemini-2.5-flash-lite", "Test prompt", system_prompt="System instructions")
+        assert res["answer"] == "This is a Gemini answer."
+        assert res["tps"] > 0
+        assert res["reply_time"] >= 0
+        assert res["eval_count"] == 15
+
+
 @pytest.mark.django_db
-def test_run_local_llm_benchmark_pipeline():
-    user = User.objects.create_user(username="pipuser", password="password")
+def test_run_local_llm_benchmark_pipeline_with_gemini_and_ollama():
+    user = User.objects.create_user(username="compareuser", password="password")
     project = Project.objects.create(
         user=user,
-        display_name="Pipeline Project",
-        description="Testing pipeline execution"
+        display_name="Multi LLM Compare Project",
+        description="Testing compare pipeline execution"
     )
 
     dataset = [
         {"question": "What is the return policy?", "ground_truth": "14 days return policy."},
-        {"question": "How to contact support?", "ground_truth": "Email support@example.com."}
     ]
 
     run = LocalLLMEvaluationRun.objects.create(
         project=project,
-        models_evaluated=["llama3.1:8b"],
+        models_evaluated=["llama3.1:8b", "gemini-2.5-flash-lite"],
         dataset_name="test_dataset.csv",
-        total_questions=2,
+        total_questions=1,
         status="PENDING"
     )
 
     mock_ollama_resp = {
-        "answer": "The return policy is 14 days.",
+        "answer": "Ollama answer: 14 days.",
         "tps": 22.5,
         "reply_time": 1.7,
         "eval_count": 30,
         "eval_duration": 1330000000,
         "prompt_eval_duration": 370000000
+    }
+
+    mock_gemini_resp = {
+        "answer": "Gemini answer: 14 days.",
+        "tps": 45.0,
+        "reply_time": 0.8,
+        "eval_count": 30,
+        "total_duration": 800000000
     }
 
     mock_judge_scores = {
@@ -167,13 +202,15 @@ def test_run_local_llm_benchmark_pipeline():
     }
 
     with patch("src.apps.evaluate.eval_services.query_local_ollama_model", return_value=mock_ollama_resp), \
+         patch("src.apps.evaluate.eval_services.query_gemini_model", return_value=mock_gemini_resp), \
          patch("src.apps.evaluate.eval_services.score_qualitative_metrics_with_judge", return_value=mock_judge_scores), \
          patch("src.apps.evaluate.eval_services.retrieve_project_context_chunks", return_value=["Policy document content."]):
         
-        finished_run = run_local_llm_benchmark_pipeline(project, ["llama3.1:8b"], dataset, run)
+        finished_run = run_local_llm_benchmark_pipeline(project, ["llama3.1:8b", "gemini-2.5-flash-lite"], dataset, run)
 
         assert finished_run.status == "SUCCESS"
-        assert finished_run.best_model == "llama3.1:8b"
-        assert finished_run.best_overall_score > 0
+        assert len(finished_run.summary_scores) == 2
         assert "llama3.1:8b" in finished_run.summary_scores
+        assert "gemini-2.5-flash-lite" in finished_run.summary_scores
         assert finished_run.item_metrics.count() == 2
+

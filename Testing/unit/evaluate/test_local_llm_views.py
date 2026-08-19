@@ -101,6 +101,38 @@ def test_run_local_llm_benchmark_view_success(client):
 
 
 @pytest.mark.django_db
+def test_run_compare_llm_benchmark_view_with_gemini(client):
+    user = User.objects.create_superuser(username="adminuser_gemini", password="password")
+    client.force_login(user)
+    project = Project.objects.create(
+        user=user,
+        display_name="Gemini Benchmark Project",
+        description="Testing Gemini model views"
+    )
+
+    csv_content = b"question,answer\nWhat is your warranty?,1 year warranty\n"
+    csv_file = SimpleUploadedFile("gemini_benchmark.csv", csv_content, content_type="text/csv")
+
+    with patch("threading.Thread") as mock_thread:
+        url = reverse("custom_admin:local-llm-run")
+        response = client.post(url, {
+            "project_id": str(project.project_id),
+            "enable_gemini": "1",
+            "gemini_model_name": "gemini-2.5-flash-lite",
+            "selected_models": ["llama3.1:8b"],
+            "csv_file": csv_file
+        })
+
+        assert response.status_code == 200
+        assert mock_thread.called
+        run = LocalLLMEvaluationRun.objects.filter(project=project).first()
+        assert run is not None
+        assert "gemini-2.5-flash-lite" in run.models_evaluated
+        assert "llama3.1:8b" in run.models_evaluated
+
+
+
+@pytest.mark.django_db
 def test_export_local_llm_csv_view(client):
     user = User.objects.create_superuser(username="adminuser4", password="password")
     client.force_login(user)

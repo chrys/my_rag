@@ -439,17 +439,30 @@ class RunLocalLLMBenchmarkView(UnfoldModelAdminViewMixin, View):
                 status=400
             )
 
-        # Retrieve selected models (from checkboxes)
+        # Retrieve selected models (from checkboxes and Gemini input)
         selected_models = request.POST.getlist("selected_models")
         if not selected_models:
-            # Check for comma-separated or single model fallback
             single_model = request.POST.get("selected_model", "").strip()
             if single_model:
                 selected_models = [single_model]
 
+        enable_gemini = request.POST.get("enable_gemini") in ["1", "true", "on", True]
+        gemini_model = request.POST.get("gemini_model_name", "").strip()
+        if enable_gemini and gemini_model:
+            if gemini_model not in selected_models:
+                selected_models.append(gemini_model)
+
+        # Deduplicate while preserving order
+        unique_models = []
+        for m in selected_models:
+            m_clean = m.strip()
+            if m_clean and m_clean not in unique_models:
+                unique_models.append(m_clean)
+        selected_models = unique_models
+
         if not selected_models:
             return HttpResponse(
-                '<div class="p-4 bg-red-50 text-red-700 rounded-xl font-bold">❌ Error: Please select at least one local LLM model to evaluate.</div>',
+                '<div class="p-4 bg-red-50 text-red-700 rounded-xl font-bold">❌ Error: Please select or enter at least one model (local Ollama or Google Gemini) to evaluate.</div>',
                 status=400
             )
 

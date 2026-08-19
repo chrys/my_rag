@@ -5,6 +5,7 @@ import threading
 import csv
 import io
 import re
+import time
 import requests
 from django.conf import settings
 from django.utils import timezone
@@ -1038,6 +1039,79 @@ def query_local_ollama_model(
         }
 
 
+def is_gemini_model(model_name: str) -> bool:
+    """
+    Returns True if the given model name refers to a Google Gemini model.
+    """
+    name = (model_name or "").lower().strip()
+    return name.startswith("gemini") or "gemini" in name
+
+
+def query_gemini_model(
+    model_name: str,
+    prompt: str,
+    system_prompt: str = ""
+) -> dict:
+    """
+    Executes inference against Google Gemini Cloud API and extracts timing/telemetry metrics.
+    """
+    api_key = os.getenv("GOOGLE_API_KEY", "")
+    if not api_key:
+        return {
+            "answer": "[Error: GOOGLE_API_KEY not configured]",
+            "tps": 0.0,
+            "reply_time": 0.0,
+            "eval_count": 0,
+            "total_duration": 0
+        }
+
+    start_time = time.perf_counter()
+    try:
+        client = genai.Client(api_key=api_key)
+        config = types.GenerateContentConfig(
+            temperature=0.2,
+            max_output_tokens=1024
+        )
+        if system_prompt:
+            config.system_instruction = system_prompt
+
+        response = client.models.generate_content(
+            model=model_name if model_name else "gemini-2.5-flash-lite",
+            contents=prompt,
+            config=config
+        )
+        end_time = time.perf_counter()
+        reply_time = max(end_time - start_time, 0.001)
+
+        answer_text = response.text if hasattr(response, "text") and response.text else str(response)
+
+        token_count = 0
+        if hasattr(response, "usage_metadata") and response.usage_metadata:
+            token_count = getattr(response.usage_metadata, "candidates_token_count", 0) or 0
+        if not token_count and answer_text:
+            token_count = int(len(answer_text.split()) * 1.3) + 1
+
+        tps = (token_count / reply_time) if reply_time > 0 else 0.0
+
+        return {
+            "answer": answer_text.strip(),
+            "tps": round(tps, 2),
+            "reply_time": round(reply_time, 2),
+            "eval_count": token_count,
+            "total_duration": int(reply_time * 1e9)
+        }
+    except Exception as exc:
+        end_time = time.perf_counter()
+        logger.error(f"Error querying Gemini model {model_name}: {exc}")
+        return {
+            "answer": f"[Gemini Error: {exc}]",
+            "tps": 0.0,
+            "reply_time": round(max(end_time - start_time, 0.0), 2),
+            "eval_count": 0,
+            "total_duration": 0
+        }
+
+
 # ==============================================================================
 # 7-Criterion Scoring Normalization Algorithms (0.0 to 10.0)
 # ==============================================================================
@@ -1279,6 +1353,7 @@ def run_local_llm_benchmark_pipeline(
         base_system_prompt = getattr(getattr(project, "system_prompt", None), "content", "") or ""
 
         for m_idx, model_name in enumerate(models):
+            is_gemini = is_gemini_model(model_name)
             # Send initial warmup ping per model
             LOCAL_LLM_RUN_PROGRESS[run_id_str] = {
                 "status": "RUNNING",
@@ -1287,12 +1362,13 @@ def run_local_llm_benchmark_pipeline(
                 "total_models": total_models,
                 "q_idx": 0,
                 "total_q": total_q,
-                "stage": f"Warming up {model_name} in VRAM...",
+                "stage": f"Initializing {model_name}...",
                 "percent": int(((m_idx * total_q) / total_steps) * 90) + 5
             }
-            logger.info(f"🔥 [Local LLM Benchmark] Warming up {model_name}...")
-            print(f"🔥 [Local LLM Benchmark] [{m_idx + 1}/{total_models}] Warming up {model_name}...")
-            query_local_ollama_model(model_name, ".", base_url=None, warmup=True)
+            logger.info(f"🔥 [LLM Benchmark] Initializing {model_name} (Gemini={is_gemini})...")
+            print(f"🔥 [LLM Benchmark] [{m_idx + 1}/{total_models}] Initializing {model_name} (Gemini={is_gemini})...")
+            if not is_gemini:
+                query_local_ollama_model(model_name, ".", base_url=None, warmup=True)
 
             model_metrics_accum = {
                 "faithfulness": [],
@@ -1321,28 +1397,35 @@ def run_local_llm_benchmark_pipeline(
                     "stage": f"Model {m_idx + 1}/{total_models} ({model_name}) — Question {q_idx + 1}/{total_q}: Retrieving context & querying model...",
                     "percent": percent_complete
                 }
-                logger.info(f"👉 [Local LLM Benchmark] [{model_name}] ({q_idx + 1}/{total_q}) Query: {question[:60]}...")
-                print(f"👉 [Local LLM Benchmark] [{model_name}] Q {q_idx + 1}/{total_q}: '{question[:50]}'...")
+                logger.info(f"👉 [LLM Benchmark] [{model_name}] ({q_idx + 1}/{total_q}) Query: {question[:60]}...")
+                print(f"👉 [LLM Benchmark] [{model_name}] Q {q_idx + 1}/{total_q}: '{question[:50]}'...")
 
                 # 1. Retrieve project context
                 context_chunks = retrieve_project_context_chunks(project, question, top_k=3)
                 context_text = "\n---\n".join(context_chunks)
 
-                # 2. Build RAG prompt & query local Ollama model
+                # 2. Build RAG prompt & query model
                 full_prompt = (
                     f"Context:\n{context_text}\n\n"
                     f"Question: {question}\n"
                     f"Answer accurately and concisely using the provided context."
                 )
-                ollama_res = query_local_ollama_model(
-                    model_name=model_name,
-                    prompt=full_prompt,
-                    system_prompt=base_system_prompt
-                )
+                if is_gemini:
+                    model_res = query_gemini_model(
+                        model_name=model_name,
+                        prompt=full_prompt,
+                        system_prompt=base_system_prompt
+                    )
+                else:
+                    model_res = query_local_ollama_model(
+                        model_name=model_name,
+                        prompt=full_prompt,
+                        system_prompt=base_system_prompt
+                    )
 
-                model_answer = ollama_res["answer"]
-                raw_tps = ollama_res["tps"]
-                raw_reply_time = ollama_res["reply_time"]
+                model_answer = model_res["answer"]
+                raw_tps = model_res["tps"]
+                raw_reply_time = model_res["reply_time"]
                 print(f"   ⚡ [{model_name}] Answer received: {raw_reply_time:.2f}s, {raw_tps:.1f} tok/s")
 
                 # 3. Compute normalized speed & formatting metrics

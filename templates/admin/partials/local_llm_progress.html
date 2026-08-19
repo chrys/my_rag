@@ -16,13 +16,13 @@
     <div class="space-y-2 max-w-md">
         <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-extrabold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-700">
             <span class="w-2 h-2 rounded-full bg-purple-600 animate-ping"></span>
-            <span>Running Local LLM Benchmark</span>
+            <span>Running LLM Comparison Benchmark</span>
         </div>
         <h3 class="text-xl font-black text-gray-900 dark:text-white">
             Benchmarking {{ project.display_name }}
         </h3>
         <p class="text-xs text-gray-500 dark:text-gray-400 font-mono">
-            {{ progress.stage|default:"Executing local inference and multi-criteria scoring..." }}
+            {{ progress.stage|default:"Executing LLM inference and multi-criteria scoring..." }}
         </p>
     </div>
 

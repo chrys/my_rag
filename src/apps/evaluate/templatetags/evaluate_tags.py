@@ -12,3 +12,12 @@ def dict_key(dictionary, key):
     if isinstance(dictionary, dict):
         return dictionary.get(key, "")
     return ""
+
+
+@register.filter(name="is_gemini")
+def is_gemini(model_name: str) -> bool:
+    """
+    Returns True if the model name is a Gemini model.
+    """
+    name = (str(model_name) or "").lower()
+    return name.startswith("gemini") or "gemini" in name
