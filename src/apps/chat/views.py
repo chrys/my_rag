@@ -209,10 +209,12 @@ def chat(request):
                 source_documents = _extract_source_documents([node.node.metadata for node in response.source_nodes])
         else:
             google_store_id = project.external_store_id if project and project.external_store_id else store_id
+            target_model = getattr(project, 'llm_model', 'gemini-2.5-flash-lite') if project else 'gemini-2.5-flash-lite'
             bot_response = gfs.ask_store_question(
                 google_store_id,
                 query,
-                system_prompt=system_prompt
+                system_prompt=system_prompt,
+                model=target_model
             )
             source_documents = []
         

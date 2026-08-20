@@ -3,10 +3,11 @@ Document views for managing indexed documents
 """
 
 from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.text import get_valid_filename
+from django.db import models
 import os
 import tempfile
 
@@ -68,6 +69,9 @@ def _doc_adapter(doc):
         'is_expired': is_expired,
         'chunking_strategy': strategy_raw,
         'chunking_strategy_display': strategy_display,
+        'custom_metadata': getattr(doc, 'custom_metadata', {}),
+        'content_hash': getattr(doc, 'content_hash', ''),
+        'store_file_id': getattr(doc, 'store_file_id', ''),
     }
 
 
@@ -81,13 +85,17 @@ def list_documents(request, store_id):
 
     if project:
         if project.storage_type == 'google':
-            # For Google projects, fetch from the API using external_store_id
-            try:
-                documents = gfs.list_documents_in_store(project.external_store_id)
-            except Exception:
-                documents = []
+            # Use Django ORM state registry first, fallback to GFS API if empty
+            docs_qs = Document.objects.filter(project=project)
+            if docs_qs.exists():
+                documents = [_doc_adapter(d) for d in docs_qs]
+            else:
+                try:
+                    documents = gfs.list_documents_in_store(project.external_store_id)
+                except Exception:
+                    documents = []
         else:
-            # For local projects, use Django ORM
+            # For local/postgres projects, use Django ORM
             docs_qs = Document.objects.filter(project=project)
             documents = [_doc_adapter(d) for d in docs_qs]
         
@@ -138,6 +146,110 @@ def list_documents(request, store_id):
     ctx.update(get_obsidian_context(obsidian_source))
     ctx.update(get_google_calendar_context(gcal_source))
     return render(request, "partials/document_list.html", ctx)
+
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def inspect_document(request, store_id):
+    """
+    Pre-flight inspection endpoint for document upload:
+    - Runs hygiene check (whitelist, 100MB limit, 0-byte check, integrity).
+    - Checks SHA-256 hash collision against local Document registry.
+    - If duplicate found and not forcing re-upload, returns document_duplicate_modal.html.
+    - Otherwise runs Step 1 (system/file) + Step 2 (Gemini Flash) extraction and returns document_upload_modal.html.
+    """
+    if 'file' not in request.FILES:
+        return JsonResponse({'error': 'No file provided'}, status=400)
+    
+    file = request.FILES['file']
+    if not file or file.name == '':
+        return JsonResponse({'error': 'Invalid file'}, status=400)
+
+    filename = _sanitize_uploaded_filename(file.name)
+    file_ext = os.path.splitext(filename)[1].lower()
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
+        for chunk in file.chunks():
+            tmp.write(chunk)
+        filepath = tmp.name
+
+    try:
+        from src.apps.documents.services import (
+            check_document_hygiene,
+            extract_system_and_file_metadata,
+            extract_ai_metadata_with_gemini_flash,
+        )
+
+        hygiene = check_document_hygiene(filepath, filename)
+        if not hygiene["valid"]:
+            return render(request, 'partials/document_hygiene_error_modal.html', {
+                'filename': filename,
+                'error_message': hygiene.get("error", "Document failed pre-flight hygiene validation."),
+                'file_size': hygiene.get("file_size", 0),
+            })
+
+        content_hash = hygiene["content_hash"]
+        project = Project.objects.filter(project_id=store_id).first()
+
+        # Check for duplicates in local state registry
+        existing_doc = None
+        if project:
+            existing_doc = Document.objects.filter(
+                project=project,
+                content_hash=content_hash,
+                state='INDEXED'
+            ).first()
+
+        if existing_doc and request.POST.get('force_reupload') != 'true':
+            return render(request, 'partials/document_duplicate_modal.html', {
+                'store_id': store_id,
+                'filename': filename,
+                'content_hash': content_hash,
+                'existing_doc': existing_doc,
+            })
+
+        # Step 1: System & File Extraction
+        system_meta = extract_system_and_file_metadata(filepath, filename, user=request.user if request.user.is_authenticated else None)
+
+        # Step 2: Content-Aware AI Extraction
+        sample_text = ""
+        try:
+            if file_ext in ['.txt', '.md', '.csv', '.json', '.html']:
+                with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                    sample_text = f.read(4000)
+            elif file_ext == '.pdf':
+                from pypdf import PdfReader
+                reader = PdfReader(filepath)
+                pages_text = []
+                for p in reader.pages[:3]:
+                    text = p.extract_text()
+                    if text:
+                        pages_text.append(text)
+                sample_text = "\n".join(pages_text)
+        except Exception as e:
+            logger.warning(f"Failed to read sample text for AI extraction: {e}")
+
+        ai_meta = extract_ai_metadata_with_gemini_flash(sample_text)
+        combined_meta = system_meta + ai_meta
+        formatted_items = []
+        for item in combined_meta:
+            k = item.get("key", "")
+            v = item.get("value")
+            if v is None:
+                v = item.get("string_value") if "string_value" in item else item.get("numeric_value")
+            formatted_items.append({"key": k, "value": v if v is not None else ""})
+
+        return render(request, 'partials/document_upload_modal.html', {
+            'store_id': store_id,
+            'filename': filename,
+            'content_hash': content_hash,
+            'file_size': hygiene["file_size"],
+            'mime_type': hygiene["mime_type"],
+            'metadata_items': formatted_items,
+        })
+    finally:
+        if os.path.exists(filepath):
+            os.unlink(filepath)
 
 
 @require_http_methods(["POST"])
@@ -311,42 +423,111 @@ def upload_document(request, store_id):
                         'url_prefix': '/rag',
                     })
             else:
-                # Google store - look up the project to get the external_store_id
+                # Google File Search storage branch
                 from src.google_file_search import GoogleFileSearchPermissionError
+                from src.apps.documents.services import (
+                    compute_file_sha256,
+                    format_and_validate_gfs_metadata,
+                    check_document_hygiene,
+                )
+                from django.utils import timezone
+                import json
 
                 project = Project.objects.filter(project_id=store_id).first()
-                if project and project.external_store_id:
-                    # Use the actual Google store ID
-                    google_store_id = project.external_store_id
+                if project and project.storage_type == 'google':
+                    if not project.external_store_id:
+                        try:
+                            from src.google_file_search import create_file_search_store
+                            project.external_store_id = create_file_search_store(display_name=project.display_name or project.project_id)
+                            project.save(update_fields=['external_store_id'])
+                        except Exception as e:
+                            logger.error(f"Failed to auto-provision GFS store: {e}")
+                    google_store_id = project.external_store_id or store_id
                 else:
-                    # Fallback to store_id (for backward compatibility)
-                    google_store_id = store_id
+                    google_store_id = project.external_store_id if project and project.external_store_id else store_id
+
+                content_hash = compute_file_sha256(filepath)
+                hygiene = check_document_hygiene(filepath, filename)
+
+                # Parse custom metadata if provided
+                custom_metadata_raw = request.POST.get('custom_metadata')
+                parsed_custom_metadata = []
+                if custom_metadata_raw:
+                    try:
+                        if isinstance(custom_metadata_raw, str):
+                            parsed_custom_metadata = json.loads(custom_metadata_raw)
+                        elif isinstance(custom_metadata_raw, list):
+                            parsed_custom_metadata = custom_metadata_raw
+                    except Exception as e:
+                        logger.warning(f"Error parsing custom_metadata JSON: {e}")
+
+                formatted_gfs_metadata = format_and_validate_gfs_metadata(parsed_custom_metadata)
+
+                # Handle Force Re-upload: remove existing document from GFS store if present
+                if request.POST.get('force_reupload') == 'true' and project:
+                    old_docs = Document.objects.filter(project=project).filter(
+                        models.Q(content_hash=content_hash) | models.Q(document_name=filename)
+                    )
+                    for old_doc in old_docs:
+                        if old_doc.store_file_id:
+                            try:
+                                gfs.delete_document_from_store(old_doc.store_file_id)
+                            except Exception as e:
+                                logger.warning(f"Failed deleting old document from GFS store: {e}")
 
                 try:
-                    document_resource_name = gfs.add_document_to_store(google_store_id, filepath)
+                    document_resource_name = gfs.add_document_to_store(
+                        google_store_id, 
+                        filepath,
+                        custom_metadata=formatted_gfs_metadata,
+                        display_name=filename
+                    )
                 except GoogleFileSearchPermissionError as exc:
                     return JsonResponse({'error': str(exc)}, status=403)
 
                 if not document_resource_name:
                     return JsonResponse({'error': 'Failed to upload document to Google File Search store'}, status=502)
+
+                # Local state registry persistence
+                if project:
+                    meta_dict = {
+                        item["key"]: item.get("string_value") if "string_value" in item else item.get("numeric_value")
+                        for item in formatted_gfs_metadata
+                    }
+                    doc_obj, created = Document.objects.update_or_create(
+                        project=project,
+                        document_name=filename,
+                        defaults={
+                            'display_name': filename,
+                            'content_hash': content_hash,
+                            'store_file_id': document_resource_name,
+                            'custom_metadata': meta_dict,
+                            'file_size': hygiene.get("file_size", os.path.getsize(filepath)),
+                            'mime_type': hygiene.get("mime_type", "application/octet-stream"),
+                            'state': 'INDEXED',
+                            'indexed_at': timezone.now(),
+                            'error_message': '',
+                            'is_expired_checked': is_expired_checked,
+                            'expiration_date': expiration_date,
+                        }
+                    )
+                    if created:
+                        project.document_count = project.documents.count()
+                        project.last_indexed_at = timezone.now()
+                        project.save(update_fields=['document_count', 'last_indexed_at'])
+
         finally:
             if os.path.exists(filepath):
                 os.unlink(filepath)
         
         # Return updated documents list
         project = Project.objects.filter(project_id=store_id).first()
-        if project and project.storage_type == 'google':
-            # For Google projects, fetch from API
-            documents = gfs.list_documents_in_store(project.external_store_id)
-        elif project and project.storage_type == 'postgres':
-            # For RAG projects, fetch from Django DB
+        if project and project.storage_type in ['google', 'postgres']:
             docs_qs = Document.objects.filter(project=project)
             documents = [_doc_adapter(d) for d in docs_qs]
         else:
-            # For local projects, check local storage first
             local_projects = storage.list_projects()
             proj = next((p for p in local_projects if p['id'] == store_id), None)
-            
             if proj:
                 documents = [
                     {

@@ -90,7 +90,7 @@ def create_project(request):
     user = request.user if request.user.is_authenticated else None
     
     if display_name:
-        if storage_type in ['local', 'google']:
+        if storage_type == 'local':
             error_html = (
                 '<div id="project-error-container" hx-swap-oob="true" '
                 'class="mb-4 p-3 bg-red-50 text-red-700 rounded-md border border-red-200 text-sm">'
@@ -98,6 +98,38 @@ def create_project(request):
                 '</div>'
             )
             return HttpResponse(error_html)
+        elif storage_type == 'google':
+            llm_model = request.POST.get('llm_model', 'gemini-2.5-flash-lite')
+            if llm_model not in ['gemini-2.5-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3.7-flash']:
+                llm_model = 'gemini-2.5-flash-lite'
+
+            try:
+                external_store_id = gfs.create_file_search_store(display_name=display_name)
+            except Exception as e:
+                error_html = (
+                    f'<div id="project-error-container" hx-swap-oob="true" '
+                    f'class="mb-4 p-3 bg-red-50 text-red-700 rounded-md border border-red-200 text-sm">'
+                    f'<strong>Google File Search Provisioning Failed:</strong> {str(e)}'
+                    f'</div>'
+                )
+                return HttpResponse(error_html)
+
+            from datetime import datetime
+            import time
+            import uuid
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            microseconds = int(time.time() * 1000000) % 1000000
+            safe_name = display_name.lower().replace(' ', '_')[:30]
+            rand_suffix = uuid.uuid4().hex[:6]
+            project_id = f"google_{timestamp}_{microseconds}_{safe_name}_{rand_suffix}"
+            Project.objects.create(
+                project_id=project_id,
+                display_name=display_name,
+                storage_type='google',
+                external_store_id=external_store_id,
+                llm_model=llm_model,
+                user=user
+            )
         elif storage_type == 'postgres':
             success, error_message = test_postgres_connection()
             if not success:

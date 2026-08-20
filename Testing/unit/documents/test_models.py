@@ -71,6 +71,19 @@ class TestDocumentModel:
         )
         assert doc2.is_expired_checked is True
         assert doc2.expiration_date == future_time
+
+    def test_document_state_registry_fields(self, project):
+        """Test document state registry fields: content_hash, store_file_id, and custom_metadata"""
+        doc = Document.objects.create(
+            project=project,
+            document_name='sample.pdf',
+            content_hash='e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+            store_file_id='fileSearchStores/store-123/documents/doc-456',
+            custom_metadata={'department': 'finance', 'file_size_kb': 142.5}
+        )
+        assert doc.content_hash == 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+        assert doc.store_file_id == 'fileSearchStores/store-123/documents/doc-456'
+        assert doc.custom_metadata == {'department': 'finance', 'file_size_kb': 142.5}
     
     def test_document_timestamps(self, project):
         """Test document timestamps"""

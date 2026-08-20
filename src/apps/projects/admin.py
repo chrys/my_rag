@@ -31,7 +31,7 @@ class ProjectAdminForm(forms.ModelForm):
             # Check if project already has indexed sources
             has_sources = (self.instance.document_count > 0) or self.instance.documents.exists()
             if has_sources:
-                locked_fields = ['embedding_model', 'document_parsing', 'use_markitdown']
+                locked_fields = ['embedding_model', 'document_parsing']
                 for field_name in locked_fields:
                     if field_name in self.fields:
                         self.fields[field_name].disabled = True
@@ -41,6 +41,14 @@ class ProjectAdminForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        storage_type = cleaned_data.get('storage_type')
+        if storage_type == 'google':
+            cleaned_data['use_hyde'] = False
+            cleaned_data['synthesizer'] = False
+            cleaned_data['response_mode'] = 'compact'
+            cleaned_data['chunking'] = 'gfs-default'
+            cleaned_data['embedding_model'] = 'models/gemini-embedding-001'
+
         custom_prompt = cleaned_data.get('custom_prompt', False)
         prompt_text = cleaned_data.get('custom_prompt_text', '').strip()
         if prompt_text and not custom_prompt:
@@ -101,7 +109,6 @@ class ProjectAdmin(ModelAdmin):
                     "embedding_model",
                     "llm_model",
                     "disable_thinking",
-                    "use_markitdown",
                 ),
             },
         ),

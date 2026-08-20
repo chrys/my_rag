@@ -7,11 +7,11 @@ from src.apps.documents.models import Document
 
 @pytest.mark.django_db
 class TestAdminProjectViews:
-    def test_create_project_google(self):
+    def test_create_project_local(self):
         factory = RequestFactory()
         request = factory.post('/fake-url/', {
-            'display_name': 'Test Google Project',
-            'storage_type': 'google'
+            'display_name': 'Test Local Project',
+            'storage_type': 'local'
         })
         request.user = AnonymousUser()
         
@@ -19,7 +19,25 @@ class TestAdminProjectViews:
         
         assert response.status_code == 200
         assert b"This functionality has not been implemented yet." in response.content
-        assert not Project.objects.filter(display_name='Test Google Project').exists()
+        assert not Project.objects.filter(display_name='Test Local Project').exists()
+
+    def test_create_project_google(self, mocker):
+        mocker.patch('src.apps.projects.views.gfs.create_file_search_store', return_value='fileSearchStores/mock-store-123')
+        factory = RequestFactory()
+        request = factory.post('/fake-url/', {
+            'display_name': 'Test Google Project',
+            'storage_type': 'google',
+            'llm_model': 'gemini-2.5-flash-lite'
+        })
+        request.user = AnonymousUser()
+        
+        response = create_project(request)
+        
+        assert response.status_code == 200
+        project = Project.objects.filter(display_name='Test Google Project').first()
+        assert project is not None
+        assert project.storage_type == 'google'
+        assert project.external_store_id == 'fileSearchStores/mock-store-123'
 
     def test_create_project_postgres(self, mocker):
         mocker.patch('src.apps.projects.views.test_postgres_connection', return_value=(True, ""))

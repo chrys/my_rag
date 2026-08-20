@@ -59,6 +59,7 @@
                 <span id="selected-file-name" class="text-xs text-gray-400 max-w-[120px] sm:max-w-[180px] truncate select-none">No file chosen</span>
             </div>
 
+            {% if storage_type != 'google' %}
             <!-- Chunking Strategy Selector -->
             <div class="flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-3">
                 <select name="chunking_strategy" id="chunking-strategy-select"
@@ -71,6 +72,7 @@
                     <option value="sentence">Sentence Boundary</option>
                 </select>
             </div>
+            {% endif %}
 
             <!-- Expiration Tracking -->
             <div class="flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-3">
@@ -88,6 +90,21 @@
             </div>
 
             <!-- Upload Button -->
+            {% if storage_type == 'google' %}
+            <button type="button"
+                hx-post="{{ url_prefix }}/projects/{{ store_id }}/inspect-document/"
+                hx-encoding="multipart/form-data"
+                hx-include="#file-uploader-input"
+                hx-target="#document-modal-mount"
+                hx-swap="innerHTML"
+                hx-disabled-elt="this"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-md text-sm font-medium transition-all shadow-sm hover:shadow flex items-center gap-1.5 select-none active:scale-[0.98]">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Review & Upload
+            </button>
+            {% else %}
             <button type="button"
                 hx-post="{{ url_prefix }}/documents/{{ store_id }}/upload/"
                 hx-encoding="multipart/form-data"
@@ -96,13 +113,12 @@
                 hx-swap="innerHTML"
                 hx-disabled-elt="this"
                 class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-md text-sm font-medium transition-all shadow-sm hover:shadow flex items-center gap-1.5 select-none active:scale-[0.98]">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
                 Upload
             </button>
+            {% endif %}
 
             <!-- Loading Indicator -->
             <div class="htmx-indicator ml-1">
@@ -135,6 +151,8 @@
     </div>
     {% endif %}
 
+    <!-- Mount point for HTMX pre-flight upload & duplicate modals -->
+    <div id="document-modal-mount"></div>
 </div>
 
 <script>

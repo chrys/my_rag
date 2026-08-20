@@ -1,0 +1,104 @@
+<div id="document-modal-container" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in" style="position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5);">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-sm w-full overflow-hidden" style="background: #ffffff; border-radius: 12px; max-width: 400px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); border: 1px solid #e5e7eb;">
+        
+        <!-- Header -->
+        <div style="padding: 14px 16px; background: #fffbeb; border-bottom: 1px solid #fef3c7; display: flex; align-items: center; gap: 10px;">
+            <div style="padding: 6px; background: #fde68a; color: #b45309; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px; stroke: #b45309;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <div>
+                <h3 style="margin: 0; font-size: 14px; font-weight: 700; color: #111827;">Duplicate Document Detected</h3>
+                <p style="margin: 0; font-size: 11px; color: #92400e;">Identical content already indexed</p>
+            </div>
+        </div>
+
+        <!-- Body -->
+        <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+            <p style="margin: 0; font-size: 12px; color: #4b5563;">
+                This exact file has already been indexed in this store:
+            </p>
+
+            <div style="background: #f9fafb; padding: 10px 12px; border-radius: 8px; border: 1px solid #e5e7eb; font-size: 12px; display: flex; flex-direction: column; gap: 4px;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #6b7280; font-weight: 500;">Selected:</span>
+                    <strong style="color: #111827; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ filename }}</strong>
+                </div>
+                {% if existing_doc %}
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #6b7280; font-weight: 500;">Existing:</span>
+                    <span style="color: #374151; font-family: monospace; font-size: 11px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ existing_doc.document_name }}</span>
+                </div>
+                {% endif %}
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #6b7280; font-weight: 500;">SHA-256:</span>
+                    <span style="color: #6b7280; font-family: monospace; font-size: 10px;">{{ content_hash|truncatechars:18 }}</span>
+                </div>
+            </div>
+
+            <p style="margin: 0; font-size: 11px; color: #6b7280; line-height: 1.4;">
+                Skip to save index quota, or force a re-upload to delete the previous index and replace it.
+            </p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="padding: 12px 16px; background: #f9fafb; border-top: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
+            <button type="button" 
+                onclick="document.getElementById('document-modal-container').remove()"
+                style="padding: 8px 14px; font-size: 12px; font-weight: 600; color: #374151 !important; background: #ffffff !important; border: 1px solid #d1d5db !important; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;">
+                Skip Upload
+            </button>
+            <button type="button"
+                id="force-reupload-btn"
+                onclick="forceReuploadDocument('{{ store_id }}')"
+                style="padding: 8px 14px; font-size: 12px; font-weight: 600; color: #ffffff !important; background: #d97706 !important; border: 1px solid #b45309 !important; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <svg xmlns="http://www.w3.org/2000/svg" style="width: 14px; height: 14px; stroke: #ffffff;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span style="color: #ffffff !important; font-weight: 600 !important;">Force Re-upload</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function forceReuploadDocument(storeId) {
+    const fileInput = document.getElementById('file-uploader-input');
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        alert('Please choose a file first.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    formData.append('force_reupload', 'true');
+
+    const btn = document.getElementById('force-reupload-btn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<svg class="animate-spin h-3.5 w-3.5 text-white inline mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Re-indexing...';
+    }
+
+    fetch(`/rag/documents/${storeId}/upload/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    }).then(response => response.text())
+      .then(html => {
+          document.getElementById('document-modal-container')?.remove();
+          const docList = document.getElementById('document-list');
+          if (docList) {
+              docList.innerHTML = html;
+          }
+      }).catch(err => {
+          alert('Re-upload failed: ' + err);
+          if (btn) {
+              btn.disabled = false;
+              btn.innerHTML = 'Force Re-upload';
+          }
+      });
+}
+</script>

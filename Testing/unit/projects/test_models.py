@@ -170,19 +170,59 @@ class TestProjectModel:
             assert project.storage_type == storage_type
 
     def test_project_validation_blocked_types(self):
-        """Test that local and google storage types are blocked during full_clean validation"""
+        """Test that local storage type is blocked during full_clean validation"""
         from django.core.exceptions import ValidationError
         
-        for storage_type in ['local', 'google']:
+        project = Project(
+            project_id='blocked_local',
+            display_name='Blocked Local',
+            storage_type='local'
+        )
+        with pytest.raises(ValidationError) as excinfo:
+            project.full_clean()
+        assert 'storage_type' in excinfo.value.message_dict
+        assert excinfo.value.message_dict['storage_type'][0] == "This functionality has not been implemented yet."
+
+    def test_project_gfs_validation_success(self):
+        """Test that Google File Search projects pass full_clean validation with allowed models"""
+        for model_name in ['gemini-2.5-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3.7-flash']:
             project = Project(
-                project_id=f'blocked_{storage_type}',
-                display_name=f'Blocked {storage_type}',
-                storage_type=storage_type
+                project_id=f'gfs_valid_{model_name.replace(".", "_").replace("-", "_")}',
+                display_name='GFS Valid Project',
+                storage_type='google',
+                llm_model=model_name,
+                chunking='fixed-size',
+                embedding_model='models/gemini-embedding-001'
             )
-            with pytest.raises(ValidationError) as excinfo:
-                project.full_clean()
-            assert 'storage_type' in excinfo.value.message_dict
-            assert excinfo.value.message_dict['storage_type'][0] == "This functionality has not been implemented yet."
+            project.full_clean()
+            project.save()
+            assert project.storage_type == 'google'
+            assert project.llm_model == model_name
+
+    def test_project_gfs_validation_disallowed_llm_model(self):
+        """Test that non-Gemini LLM models are rejected for GFS projects"""
+        from django.core.exceptions import ValidationError
+        project = Project(
+            project_id='gfs_invalid_llm',
+            display_name='GFS Invalid LLM',
+            storage_type='google',
+            llm_model='gemma4:12b-mlx'
+        )
+        with pytest.raises(ValidationError) as excinfo:
+            project.full_clean()
+        assert 'llm_model' in excinfo.value.message_dict
+
+    def test_project_gfs_parameter_constraints_enforced(self):
+        """Test that GFS projects enforce disabling of hyde, synthesizer and response_mode defaults"""
+        project = Project.objects.create(
+            project_id='gfs_params_check',
+            display_name='GFS Params Check',
+            storage_type='google',
+            use_hyde=True,
+            synthesizer=True
+        )
+        assert project.use_hyde is False
+        assert project.synthesizer is False
 
     def test_project_declares_postgres_storage_choice(self):
         """Test the model exposes postgres as a first-class storage choice."""

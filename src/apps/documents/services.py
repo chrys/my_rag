@@ -437,3 +437,297 @@ Text snippet:
     if score <= 7:
         raise ValueError(f"Extraction quality too low (Score: {score}/10). Reason: {reason}")
 
+
+def compute_file_sha256(file_path: str) -> str:
+    """
+    Computes the SHA-256 hash of a file for local deduplication and state registry tracking.
+    """
+    import hashlib
+    sha256 = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            sha256.update(chunk)
+    return sha256.hexdigest()
+
+
+def check_document_hygiene(file_path: str, filename: str) -> dict:
+    """
+    Pre-flight validation gate for uploaded documents:
+    - Verifies supported whitelist extensions (.pdf, .txt, .md, .docx, .pptx, .xlsx, .csv, .html, .json).
+    - Ensures file is non-empty (>0 bytes) and within 100MB API single-file limit.
+    - Tests for PDF/DOCX corruption or DRM encryption.
+    """
+    import mimetypes
+
+    ext = os.path.splitext(filename)[1].lower()
+    allowed_extensions = {".pdf", ".txt", ".md", ".docx", ".pptx", ".xlsx", ".csv", ".html", ".json"}
+    
+    if ext not in allowed_extensions:
+        return {
+            "valid": False,
+            "error": f"Unsupported file format '{ext}'. Allowed formats: {', '.join(sorted(allowed_extensions))}.",
+            "content_hash": None,
+            "file_size": 0,
+            "mime_type": None
+        }
+
+    try:
+        file_size = os.path.getsize(file_path)
+    except OSError as e:
+        return {
+            "valid": False,
+            "error": f"Unable to access file: {str(e)}",
+            "content_hash": None,
+            "file_size": 0,
+            "mime_type": None
+        }
+
+    if file_size == 0:
+        return {
+            "valid": False,
+            "error": "File is empty (0 bytes).",
+            "content_hash": None,
+            "file_size": 0,
+            "mime_type": None
+        }
+
+    max_size_bytes = 100 * 1024 * 1024 # 100 MB limit
+    if file_size > max_size_bytes:
+        return {
+            "valid": False,
+            "error": f"File size ({file_size / (1024*1024):.1f} MB) exceeds maximum 100 MB limit.",
+            "content_hash": None,
+            "file_size": file_size,
+            "mime_type": None
+        }
+
+    # Format integrity & DRM check
+    if ext == ".pdf":
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(file_path)
+            if reader.is_encrypted:
+                return {
+                    "valid": False,
+                    "error": "PDF is password-protected or encrypted.",
+                    "content_hash": None,
+                    "file_size": file_size,
+                    "mime_type": "application/pdf"
+                }
+            if len(reader.pages) == 0:
+                return {
+                    "valid": False,
+                    "error": "PDF file contains 0 pages.",
+                    "content_hash": None,
+                    "file_size": file_size,
+                    "mime_type": "application/pdf"
+                }
+        except Exception as e:
+            return {
+                "valid": False,
+                "error": f"Corrupted or invalid PDF file: {str(e)}",
+                "content_hash": None,
+                "file_size": file_size,
+                "mime_type": "application/pdf"
+            }
+
+    content_hash = compute_file_sha256(file_path)
+    mime_type, _ = mimetypes.guess_type(filename)
+    if not mime_type:
+        mime_type = "application/octet-stream"
+
+    return {
+        "valid": True,
+        "error": None,
+        "content_hash": content_hash,
+        "file_size": file_size,
+        "mime_type": mime_type
+    }
+
+
+def strip_noisy_artifacts(text: str) -> str:
+    """
+    Cleans up boilerplate artifacts before ingestion:
+    - Strips pagination patterns (e.g., 'Page 1 of 10', '- 1 -', bare page numbers).
+    - Strips recurring boilerplate and legal disclaimers.
+    - Normalizes excessive blank lines.
+    """
+    if not text:
+        return ""
+
+    lines = text.splitlines()
+    cleaned_lines = []
+
+    # Patterns for pagination and noise lines
+    pagination_patterns = [
+        re.compile(r'^\s*Page\s+\d+(\s+of\s+\d+)?\s*$', re.IGNORECASE),
+        re.compile(r'^\s*-\s*\d+\s*-\s*$'),
+        re.compile(r'^\s*\d+\s*$'), # Standalone page numbers
+        re.compile(r'^\s*(All rights reserved|Confidential|Copyright\s+.*|Terms of Use)\.?\s*$', re.IGNORECASE),
+    ]
+
+    for line in lines:
+        is_noise = False
+        for pat in pagination_patterns:
+            if pat.match(line):
+                is_noise = True
+                break
+        if not is_noise:
+            cleaned_lines.append(line)
+
+    result = "\n".join(cleaned_lines)
+    # Collapse multiple consecutive newlines down to at most 2
+    result = re.sub(r'\n{3,}', '\n\n', result)
+    return result.strip()
+
+
+def extract_system_and_file_metadata(file_path: str, filename: str, user=None) -> list[dict]:
+    """
+    Step 1: Extracts deterministic system & file properties.
+    """
+    from datetime import datetime
+    ext = os.path.splitext(filename)[1].lower()
+    
+    metadata = [
+        {"key": "file_name", "string_value": filename},
+        {"key": "file_type", "string_value": ext},
+    ]
+
+    try:
+        size_bytes = os.path.getsize(file_path)
+        metadata.append({"key": "file_size_kb", "numeric_value": round(size_bytes / 1024.0, 1)})
+        mtime = os.path.getmtime(file_path)
+        created_date = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d")
+        metadata.append({"key": "created_date", "string_value": created_date})
+    except OSError:
+        pass
+
+    if user and hasattr(user, "username") and user.username:
+        metadata.append({"key": "uploader", "string_value": str(user.username)})
+
+    if ext == ".pdf":
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(file_path)
+            metadata.append({"key": "page_count", "numeric_value": float(len(reader.pages))})
+            if reader.metadata:
+                if reader.metadata.author:
+                    metadata.append({"key": "author", "string_value": str(reader.metadata.author)[:100]})
+                if reader.metadata.title:
+                    metadata.append({"key": "title", "string_value": str(reader.metadata.title)[:100]})
+        except Exception:
+            pass
+
+    return metadata
+
+
+def extract_ai_metadata_with_gemini_flash(sample_text: str) -> list[dict]:
+    """
+    Step 2: Content-Aware AI Extraction using gemini-2.5-flash-lite.
+    Gracefully falls back to empty list on error.
+    """
+    if not sample_text or not sample_text.strip():
+        return []
+
+    try:
+        from google.genai import types
+        import json
+        from src import google_file_search as gfs
+
+        if not gfs.client:
+            return []
+
+        snippet = sample_text[:3000]
+        prompt = (
+            "Analyze the following document snippet and classify its high-level business metadata.\n"
+            "Extract: document_type (e.g. Report, Invoice, Contract, Manual), department (e.g. Finance, Legal, Engineering), and language (ISO 2-letter code).\n"
+            "Return ONLY a JSON object with keys: document_type, department, language (and any other relevant single-word attributes).\n\n"
+            f"Snippet:\n\"\"\"{snippet}\"\"\""
+        )
+
+        response = gfs.client.models.generate_content(
+            model="gemini-2.5-flash-lite",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.1
+            ),
+        )
+
+        if not response or not response.text:
+            return []
+
+        data = json.loads(response.text)
+        metadata = []
+        for k, v in data.items():
+            if v is not None and str(v).strip():
+                sanitized_k = re.sub(r'[^a-zA-Z0-9_]', '_', str(k).strip().lower())
+                if isinstance(v, (int, float)):
+                    metadata.append({"key": sanitized_k, "numeric_value": float(v)})
+                else:
+                    metadata.append({"key": sanitized_k, "string_value": str(v).strip()})
+        return metadata
+    except Exception as e:
+        logger.warning(f"AI metadata pre-extraction failed (falling back gracefully): {e}")
+        return []
+
+
+def format_and_validate_gfs_metadata(metadata_list: list[dict]) -> list[dict]:
+    """
+    Formats, validates, and caps metadata to conform strictly to GFS constraints:
+    - Maximum 20 entries.
+    - Mutually exclusive string_value OR numeric_value.
+    - Key sanitized to alphanumeric and underscore (<= 40 chars).
+    """
+    if not metadata_list:
+        return []
+
+    formatted = []
+    seen_keys = set()
+
+    for item in metadata_list:
+        raw_key = item.get("key", "")
+        if not raw_key:
+            continue
+
+        # Sanitize key: lowercase, letters/numbers/underscores, collapse repeated underscores
+        sanitized_key = re.sub(r'[^a-zA-Z0-9_]', '_', str(raw_key).strip().lower())
+        sanitized_key = re.sub(r'_+', '_', sanitized_key).strip('_')[:40]
+        if not sanitized_key or sanitized_key in seen_keys:
+            continue
+
+        entry = {"key": sanitized_key}
+        if "numeric_value" in item and item["numeric_value"] is not None:
+            try:
+                entry["numeric_value"] = float(item["numeric_value"])
+            except (ValueError, TypeError):
+                entry["string_value"] = str(item["numeric_value"])
+        elif "string_value" in item and item["string_value"] is not None:
+            entry["string_value"] = str(item["string_value"])[:255]
+        elif "value" in item and item["value"] is not None:
+            val = item["value"]
+            if isinstance(val, (int, float)):
+                entry["numeric_value"] = float(val)
+            elif isinstance(val, str):
+                try:
+                    # Check if numeric string
+                    if re.match(r'^-?\d+(\.\d+)?$', val.strip()):
+                        entry["numeric_value"] = float(val.strip())
+                    else:
+                        entry["string_value"] = val.strip()[:255]
+                except (ValueError, TypeError):
+                    entry["string_value"] = val.strip()[:255]
+            else:
+                entry["string_value"] = str(val)[:255]
+
+        if "string_value" in entry or "numeric_value" in entry:
+            seen_keys.add(sanitized_key)
+            formatted.append(entry)
+
+        if len(formatted) >= 20:
+            break
+
+    return formatted
+
+
+

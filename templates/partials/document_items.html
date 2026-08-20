@@ -9,8 +9,17 @@
             </svg>
         </div>
         <div>
-            <h4 class="font-medium text-gray-800">{{ doc.display_name }}</h4>
+            <h4 class="font-medium text-gray-800 dark:text-gray-200">{{ doc.display_name }}</h4>
             <p class="text-xs text-gray-500">{{ doc.name }}</p>
+            {% if doc.custom_metadata %}
+            <div class="flex flex-wrap gap-1 mt-1.5">
+                {% for k, v in doc.custom_metadata.items %}
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+                    <span class="text-gray-400 mr-1">{{ k }}:</span> {{ v }}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
             {% if doc.state.name == 'FAILED' and doc.error_message %}
             <p class="text-xs text-red-500 mt-1 font-mono">⚠️ {{ doc.error_message }}</p>
             {% endif %}

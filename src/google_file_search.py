@@ -31,6 +31,35 @@ def _is_permission_error(exc: Exception) -> bool:
 
 
 
+def create_file_search_store(display_name: str) -> str:
+    """
+    Creates a new File Search Store on Google Cloud and returns its resource name.
+
+    Args:
+        display_name: The human-readable name of the store.
+
+    Returns:
+        The resource name of the created store (e.g., 'fileSearchStores/abc-123').
+    """
+    print(f"Creating Google File Search store for '{display_name}'...")
+    if not client:
+        raise GoogleFileSearchPermissionError("Google File Search client is not configured (missing GOOGLE_API_KEY).")
+
+    try:
+        store = client.file_search_stores.create(
+            config={'display_name': display_name}
+        )
+        print(f"✅ Successfully created store: {store.name}")
+        return store.name
+    except Exception as e:
+        print(f"❌ Failed to create store '{display_name}': {e}")
+        if _is_permission_error(e):
+            raise GoogleFileSearchPermissionError(
+                f"Google File Search permission denied while creating store '{display_name}': {e}"
+            ) from e
+        raise RuntimeError(f"Failed to create Google File Search store '{display_name}': {e}") from e
+
+
 def delete_file_search_store(store_id_to_delete: str):
     """
     Deletes a specified File Search Store and all its contents permanently.
@@ -54,7 +83,7 @@ def delete_file_search_store(store_id_to_delete: str):
     except Exception as e:
         print(f"❌ Failed to delete store {store_id_to_delete}: {e}")
 
-def add_document_to_store(store_id: str, file_path: str) -> str:
+def add_document_to_store(store_id: str, file_path: str, custom_metadata: list[dict] = None, display_name: str = None) -> str:
     """
     Uploads a document to a specified File Search Store and waits for indexing to complete.
 
@@ -62,20 +91,29 @@ def add_document_to_store(store_id: str, file_path: str) -> str:
         store_id: The unique resource ID of the target store 
                   (e.g., 'fileSearchStores/abc-123').
         file_path: The local path to the document you want to upload.
+        custom_metadata: Optional list of up to 20 typed metadata dictionaries
+                         (e.g. [{'key': 'dept', 'string_value': 'finance'}]).
+        display_name: Optional human-readable display name for the document.
+                      Defaults to the file's base name.
 
     Returns:
         The resource name of the uploaded document if successful, otherwise an empty string.
     """
     
-    file_name = os.path.basename(file_path)
-    print(f"Uploading and indexing '{file_name}' into store: {store_id}...")
+    doc_display_name = display_name or os.path.basename(file_path)
+    print(f"Uploading and indexing '{doc_display_name}' into store: {store_id}...")
     
     try:
+        config = {'display_name': doc_display_name}
+        if custom_metadata:
+            # Enforce max 20 entries per document
+            config['custom_metadata'] = custom_metadata[:20]
+
         # The upload_to_file_search_store method initiates the indexing process
         operation = client.file_search_stores.upload_to_file_search_store(
             file=file_path,
             file_search_store_name=store_id,
-            config={'display_name': file_name}
+            config=config
         )
         
         print("   ⌛ Waiting for file indexing to complete (This may take a moment)...")
@@ -87,15 +125,13 @@ def add_document_to_store(store_id: str, file_path: str) -> str:
             operation = client.operations.get(operation)
 
         # Get the result from the completed operation
-        # Note: operation.result() is failing with AttributeError in some versions
-        
         # Workaround: Fetch the document by name from the store
         print("   Verifying upload...")
         pager = client.file_search_stores.documents.list(parent=store_id)
         all_docs = list(pager)
         
         # Find documents with matching display name
-        matching_docs = [d for d in all_docs if d.display_name == file_name]
+        matching_docs = [d for d in all_docs if d.display_name == doc_display_name]
         
         if matching_docs:
             # Get the most recently created one
@@ -114,7 +150,13 @@ def add_document_to_store(store_id: str, file_path: str) -> str:
             ) from e
         return ""
 
-def ask_store_question(store_id: str, query: str, system_prompt: str = None) -> str:
+def ask_store_question(
+    store_id: str, 
+    query: str, 
+    system_prompt: str = None,
+    model: str = "gemini-2.5-flash-lite",
+    metadata_filters: str = None
+) -> str:
     """
     Asks a question, grounding the answer ONLY in the documents of the specified store.
 
@@ -123,14 +165,16 @@ def ask_store_question(store_id: str, query: str, system_prompt: str = None) -> 
                   (e.g., 'fileSearchStores/abc-123').
         query: The user's question.
         system_prompt: Optional custom system prompt to guide the model's response.
+        model: Model identifier (defaults to 'gemini-2.5-flash-lite').
+        metadata_filters: Optional filter expression (e.g., 'department == "finance"').
 
     Returns:
         The model's answer, potentially with citations.
     """
     
-    MODEL = "gemini-2.5-flash-lite" # Supports File Search properly
+    target_model = model or "gemini-2.5-flash-lite"
     
-    print(f"Querying store '{store_id}' with model {MODEL}...")
+    print(f"Querying store '{store_id}' with model {target_model}...")
     if system_prompt:
         print("Using custom system prompt...")
     
@@ -138,10 +182,14 @@ def ask_store_question(store_id: str, query: str, system_prompt: str = None) -> 
         # --- 1. Configure the FileSearch Tool ---
         from google.genai import types as genai_types
         
+        file_search_kwargs = {
+            'file_search_store_names': [store_id]
+        }
+        if metadata_filters:
+            file_search_kwargs['metadata_filter'] = metadata_filters
+        
         # Create the file search configuration
-        file_search_config = genai_types.FileSearch(
-            file_search_store_names=[store_id]
-        )
+        file_search_config = genai_types.FileSearch(**file_search_kwargs)
         
         # Create tool with file_search
         file_search_tool = genai_types.Tool(
@@ -159,7 +207,7 @@ def ask_store_question(store_id: str, query: str, system_prompt: str = None) -> 
 
         # --- 3. Generate Content ---
         response = client.models.generate_content(
-            model=MODEL,
+            model=target_model,
             contents=query,
             config=types.GenerateContentConfig(**config_kwargs)
         )

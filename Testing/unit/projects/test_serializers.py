@@ -139,18 +139,31 @@ class TestProjectCreateSerializer:
         assert 'storage_type' in serializer.errors
     
     def test_create_serializer_blocked_storage_types(self):
-        """Test that local and google storage types are rejected during validation"""
-        for storage_type in ['local', 'google']:
-            data = {
-                'project_id': f'blocked_{storage_type}_001',
-                'display_name': f'Blocked {storage_type}',
-                'storage_type': storage_type
-            }
-            
-            serializer = ProjectCreateSerializer(data=data)
-            assert not serializer.is_valid()
-            assert 'storage_type' in serializer.errors
-            assert serializer.errors['storage_type'][0] == "This functionality has not been implemented yet."
+        """Test that local storage type is rejected during validation"""
+        data = {
+            'project_id': 'blocked_local_001',
+            'display_name': 'Blocked Local',
+            'storage_type': 'local'
+        }
+        
+        serializer = ProjectCreateSerializer(data=data)
+        assert not serializer.is_valid()
+        assert 'storage_type' in serializer.errors
+        assert serializer.errors['storage_type'][0] == "This functionality has not been implemented yet."
+
+    def test_create_serializer_google_storage_type(self):
+        """Test that google storage type is accepted"""
+        data = {
+            'project_id': 'valid_google_001',
+            'display_name': 'Valid Google',
+            'storage_type': 'google',
+            'llm_model': 'gemini-2.5-flash-lite'
+        }
+        
+        serializer = ProjectCreateSerializer(data=data)
+        assert serializer.is_valid(), serializer.errors
+        project = serializer.save()
+        assert project.storage_type == 'google'
 
     def test_create_serializer_valid_storage_type(self):
         """Test that postgres storage type is accepted"""

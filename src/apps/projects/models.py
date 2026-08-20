@@ -81,6 +81,7 @@ class Project(models.Model):
     chunking = models.CharField(
         max_length=50,
         choices=[
+            ("gfs-default", "Google File Search - Default"),
             ("fixed-size", "Fixed-size"),
             ("sentence-paragraph", "Sentence/paragraph"),
             ("recursive", "Recursive"),
@@ -103,6 +104,8 @@ class Project(models.Model):
         max_length=100,
         choices=[
             ("gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite (Cloud)"),
+            ("gemini-3.5-flash-lite", "Gemini 3.5 Flash Lite (Cloud)"),
+            ("gemini-3.7-flash", "Gemini 3.7 Flash (Cloud)"),
             ("gemma4:12b-mlx", "Gemma 4 12B MLX (Local Ollama)"),
             ("gemma4:e2b-mlx", "Gemma 4 E2B MLX (Local Ollama - Ultra Fast)"),
             ("gemma4:e4b-mlx", "Gemma 4 E4B MLX (Local Ollama - Balanced)"),
@@ -117,10 +120,6 @@ class Project(models.Model):
     custom_prompt = models.BooleanField(
         default=False,
         help_text="Whether to use a custom prompt"
-    )
-    use_markitdown = models.BooleanField(
-        default=False,
-        help_text="Use MarkItDown pipeline (cannot be changed after first source is indexed)."
     )
     RESPONSE_MODE_CHOICES = [
         ("compact", "Compact (Fastest - Stuffs Context into 1 Call)"),
@@ -163,10 +162,23 @@ class Project(models.Model):
         """
         from django.core.exceptions import ValidationError
         super().clean()
-        if self.storage_type in ["local", "google"]:
+        if self.storage_type == "local":
             raise ValidationError({
                 "storage_type": "This functionality has not been implemented yet."
             })
+        if self.storage_type == "google":
+            allowed_gfs_models = ["gemini-2.5-flash-lite", "gemini-3.5-flash-lite", "gemini-3.7-flash"]
+            if self.llm_model not in allowed_gfs_models:
+                raise ValidationError({
+                    "llm_model": f"Only Gemini models ({', '.join(allowed_gfs_models)}) are supported for Google File Search projects."
+                })
+            # GFS parameter locks
+            self.use_hyde = False
+            self.synthesizer = False
+            self.response_mode = "compact"
+            self.chunking = "gfs-default"
+            self.embedding_model = "models/gemini-embedding-001"
+
         if self.pk:
             original = Project.objects.filter(pk=self.pk).values("embedding_model", "document_count").first()
             if original and (original["document_count"] > 0 or self.document_count > 0):
@@ -180,6 +192,20 @@ class Project(models.Model):
         Overridden to automatically generate a unique, backend-compliant project_id
         if it is left blank or empty (e.g., when created via the Django Admin).
         """
+        if self.storage_type == "google":
+            self.use_hyde = False
+            self.synthesizer = False
+            self.response_mode = "compact"
+            self.chunking = "gfs-default"
+            self.embedding_model = "models/gemini-embedding-001"
+            if not self.external_store_id:
+                try:
+                    from src.google_file_search import create_file_search_store
+                    self.external_store_id = create_file_search_store(display_name=self.display_name or "GFS Project")
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"Could not auto-provision GFS store during save: {e}")
+
         if not self.project_id:
             from datetime import datetime
             import time

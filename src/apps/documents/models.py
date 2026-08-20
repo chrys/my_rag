@@ -46,8 +46,24 @@ class Document(models.Model):
         blank=True,
         help_text="ID from external service (e.g., Google Document ID)"
     )
+    store_file_id = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Google Document Resource Name (e.g., fileSearchStores/.../documents/...)"
+    )
     
-    # File metadata
+    # File metadata & State Registry
+    content_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        db_index=True,
+        help_text="SHA-256 cryptographic hash of binary for deduplication"
+    )
+    custom_metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Stored key-value metadata tags"
+    )
     mime_type = models.CharField(
         max_length=100,
         blank=True,
