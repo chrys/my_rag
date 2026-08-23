@@ -7,6 +7,7 @@ import io
 import re
 import time
 import requests
+from pydantic import BaseModel
 from django.conf import settings
 from django.utils import timezone
 from src.apps.evaluate.models import (
@@ -1191,6 +1192,12 @@ def score_markdown_compatibility(text: str) -> float:
     return round(min(max(score, 0.0), 10.0), 1)
 
 
+class EvaluationScore(BaseModel):
+    faithfulness: float
+    context_utilization: float
+    citation_accuracy: float
+    instruction_following: float
+
 def score_qualitative_metrics_with_judge(
     question: str,
     ground_truth: str,
@@ -1238,13 +1245,7 @@ Retrieved Context:
 Model Answer:
 {model_answer}
 
-Respond ONLY with a valid JSON object matching this exact schema:
-{{
-  "faithfulness": 8.5,
-  "context_utilization": 9.0,
-  "citation_accuracy": 8.0,
-  "instruction_following": 9.5
-}}"""
+"""
 
     try:
         client = genai.Client(api_key=api_key)
@@ -1253,15 +1254,16 @@ Respond ONLY with a valid JSON object matching this exact schema:
             contents=judge_prompt,
             config=types.GenerateContentConfig(
                 temperature=0.0,
-                response_mime_type="application/json"
+                response_mime_type="application/json",
+                response_schema=EvaluationScore
             )
         )
-        data = json.loads(response.text)
+        data = response.parsed
         return {
-            "faithfulness": round(min(max(float(data.get("faithfulness", 5.0)), 0.0), 10.0), 1),
-            "context_utilization": round(min(max(float(data.get("context_utilization", 5.0)), 0.0), 10.0), 1),
-            "citation_accuracy": round(min(max(float(data.get("citation_accuracy", 5.0)), 0.0), 10.0), 1),
-            "instruction_following": round(min(max(float(data.get("instruction_following", 5.0)), 0.0), 10.0), 1),
+            "faithfulness": round(min(max(float(data.faithfulness), 0.0), 10.0), 1),
+            "context_utilization": round(min(max(float(data.context_utilization), 0.0), 10.0), 1),
+            "citation_accuracy": round(min(max(float(data.citation_accuracy), 0.0), 10.0), 1),
+            "instruction_following": round(min(max(float(data.instruction_following), 0.0), 10.0), 1),
         }
     except Exception as judge_exc:
         logger.warning(f"Judge model evaluation error: {judge_exc}")

@@ -99,7 +99,10 @@ class TestStructuralQualityGrading:
         # Mock Gemini client to return a score of 7/10 (quality threshold boundary)
         mock_client = MagicMock()
         mock_response = MagicMock()
-        mock_response.text = '{"score": 7, "reason": "Shattered sentences, words mashed together, and raw font codes found."}'
+        mock_parsed = MagicMock()
+        mock_parsed.score = 7
+        mock_parsed.reason = "Shattered sentences, words mashed together, and raw font codes found."
+        mock_response.parsed = mock_parsed
         mock_client.models.generate_content.return_value = mock_response
         mock_genai.return_value = mock_client
 
@@ -120,7 +123,10 @@ class TestStructuralQualityGrading:
         # Mock Gemini client to return a score of 8/10 (acceptable)
         mock_client = MagicMock()
         mock_response = MagicMock()
-        mock_response.text = '{"score": 8, "reason": "Text is clean and structure is intact."}'
+        mock_parsed = MagicMock()
+        mock_parsed.score = 8
+        mock_parsed.reason = "Text is clean and structure is intact."
+        mock_response.parsed = mock_parsed
         mock_client.models.generate_content.return_value = mock_response
         mock_genai.return_value = mock_client
 

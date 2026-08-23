@@ -36,7 +36,9 @@ class TestGFSMetadataPipeline:
     def test_extract_ai_metadata_success(self, mock_client):
         """Test Gemini Flash AI classification into structured metadata"""
         mock_response = MagicMock()
-        mock_response.text = '{"document_type": "Invoice", "department": "Finance", "language": "en"}'
+        mock_parsed = MagicMock()
+        mock_parsed.model_dump.return_value = {"document_type": "Invoice", "department": "Finance", "language": "en"}
+        mock_response.parsed = mock_parsed
         mock_client.models.generate_content.return_value = mock_response
 
         meta = extract_ai_metadata_with_gemini_flash("Invoice #123 for consulting services.")

@@ -379,6 +379,12 @@ def get_vector_store(project_id):
     )
 
 
+from pydantic import BaseModel
+
+class DocumentHygieneScore(BaseModel):
+    score: int
+    reason: str
+
 def check_structural_quality(filepath: str) -> None:
     """
     Evaluate structural quality of extracted text using gemini-2.5-flash-lite.
@@ -387,7 +393,6 @@ def check_structural_quality(filepath: str) -> None:
     from llama_index.core import SimpleDirectoryReader
     from google import genai
     from google.genai import types
-    import json
 
     # Extract first 1000 characters from file
     docs = SimpleDirectoryReader(input_files=[filepath]).load_data()
@@ -408,31 +413,29 @@ Look for these failure signs:
 - Excessive raw font artifact codes (e.g., "CID:12 CID:44")
 
 Score the text quality from 1 (Complete Garbage) to 10 (Perfectly Readable).
-Respond ONLY with a JSON object in this format:
-{{"score": int, "reason": "string"}}
 
 Text snippet:
 \"\"\"{snippet}\"\"\""""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash-lite",
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            temperature=0.1
-        ),
-    )
-
     try:
-        res_data = json.loads(response.text)
-        score = int(res_data.get("score", 10))
-        reason = res_data.get("reason", "")
+        response = client.models.generate_content(
+            model="gemini-2.5-flash-lite",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=DocumentHygieneScore,
+                temperature=0.1
+            ),
+        )
+
+        score = response.parsed.score
+        reason = response.parsed.reason
         # Log to the server terminal clearly
         logger.info(f"📊 [QUALITY GATE] Document: {filepath} | Score: {score}/10 | Reason: {reason}")
     except Exception as parse_err:
-        # Fallback if JSON parsing fails
+        # Fallback if validation or parsing fails
         score = 10
-        reason = f"Fallback due to parsing error: {str(parse_err)}"
+        reason = f"Fallback due to error: {str(parse_err)}"
 
     if score <= 7:
         raise ValueError(f"Extraction quality too low (Score: {score}/10). Reason: {reason}")
@@ -621,6 +624,13 @@ def extract_system_and_file_metadata(file_path: str, filename: str, user=None) -
     return metadata
 
 
+class DocumentMetadata(BaseModel):
+    document_type: str | None = None
+    department: str | None = None
+    language: str | None = None
+
+    model_config = {"extra": "allow"}
+
 def extract_ai_metadata_with_gemini_flash(sample_text: str) -> list[dict]:
     """
     Step 2: Content-Aware AI Extraction using gemini-2.5-flash-lite.
@@ -631,7 +641,6 @@ def extract_ai_metadata_with_gemini_flash(sample_text: str) -> list[dict]:
 
     try:
         from google.genai import types
-        import json
         from src import google_file_search as gfs
 
         if not gfs.client:
@@ -650,14 +659,15 @@ def extract_ai_metadata_with_gemini_flash(sample_text: str) -> list[dict]:
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
+                response_schema=DocumentMetadata,
                 temperature=0.1
             ),
         )
 
-        if not response or not response.text:
+        if not response or not response.parsed:
             return []
 
-        data = json.loads(response.text)
+        data = response.parsed.model_dump()
         metadata = []
         for k, v in data.items():
             if v is not None and str(v).strip():
