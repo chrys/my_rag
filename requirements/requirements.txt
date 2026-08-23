@@ -28,3 +28,4 @@ gunicorn==21.2.0
 # Database
  psycopg[binary]
 
+pydantic
