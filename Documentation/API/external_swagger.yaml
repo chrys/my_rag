@@ -1,0 +1,951 @@
+openapi: 3.0.3
+info:
+  title: My RAG Platform External Client API
+  description: |
+    Public & Client Integration API for Retrieval-Augmented Generation (RAG).
+    
+    This specification provides external systems, mobile clients, and front-end integrations with access to:
+    - **Authentication & Security:** Project-scoped API keys (`X-API-Key`) and session authentication.
+    - **RAG Chat & Q&A:** Context-aware natural language queries with verifiable source citations and user feedback recording.
+    - **System Prompts & AI Personas:** Viewing and managing custom system prompts for assigned projects.
+    - **Document Management:** Inspecting, listing, registering, and deleting project documents within vector stores.
+    
+    *Note: Administrative operations (creating/deleting projects, evaluation benchmarking runs, dataset curations, and API key provisioning) are restricted to internal platform administration and are excluded from this specification.*
+  version: 1.0.0
+servers:
+  - url: /rag/api
+    description: Base URL for My RAG API endpoints
+
+security:
+  - apiKeyAuth: []
+  - basicAuth: []
+  - cookieAuth: []
+
+paths:
+  # ==========================================
+  # CHAT & CONVERSATION
+  # ==========================================
+  /chat/:
+    post:
+      summary: Direct RAG Chat Query
+      description: |
+        Execute a natural language query against a project's knowledge base.
+        Uses vector similarity retrieval (or Google File Search) and LLM synthesis to return a grounded response with source citations.
+      operationId: chatQuery
+      tags:
+        - Chat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatQueryRequest'
+      responses:
+        '200':
+          description: Successful query response with answer and source citations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatQueryResponse'
+        '400':
+          description: Missing required fields (`store_id` or `query`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access forbidden for requested project store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal processing or LLM inference error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /chatbot/feedback/:
+    post:
+      summary: Record Chat Feedback
+      description: Submit user feedback (e.g. thumbs up / thumbs down, comments) on a chat response.
+      operationId: submitChatFeedback
+      tags:
+        - Chat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatbotFeedbackRequest'
+      responses:
+        '200':
+          description: Feedback recorded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatbotFeedbackResponse'
+        '400':
+          description: Invalid feedback payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /messages/:
+    get:
+      summary: List Chat Messages
+      description: Retrieve historical chat messages. Supports filtering by session or project.
+      operationId: listChatMessages
+      tags:
+        - Chat
+      parameters:
+        - name: project
+          in: query
+          required: false
+          description: Numeric Project ID
+          schema:
+            type: integer
+        - name: session_id
+          in: query
+          required: false
+          description: Unique session identifier
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of chat messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatMessageList'
+
+  /messages/{id}/:
+    get:
+      summary: Get Chat Message Details
+      description: Retrieve full details for a specific chat message.
+      operationId: getChatMessage
+      tags:
+        - Chat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Message PK ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Chat message details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessage'
+        '404':
+          description: Message not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /messages/by_session/:
+    get:
+      summary: List Messages by Session ID
+      description: Retrieve all chat history for a specific conversation session.
+      operationId: listMessagesBySession
+      tags:
+        - Chat
+      parameters:
+        - name: session_id
+          in: query
+          required: true
+          description: Session UUID or string
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatMessageList'
+
+  /messages/by_project/:
+    get:
+      summary: List Messages by Project
+      description: Retrieve all chat messages belonging to a specific project.
+      operationId: listMessagesByProject
+      tags:
+        - Chat
+      parameters:
+        - name: project_id
+          in: query
+          required: true
+          description: Project primary key ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Project messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatMessageList'
+
+  # ==========================================
+  # SYSTEM PROMPTS (PROJECT AI PERSONA)
+  # ==========================================
+  /projects/{id}/prompt/:
+    get:
+      summary: Get Project System Prompt
+      description: Retrieve the active system prompt and AI persona instructions bound to this project.
+      operationId: getProjectPrompt
+      tags:
+        - Prompts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Primary Key, project_id string, or external_store_id
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Active system prompt content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  prompt:
+                    type: string
+                    example: "You are an expert spiritual and theological guidance assistant."
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Set Project System Prompt
+      description: Update the AI system prompt governing persona, tone, and guardrails for this project.
+      operationId: setProjectPrompt
+      tags:
+        - Prompts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Primary Key, project_id string, or external_store_id
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  description: System prompt instructions content
+                  example: "You are an expert spiritual counselor adhering strictly to Orthodox Patristic sources."
+                prompt:
+                  type: string
+                  description: Alternative key for prompt content
+              required:
+                - content
+      responses:
+        '200':
+          description: Prompt saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  prompt:
+                    type: string
+
+  /prompts/:
+    get:
+      summary: List System Prompts
+      description: List system prompts available for the client's project(s).
+      operationId: listSystemPrompts
+      tags:
+        - Prompts
+      parameters:
+        - name: project
+          in: query
+          required: false
+          description: Filter by numeric project ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of system prompts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SystemPrompt'
+
+  /prompts/{id}/:
+    get:
+      summary: Get System Prompt Details
+      description: Get details of a system prompt by ID.
+      operationId: getSystemPrompt
+      tags:
+        - Prompts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemPrompt'
+    put:
+      summary: Update System Prompt
+      description: Update the system prompt content for a project.
+      operationId: updateSystemPrompt
+      tags:
+        - Prompts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SystemPrompt'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemPrompt'
+
+  # ==========================================
+  # DOCUMENT MANAGEMENT (PROJECT DOCUMENTS)
+  # ==========================================
+  /projects/{id}/documents/:
+    get:
+      summary: Get Project Documents
+      description: Retrieve all documents associated with a specific project.
+      operationId: getProjectDocuments
+      tags:
+        - Documents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Primary Key, project_id string, or external_store_id
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of project documents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentList'
+
+  /documents/:
+    get:
+      summary: List Documents
+      description: Retrieve all registered documents for the client's project.
+      operationId: listDocuments
+      tags:
+        - Documents
+      responses:
+        '200':
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentList'
+    post:
+      summary: Register Document Metadata
+      description: Register document record and metadata in the knowledge base.
+      operationId: createDocument
+      tags:
+        - Documents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentCreate'
+      responses:
+        '201':
+          description: Document registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+
+  /documents/by_project/:
+    get:
+      summary: Filter Documents by Project
+      description: List documents associated with a project ID.
+      operationId: listDocumentsByProject
+      tags:
+        - Documents
+      parameters:
+        - name: project_id
+          in: query
+          required: true
+          description: Project ID string or integer
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentList'
+
+  /documents/by_state/:
+    get:
+      summary: Filter Documents by Ingestion State
+      description: Filter documents by status (PENDING, INDEXING, INDEXED, FAILED).
+      operationId: listDocumentsByState
+      tags:
+        - Documents
+      parameters:
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [PENDING, INDEXING, INDEXED, FAILED]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentList'
+
+  /documents/indexed/:
+    get:
+      summary: List Indexed Documents
+      description: Retrieve all successfully indexed documents ready for retrieval.
+      operationId: listIndexedDocuments
+      tags:
+        - Documents
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentList'
+
+  /documents/failed/:
+    get:
+      summary: List Failed Documents
+      description: Retrieve documents that encountered errors during ingestion or hygiene validation.
+      operationId: listFailedDocuments
+      tags:
+        - Documents
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentList'
+
+  /documents/{document_id}:
+    delete:
+      summary: Delete Document by Filename
+      description: Catch-all route to delete a document when referenced by its filename (e.g. `report.pdf`).
+      operationId: deleteDocumentByFilename
+      tags:
+        - Documents
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          description: Document filename or identifier (e.g. `chrysostom_homilies.pdf`)
+          schema:
+            type: string
+        - name: store_id
+          in: query
+          required: false
+          description: Project Store ID to ensure index deletion in vector / GFS store
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Document deleted successfully
+
+  /documents/{id}/:
+    get:
+      summary: Get Document Details
+      description: Retrieve document metadata by numeric ID or document name.
+      operationId: getDocument
+      tags:
+        - Documents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '404':
+          description: Document not found
+    put:
+      summary: Update Document Metadata
+      description: Update display name or state of a document record.
+      operationId: updateDocument
+      tags:
+        - Documents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentUpdate'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+    delete:
+      summary: Delete Document
+      description: Permanently remove document from database and vector index.
+      operationId: deleteDocument
+      tags:
+        - Documents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: store_id
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Document deleted successfully
+
+  # ==========================================
+  # PROJECT DETAILS (READ-ONLY)
+  # ==========================================
+  /projects/{id}/:
+    get:
+      summary: Get Project Information
+      description: Retrieve project status, backend storage type, document count, and last indexed timestamp.
+      operationId: getProject
+      tags:
+        - Projects
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Primary Key ID, project_id string, or external_store_id
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# ==========================================
+# REUSABLE COMPONENTS & SCHEMAS
+# ==========================================
+components:
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Secret project-scoped API key header (e.g. `rag_live_...`)
+    basicAuth:
+      type: http
+      scheme: basic
+      description: HTTP Basic Authentication
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+      description: Django session cookie
+
+  schemas:
+    ChatQueryRequest:
+      type: object
+      required:
+        - store_id
+        - query
+      properties:
+        store_id:
+          type: string
+          description: Target project store identifier (e.g. `postgres_myproject`, `fileSearchStores/abc-123`, `google_project_xyz`)
+          example: "postgres_patristics"
+        query:
+          type: string
+          description: User natural language prompt or theological inquiry
+          example: "How does Saint John Chrysostom explain prayer in the Homilies on Matthew?"
+        system_prompt:
+          type: string
+          description: Optional transient system prompt override for this specific request
+          example: "Answer concisely in modern Greek with precise Patristic citations."
+
+    ChatQueryResponse:
+      type: object
+      properties:
+        user_message:
+          type: string
+          example: "How does Saint John Chrysostom explain prayer in the Homilies on Matthew?"
+        bot_response:
+          type: string
+          description: Markdown-formatted answer grounded in Patristic/source context
+          example: "Saint John Chrysostom teaches that prayer is the converse with God and the foundation of virtues..."
+        bot_response_html:
+          type: string
+          description: HTML-rendered formatted answer
+          example: "<p>Saint John Chrysostom teaches that prayer is the converse with God...</p>"
+        source_documents:
+          type: array
+          items:
+            type: string
+          description: Deduplicated list of source documents retrieved and used in the RAG synthesis
+          example: ["chrysostom_homilies_on_matthew_pg57.pdf"]
+
+    ChatbotFeedbackRequest:
+      type: object
+      required:
+        - message_id
+        - value
+      properties:
+        message_id:
+          type: string
+          description: ID of the message or response being rated
+          example: "142"
+        value:
+          type: string
+          enum: [up, down]
+          description: Feedback rating (thumbs up or thumbs down)
+          example: "up"
+        store_id:
+          type: string
+          description: Target project ID
+          example: "postgres_patristics"
+        query:
+          type: string
+          description: Original user query
+          example: "How does prayer heal the soul?"
+        reply:
+          type: string
+          description: Assistant response text
+          example: "Prayer connects the soul with Divine Grace..."
+        comment:
+          type: string
+          description: Optional user feedback comment
+          example: "Clear and accurate Patristic quotation."
+
+    ChatbotFeedbackResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        feedback_id:
+          type: integer
+          example: 87
+        rating:
+          type: string
+          example: "up"
+
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project:
+          type: integer
+        user:
+          type: integer
+          nullable: true
+        user_username:
+          type: string
+          readOnly: true
+        message_type:
+          type: string
+          enum: [user, bot, system]
+        content:
+          type: string
+        response_html:
+          type: string
+          readOnly: true
+        context_documents:
+          type: array
+          items:
+            type: string
+        system_prompt_used:
+          type: string
+        session_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    ChatMessageList:
+      type: object
+      properties:
+        id:
+          type: integer
+        message_type:
+          type: string
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        session_id:
+          type: string
+
+    SystemPrompt:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project:
+          type: integer
+          description: Associated Project PK ID
+        content:
+          type: string
+          example: "You are an expert spiritual counselor adhering strictly to Orthodox Patristic sources."
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project_id:
+          type: string
+          example: "postgres_patristics"
+        display_name:
+          type: string
+          example: "Orthodox Patristic Knowledge Base"
+        storage_type:
+          type: string
+          enum: [local, google, postgres]
+          example: "postgres"
+        external_store_id:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+          example: "Writings of the Eastern Church Fathers, Scripture, and Synaxarion."
+        is_active:
+          type: boolean
+          example: true
+        document_count:
+          type: integer
+          readOnly: true
+          example: 45
+        last_indexed_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        system_prompt:
+          $ref: '#/components/schemas/SystemPrompt'
+
+    Document:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project:
+          type: integer
+        document_name:
+          type: string
+          example: "chrysostom_homilies_on_matthew.pdf"
+        display_name:
+          type: string
+          example: "St. John Chrysostom - Homilies on Matthew"
+        external_document_id:
+          type: string
+          nullable: true
+        content_hash:
+          type: string
+          description: SHA-256 content checksum for deduplication
+          example: "0adaa4726b030c37c..."
+        mime_type:
+          type: string
+          example: "application/pdf"
+        file_size:
+          type: integer
+          example: 2048576
+        state:
+          type: string
+          enum: [PENDING, INDEXING, INDEXED, FAILED]
+          example: "INDEXED"
+        custom_metadata:
+          type: object
+          description: Key-value metadata tags associated with the document
+          example:
+            author: "Saint John Chrysostom"
+            century: "4th Century"
+            language: "Greek"
+        indexed_at:
+          type: string
+          format: date-time
+          nullable: true
+        error_message:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    DocumentList:
+      type: object
+      properties:
+        id:
+          type: integer
+        document_name:
+          type: string
+        display_name:
+          type: string
+        state:
+          type: string
+          enum: [PENDING, INDEXING, INDEXED, FAILED]
+        created_at:
+          type: string
+          format: date-time
+
+    DocumentCreate:
+      type: object
+      required:
+        - project
+        - document_name
+        - display_name
+      properties:
+        project:
+          type: integer
+        document_name:
+          type: string
+        display_name:
+          type: string
+        mime_type:
+          type: string
+        file_size:
+          type: integer
+        custom_metadata:
+          type: object
+
+    DocumentUpdate:
+      type: object
+      properties:
+        display_name:
+          type: string
+        state:
+          type: string
+          enum: [PENDING, INDEXING, INDEXED, FAILED]
+        error_message:
+          type: string
+        custom_metadata:
+          type: object
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Missing store_id or query"
+        detail:
+          type: string
+          example: "Invalid credentials provided or project not found."
