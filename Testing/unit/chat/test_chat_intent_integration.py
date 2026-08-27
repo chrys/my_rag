@@ -132,3 +132,80 @@ class TestChatIntentIntegration:
         # Turns logged
         history = ChatMessage.objects.filter(session_id=session_id)
         assert history.count() == 2
+
+    @patch("src.apps.documents.services.get_vector_store")
+    def test_chat_submit_htmx_greeting_intent(
+        self, mock_get_store, test_user, test_project
+    ):
+        """Web UI HTMX submit view intercepts greetings with 0 retrieval."""
+        from django.test import RequestFactory
+        from src.apps.chat.views import chat_submit
+
+        factory = RequestFactory()
+        request = factory.post(
+            "/submit/",
+            {
+                "store_id": test_project.project_id,
+                "query": "Good morning!",
+            },
+        )
+        request.user = test_user
+
+        response = chat_submit(request)
+        assert response.status_code == 200
+        assert b"Good morning" in response.content or b"assist" in response.content or b"help" in response.content
+        mock_get_store.assert_not_called()
+
+    @patch("llama_index.embeddings.google.GeminiEmbedding")
+    @patch("llama_index.llms.google_genai.GoogleGenAI")
+    @patch("src.apps.chat.intent_service.classify_query_intent")
+    @patch("llama_index.core.VectorStoreIndex.from_vector_store")
+    @patch("src.apps.documents.services.get_vector_store")
+    def test_multiturn_intent_conversation_persistence(
+        self, mock_get_store, mock_vector_index, mock_intent, mock_llm, mock_embed, test_user, test_project
+    ):
+        """A multi-turn conversation (greeting -> vague -> retrieval) saves all 6 turns."""
+        mock_engine = MagicMock()
+        mock_engine.query.return_value = "Detailed architecture answer."
+        mock_index = MagicMock()
+        mock_index.as_query_engine.return_value = mock_engine
+        mock_vector_index.return_value = mock_index
+
+        client = APIClient()
+        client.force_login(user=test_user)
+        session_id = "session_multiturn_100"
+
+        # Turn 1: Greeting (bypasses LLM, handled by heuristics)
+        res1 = client.post(
+            "/rag/api/chat/",
+            json.dumps({"store_id": test_project.project_id, "query": "Hello", "session_id": session_id}),
+            content_type="application/json",
+        )
+        assert res1.status_code == 200
+
+        # Turn 2: Vague query (handled by heuristics/clarification)
+        res2 = client.post(
+            "/rag/api/chat/",
+            json.dumps({"store_id": test_project.project_id, "query": "?", "session_id": session_id}),
+            content_type="application/json",
+        )
+        assert res2.status_code == 200
+
+        # Turn 3: Vector search query
+        mock_intent.return_value = {"intent": "VECTOR_SEARCH", "requires_retrieval": True, "response": None}
+        res3 = client.post(
+            "/rag/api/chat/",
+            json.dumps({"store_id": test_project.project_id, "query": "Explain system architecture", "session_id": session_id}),
+            content_type="application/json",
+        )
+        assert res3.status_code == 200
+
+        # Verify all 6 messages are saved in chronological order
+        msgs = ChatMessage.objects.filter(session_id=session_id).order_by("created_at")
+        assert msgs.count() == 6
+        assert msgs[0].message_type == "user" and msgs[0].content == "Hello"
+        assert msgs[1].message_type == "assistant"
+        assert msgs[2].message_type == "user" and msgs[2].content == "?"
+        assert msgs[3].message_type == "assistant"
+        assert msgs[4].message_type == "user" and msgs[4].content == "Explain system architecture"
+        assert msgs[5].message_type == "assistant" and msgs[5].content == "Detailed architecture answer."
