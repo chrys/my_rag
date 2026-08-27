@@ -94,10 +94,13 @@ class TestChatIntentIntegration:
         history = ChatMessage.objects.filter(session_id=session_id)
         assert history.count() == 2
 
+    @patch("llama_index.embeddings.google.GeminiEmbedding")
+    @patch("llama_index.llms.google_genai.GoogleGenAI")
+    @patch("src.apps.chat.intent_service.classify_query_intent", return_value={"intent": "VECTOR_SEARCH", "requires_retrieval": True, "response": None})
     @patch("llama_index.core.VectorStoreIndex.from_vector_store")
     @patch("src.apps.documents.services.get_vector_store")
     def test_informational_query_executes_retrieval_and_logs_history(
-        self, mock_get_store, mock_vector_index, test_user, test_project
+        self, mock_get_store, mock_vector_index, mock_intent, mock_llm, mock_embed, test_user, test_project
     ):
         mock_engine = MagicMock()
         mock_engine.query.return_value = "The project roadmap includes Q4 delivery."

@@ -274,6 +274,7 @@ class TestSwaggerDocumentsAPI:
     @pytest.fixture
     def client(self, user):
         client = APIClient()
+        client.force_login(user)
         client.force_authenticate(user=user)
         return client
 

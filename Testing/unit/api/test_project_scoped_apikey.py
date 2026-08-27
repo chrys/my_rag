@@ -150,13 +150,14 @@ class TestChatAPIKeyAuthenticationAndScoping:
         mock_engine = mocker.Mock()
         mock_engine.query.return_value = "API Key query successful."
         mocker.patch("src.apps.chat.views.get_rag_engine", return_value=mock_engine)
+        mocker.patch("src.apps.chat.intent_service.classify_query_intent", return_value={"intent": "VECTOR_SEARCH", "requires_retrieval": True, "response": None})
 
         client = Client()
         response = client.post(
             "/rag/api/chat/",
             data=json.dumps({
                 "store_id": "local_scoped_chat_test",
-                "query": "Hello via API Key"
+                "query": "Retrieve documentation for the project"
             }),
             content_type="application/json",
             HTTP_X_API_KEY=api_key.key
@@ -182,13 +183,14 @@ class TestChatAPIKeyAuthenticationAndScoping:
         mock_engine = mocker.Mock()
         mock_engine.query.return_value = "Bearer token response."
         mocker.patch("src.apps.chat.views.get_rag_engine", return_value=mock_engine)
+        mocker.patch("src.apps.chat.intent_service.classify_query_intent", return_value={"intent": "VECTOR_SEARCH", "requires_retrieval": True, "response": None})
 
         client = Client()
         response = client.post(
             "/rag/api/chat/",
             data=json.dumps({
                 "store_id": "local_bearer_chat_test",
-                "query": "Hello via Bearer Token"
+                "query": "Retrieve documentation with bearer token"
             }),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Bearer {api_key.key}"

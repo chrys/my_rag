@@ -1,5 +1,5 @@
 import os
-os.environ["GOOGLE_API_KEY"] = "AIzaSyDummyKeyForTesting"
+os.environ.setdefault("GOOGLE_API_KEY", "AIzaSyDummyKeyForTesting")
 
 import pytest
 import uuid

@@ -67,10 +67,13 @@ def unscoped_key_regular_user(db, user_a):
 
 @pytest.mark.django_db
 class TestTenantIsolationAndKeyScoping:
+    @patch("llama_index.embeddings.google.GeminiEmbedding")
+    @patch("llama_index.llms.google_genai.GoogleGenAI")
+    @patch("src.apps.chat.intent_service.classify_query_intent", return_value={"intent": "VECTOR_SEARCH", "requires_retrieval": True, "response": None})
     @patch("llama_index.core.VectorStoreIndex.from_vector_store")
     @patch("src.apps.documents.services.get_vector_store")
     def test_api_key_scoped_to_assigned_project_succeeds(
-        self, mock_get_store, mock_vector_index, key_for_project_a, project_a
+        self, mock_get_store, mock_vector_index, mock_intent, mock_llm, mock_embed, key_for_project_a, project_a
     ):
         mock_engine = MagicMock()
         mock_engine.query.return_value = "Answer for project A"
