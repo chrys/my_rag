@@ -100,7 +100,7 @@ A RAG-based dashboard using Django and LlamaIndex.
 - Always create a regression test for bug fixes. Regression tests should go under `Testing/regression/` 
 
 ## Git commands
-- DO NOT run git commands. I will commit and push code when needed. 
+- DO NOT run modifying git commands (e.g., git add, git commit, git push, git checkout, git reset). I will commit and push code when needed. You may only use git in read-only mode for investigation (e.g., git status, git log, git diff). 
 
 ## Implementation Guardrails
 
@@ -122,5 +122,4 @@ A RAG-based dashboard using Django and LlamaIndex.
 - Don't break existing tests
 - Don't use raw SQL (use Django ORM)
 - Don't create N+1 query problems
-- Don't start work without clean git status
-- Don't run git commands
+- Don't run modifying git push commands. 
