@@ -50,7 +50,7 @@
 
 ## Phase 3: Pre-Retrieval Intent Classification & Disambiguation (Task 3)
 
-- [ ] **Task 3.1: Build Hybrid Intent Classification Service**
+- [x] **Task 3.1: Build Hybrid Intent Classification Service**
   - **Description:** Implement `src/apps/chat/intent_service.py` with fast regex heuristics for greetings/chitchat and structured Gemini Flash intent classification for ambiguity detection.
   - **Acceptance:** Intent classifier routes queries to `GREETING_OR_CHITCHAT`, `VECTOR_SEARCH`, `CLARIFICATION_NEEDED`, or `OUT_OF_SCOPE`.
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/chat/test_intent_classification.py`
