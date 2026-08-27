@@ -96,6 +96,35 @@ class TestAdminGovernanceRBAC:
         # Results
         assert client.get("/rag/api/results/").status_code == 403
 
+    def test_anonymous_user_blocked_from_all_admin_endpoints(self, test_project):
+        client = APIClient()
+
+        assert client.get("/rag/api/keys/").status_code in [401, 403]
+        assert client.post("/rag/api/keys/", {"name": "Key", "project": test_project.id}).status_code in [401, 403]
+        assert client.get("/rag/api/usage/").status_code in [401, 403]
+        assert client.get("/rag/api/datasets/").status_code in [401, 403]
+        assert client.get("/rag/api/runs/").status_code in [401, 403]
+        assert client.get("/rag/api/results/").status_code in [401, 403]
+
+    def test_superuser_can_access_all_admin_endpoints(self, db, test_project):
+        superuser = User.objects.create_superuser(username="super_gov", password="password123")
+        client = APIClient()
+        client.force_authenticate(user=superuser)
+
+        assert client.get("/rag/api/keys/").status_code == 200
+        assert client.get("/rag/api/usage/").status_code == 200
+        assert client.get("/rag/api/datasets/").status_code == 200
+        assert client.get("/rag/api/runs/").status_code == 200
+        assert client.get("/rag/api/results/").status_code == 200
+
+    def test_non_admin_cannot_delete_or_patch_evaluations(self, regular_user):
+        client = APIClient()
+        client.force_authenticate(user=regular_user)
+
+        assert client.patch("/rag/api/datasets/1/", {"name": "Hacked"}).status_code == 403
+        assert client.delete("/rag/api/datasets/1/").status_code == 403
+        assert client.delete("/rag/api/runs/1/").status_code == 403
+
     def test_staff_admin_can_access_evaluation_endpoints(self, staff_admin):
         client = APIClient()
         client.force_authenticate(user=staff_admin)

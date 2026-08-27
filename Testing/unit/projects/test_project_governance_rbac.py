@@ -123,3 +123,55 @@ class TestProjectGovernanceRBAC:
         get_prompt = client.get(f"/api/projects/{regular_project.project_id}/prompt/")
         assert get_prompt.status_code == 200
         assert get_prompt.data["prompt"] == "You are a helpful assistant."
+
+    def test_anonymous_user_blocked_from_projects_api(self, regular_project):
+        client = APIClient()
+
+        assert client.get("/api/projects/").status_code in [401, 403]
+        assert client.get(f"/api/projects/{regular_project.project_id}/").status_code in [401, 403]
+        assert client.post("/api/projects/", {"project_id": "anon_proj"}).status_code in [401, 403]
+
+    def test_regular_user_cannot_read_or_mutate_other_user_project(self, other_user, regular_project):
+        client = APIClient()
+        client.force_authenticate(user=other_user)
+
+        # Cross-user project read
+        get_res = client.get(f"/api/projects/{regular_project.project_id}/")
+        assert get_res.status_code in [403, 404]
+
+        # Cross-user prompt set
+        prompt_res = client.post(
+            f"/api/projects/{regular_project.project_id}/prompt/",
+            {"content": "Hacked prompt"},
+            format="json",
+        )
+        assert prompt_res.status_code in [403, 404]
+
+    def test_superuser_can_manage_all_projects(self, db, regular_project):
+        superuser = User.objects.create_superuser(username="super_proj", password="password123")
+        client = APIClient()
+        client.force_authenticate(user=superuser)
+
+        # Create
+        create_res = client.post(
+            "/api/projects/",
+            {
+                "project_id": "proj_superuser_created",
+                "display_name": "Superuser Project",
+                "storage_type": "postgres",
+            },
+            format="json",
+        )
+        assert create_res.status_code == 201
+
+        # Read any user's project
+        get_res = client.get(f"/api/projects/{regular_project.project_id}/")
+        assert get_res.status_code == 200
+
+        # Update any user's project
+        patch_res = client.patch(
+            f"/api/projects/{regular_project.project_id}/",
+            {"display_name": "Superuser Modified"},
+            format="json",
+        )
+        assert patch_res.status_code == 200
