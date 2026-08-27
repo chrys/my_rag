@@ -566,6 +566,11 @@ def delete_document(request, document_id):
     # Strip trailing slash if any (from URL matching)
     document_id = document_id.rstrip('/')
     store_id = request.GET.get('store_id')
+    project = Project.objects.filter(project_id=store_id).first() if store_id else None
+
+    # Check tenant ownership
+    if project and project.user and project.user != request.user and not (getattr(request.user, 'is_staff', False) or getattr(request.user, 'is_superuser', False)):
+        return JsonResponse({'error': 'You do not have permission to delete documents from this project.'}, status=403)
     
     try:
         if store_id and store_id.startswith('local_'):
@@ -575,8 +580,7 @@ def delete_document(request, document_id):
             
             if success:
                 storage.remove_document(store_id, document_id)
-        elif store_id and (store_id.startswith('rag_') or store_id.startswith('postgres_')):
-            project = Project.objects.filter(project_id=store_id).first()
+        elif store_id and (store_id.startswith('rag_') or store_id.startswith('postgres_') or (project and project.storage_type == 'postgres')):
             if project:
                 from src.postgres_rag import PostgresRAGEngine
                 try:

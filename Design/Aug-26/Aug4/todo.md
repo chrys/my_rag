@@ -38,13 +38,13 @@
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/chat/test_tenant_isolation.py`
   - **Files:** `src/apps/chat/views.py`, `src/apps/documents/api_views.py`
 
-- [ ] **Task 2.2: Enforce Hard Database-Level Metadata Filtering in Postgres RAG**
+- [x] **Task 2.2: Enforce Hard Database-Level Metadata Filtering in Postgres RAG**
   - **Description:** Ensure `PostgresRAGEngine` in `src/postgres_rag.py` and document deletion services inject deterministic `project_id` filters into every SQL/vector query.
   - **Acceptance:** Retrieval queries against database strictly isolate project chunks.
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/documents/test_document_isolation.py`
   - **Files:** `src/postgres_rag.py`, `src/apps/documents/services.py`
 
-- [ ] **Checkpoint 2:** Run all Phase 2 isolation and security tests.
+- [x] **Checkpoint 2:** Run all Phase 2 isolation and security tests.
 
 ---
 

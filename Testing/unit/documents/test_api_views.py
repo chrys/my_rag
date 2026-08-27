@@ -1,75 +1,8 @@
 
 import pytest
-from rest_framework.test import APIRequestFactory
-from django.contrib.auth.models import User
-
-# Also patch get_queryset to ignore user filtering in these isolated tests because they don't mock it well
-def mock_get_queryset(self):
-    return self.queryset
-
-
-import pytest
-from rest_framework.test import APIRequestFactory
-from django.contrib.auth.models import User
-
-# Patch request factory to always attach a user
-old_get = APIRequestFactory.get
-old_post = APIRequestFactory.post
-old_put = APIRequestFactory.put
-old_patch = APIRequestFactory.patch
-old_delete = APIRequestFactory.delete
-
-def _attach_user(request):
-    try:
-        user = User.objects.first()
-        if not user:
-            user = User.objects.create(username='test_factory_user')
-        request.user = user
-    except Exception:
-        pass
-    return request
-
-def wrapped_get(self, *args, **kwargs):
-    return _attach_user(old_get(self, *args, **kwargs))
-
-def wrapped_post(self, *args, **kwargs):
-    return _attach_user(old_post(self, *args, **kwargs))
-
-def wrapped_put(self, *args, **kwargs):
-    return _attach_user(old_put(self, *args, **kwargs))
-
-def wrapped_patch(self, *args, **kwargs):
-    return _attach_user(old_patch(self, *args, **kwargs))
-
-def wrapped_delete(self, *args, **kwargs):
-    return _attach_user(old_delete(self, *args, **kwargs))
-
-APIRequestFactory.get = wrapped_get
-APIRequestFactory.post = wrapped_post
-APIRequestFactory.put = wrapped_put
-APIRequestFactory.patch = wrapped_patch
-APIRequestFactory.delete = wrapped_delete
-
-import rest_framework.permissions
-from rest_framework.permissions import AllowAny
-
-# Patch permission classes for these tests since we changed AllowAny to IsAuthenticated
-original_has_permission = rest_framework.permissions.IsAuthenticated.has_permission
-
-def bypass_auth(self, request, view):
-    return True
-
-rest_framework.permissions.IsAuthenticated.has_permission = bypass_auth
-from rest_framework.test import force_authenticate
-from unittest.mock import patch
-"""
-Unit tests for documents app API views
-Tests DocumentViewSet and custom actions
-"""
-
-import pytest
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework import status
+from django.contrib.auth.models import User
 from src.apps.projects.models import Project
 from src.apps.documents.models import Document
 from src.apps.documents.api_views import DocumentViewSet
@@ -82,9 +15,15 @@ def api_factory():
 
 
 @pytest.fixture
-def project():
+def user(db):
+    return User.objects.create_user(username='doc_test_user', password='password123')
+
+
+@pytest.fixture
+def project(user):
     """Fixture for creating a project"""
     return Project.objects.create(
+        user=user,
         project_id='api_doc_proj',
         display_name='API Document Project'
     )
@@ -281,13 +220,10 @@ class TestDocumentViewSet:
         project_docs = [d for d in docs if d.get('id') == doc1.id]
         assert len(project_docs) == 1
     
-    def test_by_project_missing_param(self, api_factory):
+    def test_by_project_missing_param(self, api_factory, user):
         """Test by_project requires project_id parameter"""
         request = api_factory.get('/api/documents/by_project/')
-        if 'user' in locals():
-            force_authenticate(request, user=user)
-        elif 'project' in locals() and getattr(project, 'user', None):
-            force_authenticate(request, user=project.user)
+        force_authenticate(request, user=user)
         view = DocumentViewSet.as_view({'get': 'by_project'})
         response = view(request)
         
@@ -320,7 +256,7 @@ class TestDocumentViewSet:
         indexed_docs = [d for d in docs if d.get('state') == 'INDEXED']
         assert len(indexed_docs) >= 1
     
-    def test_by_state_missing_param(self, api_factory):
+    def test_by_state_missing_param(self, api_factory, user):
         """Test by_state requires state parameter"""
         request = api_factory.get('/api/documents/by_state/')
         if 'user' in locals():
@@ -506,6 +442,3 @@ class TestDocumentViewSet:
         results = response.data if isinstance(response.data, list) else response.data.get('results', [])
         assert len(results) >= 1
         assert all(doc['project'] == project.id for doc in results)
-
-from src.apps.documents.api_views import DocumentViewSet
-DocumentViewSet.get_queryset = mock_get_queryset
