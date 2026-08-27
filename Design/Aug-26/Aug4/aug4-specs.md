@@ -1,21 +1,129 @@
-# Technical Specification: Admin-Only Governance & Role-Based Access Control (RBAC)
+# Spec: Sprint Aug 4 - Admin Governance, Tenant Isolation & Intent Classification
 
 **Sprint:** August 2026 (Aug 4)  
 **Document Path:** `Design/Aug-26/Aug4/aug4-specs.md`  
-**Status:** Requirements Specification (Pending Implementation)  
+**Status:** Aligned & Approved Specification  
 
 ---
 
-## 1. Executive Summary & Problem Statement
+## 1. Objective
 
-Currently, any authenticated user can create, modify, or delete projects and generate API keys. To ensure robust security and separation of concerns between **Platform Administrators** and **External Systems / Mobile Clients (e.g. Logos)**:
-- **Administrative Operations** (provisioning projects, deleting stores, generating API keys, dataset curation, and running evaluation benchmarks) must be strictly restricted to **Admins (Staff / Superusers)**.
-- **Client Operations** (sending chat queries, submitting feedback, reading project metadata, managing documents in their assigned project, and adjusting their project's system prompt) must be permitted for **Authorized Project API Keys and assigned users**.
+To provide an enterprise-grade, secure, and cost-efficient RAG platform by achieving three core objectives:
+1. **Admin-Only Governance & RBAC (Task 1):** Restrict DRF REST API endpoints for project provisioning (`POST/PUT/DELETE /api/projects/`), API key management (`/api/keys/`), telemetry (`/api/usage/`), and evaluation benchmarks (`/api/datasets/`, `/api/runs/`, `/api/results/`) strictly to **Staff / Superuser Administrators**. Client API keys are restricted to scoped project operations (`/chat/`, `/documents/`, `/prompt/`).
+2. **Secure Tenant Isolation & Context Boundaries (Task 2):** Enforce strict project scoping for API keys (all client keys must be tied to a specific `project_id`). Enforce deterministic database-level context boundaries (mandatory `project_id` and `user_id` metadata filters) on all vector searches and document retrievals. Unauthorized attempts abort before vector retrieval with zero token leakage to the LLM.
+3. **Pre-Retrieval Intent Classification (Task 3):** Implement a hybrid query routing layer (fast regex heuristics for greetings/chitchat + structured Gemini Flash intent classification for ambiguity detection) to intercept greetings, meta-prompts, and ambiguous queries before executing vector searches. Ambiguous queries prompt the user for clarification, and all conversation turns are preserved in `ChatMessage` history.
 
 ---
 
-## 2. Role & Permission Matrix
+## 2. Tech Stack
 
+- **Backend Framework:** Django 4.x / Django REST Framework (DRF)
+- **RAG & Vector Retrieval:** LlamaIndex, PostgreSQL / PGVector (`psycopg2`), Local RAG, Google GenAI SDK (`google-genai`)
+- **LLM & Embeddings:** Gemini Models (`gemini-2.5-flash`, `gemini-embedding-001`)
+- **Frontend / Client Surface:** Bootstrap, HTMX, REST API (`/api/` and `/rag/api/`)
+- **Testing:** Pytest, pytest-django, unittest
+
+---
+
+## 3. Commands
+
+- **Run Dev Server:** `python manage.py runserver`
+- **Run All Unit Tests:** `DJANGO_ENV=testing pytest Testing/unit -v`
+- **Run Focused RBAC Tests:** `DJANGO_ENV=testing pytest Testing/unit/api Testing/unit/projects -v`
+- **Run Intent Classification & Isolation Tests:** `DJANGO_ENV=testing pytest Testing/unit/chat Testing/unit/documents -v`
+- **Run Regression Suite:** `DJANGO_ENV=testing pytest Testing/regression -v`
+- **Check Linter / Style:** `flake8 src/ apps/`
+
+---
+
+## 4. Project Structure
+
+```text
+src/
+  apps/
+    api/              # DRF endpoints, API Key management, Usage telemetry
+      api_views.py    # APIKeyViewSet, APIUsageViewSet (Admin-restricted)
+      permissions.py  # Custom DRF permissions (IsAdminUserOnly, IsAdminOrProjectReadOnly)
+    projects/         # Project lifecycle & prompt management
+      api_views.py    # ProjectViewSet (Admin-only CRUD, scoped read)
+    evaluate/         # Benchmark datasets & run execution
+      api_views.py    # EvaluationDatasetViewSet, EvaluationRunViewSet (Admin-only)
+    chat/             # Chat UI, conversational endpoints, feedback
+      views.py        # chat API, intent routing, bounded disambiguation
+      services.py     # Intent classifier, routing heuristics, response builders
+    documents/        # Document uploads, indexing, vector store metadata
+      api_views.py    # DocumentViewSet (Tenant-isolated scoped access)
+      services.py     # Deterministic query filtering & store handlers
+  postgres_rag.py     # Postgres / PGVector engine with hard metadata filtering
+  local_rag.py        # Local vector index engine
+Testing/
+  unit/               # Unit test suites for permissions, isolation, and intent
+```
+
+---
+
+## 5. Code Style
+
+- Use **f-strings** for formatting (no `%` or `.format()` formatting).
+- Use **double quotes** (`"..."`) consistently for strings.
+- Use explicit **type hints** (`def route_query(query: str, project_id: str) -> IntentResult:`) and clear docstrings.
+- Follow **PEP 8** standard conventions and idiomatic DRF permission handling.
+
+```python
+# Code Style Example: Custom DRF Permission
+from rest_framework.permissions import BasePermission, SAFE_METHODS
+from rest_framework.request import Request
+from rest_framework.views import APIView
+
+
+class IsAdminOrProjectReadOnly(BasePermission):
+    """
+    Grants read-only access (GET/HEAD/OPTIONS) to authenticated users/scoped keys,
+    while restricting write operations (POST/PUT/PATCH/DELETE) strictly to staff/superusers.
+    """
+
+    def has_permission(self, request: Request, view: APIView) -> bool:
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if request.method in SAFE_METHODS:
+            return True
+        return bool(request.user.is_staff or request.user.is_superuser)
+```
+
+---
+
+## 6. Testing Strategy
+
+- **Test Framework:** `pytest` with `pytest-django` running under `DJANGO_ENV=testing`.
+- **Test Locations:**
+  - `Testing/unit/api/test_rbac_permissions.py` (Tests Scenarios 1–5: Admin-only CRUD, keys, eval, telemetry).
+  - `Testing/unit/chat/test_tenant_isolation.py` (Tests Scenarios 6–7: Scoped API key access, cross-tenant rejection).
+  - `Testing/unit/chat/test_intent_classification.py` (Tests Task 3: Greetings bypass retrieval, ambiguous queries trigger clarification).
+- **Mocking Policy:** Mock external GenAI embedding/completion calls in unit tests to ensure deterministic and fast CI runs.
+
+---
+
+## 7. Boundaries
+
+- **Always:**
+  - Verify project ownership and attach deterministic `project_id` and `user_id` filters on all vector retrieval queries.
+  - Return standard JSON error responses (`{"error": "..."}`) with appropriate HTTP status codes (401, 403, 400).
+  - Persist all chat turns (including greetings and clarification requests) in `ChatMessage` history.
+- **Ask First:**
+  - Altering existing database schema migrations or core model structures.
+  - Introducing new external third-party packages outside of `google-genai` and Django ecosystem.
+- **Never:**
+  - Never allow an API key to execute vector queries or document operations across projects outside its assigned `project_id`.
+  - Never trigger vector embedding or similarity search for trivial greetings or out-of-scope queries.
+  - Never leak model prompt tokens or internal document excerpts upon 401/403 unauthorized attempts.
+
+---
+
+## 8. Detailed Task Specifications
+
+### TASK 1: Admin-Only Governance & Role-Based Access Control (RBAC)
+
+#### Role & Permission Matrix
 | Endpoint Group | Resource / URL | External / Client API Key | Authenticated Regular User | Staff / Superuser Admin |
 |---|---|:---:|:---:|:---:|
 | **Chat & Q&A** | `POST /chat/`<br>`POST /chatbot/feedback/`<br>`GET /messages/` | ✅ Allowed (Scoped Project) | ✅ Allowed (Own Projects) | ✅ Full Access |
@@ -27,99 +135,49 @@ Currently, any authenticated user can create, modify, or delete projects and gen
 | **Telemetry** | `GET /usage/*` | ❌ **FORBIDDEN (403)** | ❌ **FORBIDDEN (403)** | ✅ Allowed |
 | **Datasets & Eval** | `GET, POST /datasets/*`<br>`GET, POST /runs/*`<br>`GET /results/*` | ❌ **FORBIDDEN (403)** | ❌ **FORBIDDEN (403)** | ✅ Allowed |
 
----
-
-## 3. Detailed Component Specifications
-
-### 3.1 Project Governance (`src/apps/projects/api_views.py`)
-- **`ProjectViewSet` Permissions:**
-  - `list` / `retrieve`: Accessible to authenticated users and project-scoped API keys (filtered strictly to their assigned projects).
-  - `create`: Restricted to `request.user.is_staff or request.user.is_superuser`. Non-admin attempts return `403 Forbidden` (`"Only administrators can create projects."`).
-  - `update` / `partial_update` / `destroy`: Restricted to `request.user.is_staff or request.user.is_superuser`. Non-admin attempts return `403 Forbidden` (`"Only administrators can modify or delete projects."`).
-- **Prompt & Document Sub-endpoints:**
-  - `GET /projects/{id}/prompt/` & `POST /projects/{id}/prompt/`: Allowed for the assigned project owner or authorized project API key.
-  - `GET /projects/{id}/documents/`: Allowed for the assigned project owner or authorized project API key.
+#### Custom DRF Permissions
+1. `IsAdminUserOnly`: Restricts all actions on `/keys/`, `/usage/`, `/datasets/`, `/runs/`, and `/results/` to `request.user.is_staff or request.user.is_superuser`.
+2. `IsAdminOrProjectReadOnly`: Allows `GET`/`HEAD`/`OPTIONS` on `/projects/` for assigned users / scoped keys, but restricts `POST`, `PUT`, `PATCH`, `DELETE` to staff/superusers.
 
 ---
 
-### 3.2 API Key Governance (`src/apps/api/api_views.py`)
-- **`APIKeyViewSet` Permissions:**
-  - Change permission class from general `[IsAuthenticated]` to **Admin-Only** (`[IsAdminUser]` / `is_staff`).
-  - Regular users and external API keys cannot list (`GET /keys/`), generate (`POST /keys/`), or delete (`DELETE /keys/{id}/`) API keys via the REST API. Key provisioning is managed exclusively through the Django Admin dashboard or by staff administrators.
+### TASK 2: Secure Tenant Isolation & Context Boundaries
+
+1. **Strict Key Scoping:**
+   - External client API keys must have `project_id` assigned. Unscoped keys (`project=None`) are rejected for non-admin chat and document operations.
+2. **Deterministic Filter Enforcement:**
+   - Vector search queries in `PostgresRAGEngine` and `src/apps/chat/views.py` mandate pre-execution verification of `project_id` and authenticated `user_id`.
+   - SQL queries and vector store operations inject hard `WHERE project_id = :project_id` filters into every database query, ensuring zero cross-tenant chunk leakage even under prompt injection attempts.
+3. **Pre-Execution Validation:**
+   - Any query attempt where the incoming API key does not match the requested `project_id` immediately aborts with `403 Forbidden` (`"API key is not authorized for this project store."`) with zero tokens sent to GenAI.
 
 ---
 
-### 3.3 Evaluation & Dataset Governance (`src/apps/evaluate/api_views.py`)
-- **`EvaluationDatasetViewSet`, `EvaluationRunViewSet`, `EvaluationResultMetricsViewSet` Permissions:**
-  - Enforce **Admin-Only** (`[IsAdminUser]`) on all evaluation endpoints.
-  - External systems and non-admin users cannot trigger evaluation runs or view benchmark test results.
+### TASK 3: Pre-Retrieval Intent Classification & Bounded Disambiguation
+
+1. **Hybrid Architecture:**
+   - **Fast Heuristic Stage:** Evaluate the incoming query against standard conversational intents (e.g. greetings, thanks, farewells) via fast regex/pattern matching. Returns immediate conversational responses with **0 vector searches** and minimal latency.
+   - **Structured Intent Classifier (Gemini Flash):** For non-trivial queries, classify the query into execution paths:
+     - `GREETING_OR_CHITCHAT`: Casual dialogue -> Respond directly without vector search.
+     - `VECTOR_SEARCH`: Informational query requiring document retrieval -> Proceed to filtered vector search.
+     - `CLARIFICATION_NEEDED`: Query is vague, underspecified, or ambiguous -> Return structured clarification prompt asking the user to specify their question, halting retrieval.
+     - `OUT_OF_SCOPE`: System instructions or off-topic prompts -> Respond with guardrail boundary message.
+2. **Bounded Disambiguation:**
+   - If ambiguity is detected or query clarity is insufficient, prompt the user for clarification directly instead of executing low-similarity, noisy vector lookups.
+3. **Session Persistence:**
+   - All turns (greetings, clarification requests, direct answers, and document-backed answers) are logged to `ChatMessage` to ensure conversation continuity in the chat UI.
 
 ---
 
-### 3.4 Usage Telemetry Governance (`src/apps/api/api_views.py`)
-- **`APIUsageViewSet` Permissions:**
-  - Enforce **Admin-Only** (`[IsAdminUser]`) on `/usage/`, `/usage/by_key/`, `/usage/by_endpoint/`, and `/usage/summary/`.
-
----
-
-### 3.5 Client-Accessible Operations (Chat & Documents)
-- **`chat` & `chatbot_feedback` (`src/apps/chat/views.py`):**
-  - Verify project authorization via `X-API-Key` or user session. If the API key is scoped to `project_A`, querying `project_B` returns `403 Forbidden`.
-- **`DocumentViewSet` (`src/apps/documents/api_views.py`):**
-  - Allow listing, registering metadata, and deleting documents for the project linked to the authenticated user or API key.
-  - Block cross-project document deletion.
-
----
-
-## 4. Custom DRF Permission Classes
-
-To enforce these rules cleanly across DRF viewsets, custom permission classes will be introduced:
-
-```python
-# Architecture Concept (For Implementation Phase)
-class IsAdminOrProjectReadOnly(BasePermission):
-    """
-    - Allows GET/HEAD/OPTIONS for authenticated users on their assigned project.
-    - Requires is_staff / is_superuser for POST, PUT, PATCH, DELETE.
-    """
-    def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        if request.method in SAFE_METHODS:
-            return True
-        return bool(request.user.is_staff or request.user.is_superuser)
-
-class IsAdminUserOnly(BasePermission):
-    """
-    Requires request.user.is_staff or request.user.is_superuser for all methods.
-    """
-    def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser))
-```
-
----
-
-## 5. Security & Error Response Standards
-
-1. **Unauthenticated Request (Missing/Invalid Token or API Key):**
-   - Status: `401 Unauthorized`
-   - Response: `{"error": "Authentication credentials were not provided."}`
-2. **Unauthorized Action (Non-Admin attempting Admin Action):**
-   - Status: `403 Forbidden`
-   - Response: `{"error": "You do not have permission to perform this action. Administrator privileges required."}`
-3. **Cross-Project Access Violation (API Key attempting access to another project):**
-   - Status: `403 Forbidden`
-   - Response: `{"error": "API key is not authorized for this project store."}`
-
----
-
-## 6. Acceptance Criteria & Test Scenarios
+## 9. Acceptance Criteria & Test Scenarios
 
 - [ ] **Scenario 1:** Non-admin user calls `POST /rag/api/projects/` -> Receives `403 Forbidden`.
 - [ ] **Scenario 2:** Non-admin user calls `DELETE /rag/api/projects/{id}/` -> Receives `403 Forbidden`.
 - [ ] **Scenario 3:** Staff/Superuser admin calls `POST /rag/api/projects/` -> Receives `201 Created`.
 - [ ] **Scenario 4:** Non-admin user calls `POST /rag/api/keys/` -> Receives `403 Forbidden`.
 - [ ] **Scenario 5:** Non-admin user calls `POST /rag/api/runs/` -> Receives `403 Forbidden`.
-- [ ] **Scenario 6:** External system with project-scoped API key calls `POST /rag/api/chat/` for its assigned project -> Receives `200 OK` with citations.
-- [ ] **Scenario 7:** External system with project-scoped API key calls `POST /rag/api/chat/` for a different project -> Receives `403 Forbidden`.
-- [ ] **Scenario 8:** External system with project-scoped API key calls `GET /rag/api/projects/{id}/documents/` for its assigned project -> Receives `200 OK`.
+- [ ] **Scenario 6:** External client with project-scoped API key calls `POST /rag/api/chat/` for its assigned project -> Receives `200 OK` with citations.
+- [ ] **Scenario 7:** External client with project-scoped API key calls `POST /rag/api/chat/` for a different project -> Receives `403 Forbidden` (0 retrieval queries, 0 token leakage).
+- [ ] **Scenario 8:** External client with project-scoped API key calls `GET /rag/api/projects/{id}/documents/` for its assigned project -> Receives `200 OK`.
+- [ ] **Scenario 9:** Casual greeting (e.g. "Hello", "Good morning") sent to `/chat/` -> Receives friendly reply with **0 database vector queries** executed.
+- [ ] **Scenario 10:** Ambiguous query below confidence threshold -> Receives structured clarification prompt without triggering low-confidence vector search.
