@@ -21,8 +21,6 @@ router.register(r'runs', EvaluationRunViewSet, basename='run')
 router.register(r'keys', APIKeyViewSet, basename='apikey')
 router.register(r'usage', APIUsageViewSet, basename='apiusage')
 
-app_name = 'api'
-
 urlpatterns = [
     # Must come BEFORE router.urls — the DRF router splits 'file.txt' into pk + format suffix
     # so filenames with dots never reach get_object(). This explicit route catches them first.
