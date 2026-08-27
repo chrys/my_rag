@@ -56,13 +56,13 @@
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/chat/test_intent_classification.py`
   - **Files:** `src/apps/chat/intent_service.py`
 
-- [ ] **Task 3.2: Integrate Intent Pipeline in Chat View & Persist Chat History**
+- [x] **Task 3.2: Integrate Intent Pipeline in Chat View & Persist Chat History**
   - **Description:** Connect `intent_service` into `src/apps/chat/views.py` `chat()` handler. Bypass vector search for greetings/chitchat, return clarification prompt for ambiguous queries, and log all turns to `ChatMessage`.
   - **Acceptance:** Greetings execute 0 database vector searches; ambiguous queries prompt for clarification; all turns persist in `ChatMessage`.
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/chat/test_chat_views.py`
   - **Files:** `src/apps/chat/views.py`
 
-- [ ] **Checkpoint 3:** Run all Phase 3 chat and intent unit tests.
+- [x] **Checkpoint 3:** Run all Phase 3 Intent Pipeline unit tests.
 
 ---
 

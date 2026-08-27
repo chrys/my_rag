@@ -19,6 +19,17 @@ from src.apps.chat.services import generate_adaptive_hyde_passage
 
 @pytest.mark.django_db
 class TestChatViews:
+    @pytest.fixture(autouse=True)
+    def default_intent_bypass(self, mocker):
+        mocker.patch(
+            "src.apps.chat.intent_service.classify_query_intent",
+            return_value={
+                "intent": "VECTOR_SEARCH",
+                "response": None,
+                "requires_retrieval": True,
+                "confidence": 0.95,
+            }
+        )
     def test_adaptive_hyde_direct_lookup(self, mocker):
         mock_client = mocker.Mock()
         mock_response = mocker.Mock()

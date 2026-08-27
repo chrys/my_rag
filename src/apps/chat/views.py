@@ -30,18 +30,21 @@ def get_rag_engine(*args, **kwargs):
     return local_get_rag_engine(*args, **kwargs)
 
 
-def _user_can_access_project(project: Project | None, user) -> bool:
+def _user_can_access_project(project: Project | None, user, store_id: str = "") -> bool:
     """Return whether the current user can access the given project."""
     if not project:
-        return False
+        return bool(store_id and store_id.startswith('local_'))
 
     if getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False):
+        return True
+
+    if project.user_id is None:
         return True
 
     if not getattr(user, 'is_authenticated', False):
         return False
 
-    return project.user_id is None or user.id == project.user_id
+    return user.id == project.user_id
 
 
 def _get_project_system_prompt(project: Project | None, store_id: str) -> str:
@@ -138,15 +141,20 @@ def chat(request):
             request.user = api_key_obj.user
             APIKey.objects.filter(id=api_key_obj.id).update(last_used_at=timezone.now())
 
-        if not _user_can_access_project(project, request.user):
+        if not _user_can_access_project(project, request.user, store_id=store_id):
             return JsonResponse({'error': 'You do not have permission to perform this action. Administrator privileges required.'}, status=403)
         
-        # Get prompt if not provided
-        if not system_prompt:
-            system_prompt = _get_project_system_prompt(project, store_id)
-        
+        # Pre-Retrieval Intent Classification & Disambiguation
+        from .intent_service import classify_query_intent
+        target_llm = getattr(project, 'llm_model', 'gemini-2.5-flash-lite') if project else 'gemini-2.5-flash-lite'
+        intent_model = target_llm if not ("gemma" in str(target_llm).lower() or ":" in str(target_llm)) else "gemini-2.5-flash-lite"
+        intent_result = classify_query_intent(query, model_id=intent_model)
+
+        if not intent_result.get('requires_retrieval', True) and intent_result.get('response'):
+            bot_response = intent_result['response']
+            source_documents = []
         # Query the appropriate backend
-        if store_id.startswith('local_'):
+        elif store_id.startswith('local_'):
             rag_engine = get_rag_engine(store_id)
             bot_response = rag_engine.query(query, system_prompt=system_prompt)
             source_documents = _extract_source_documents(bot_response.get('source_nodes', [])) if isinstance(bot_response, dict) else []
@@ -318,7 +326,7 @@ def chat_submit(request):
     # Look up project
     project = Project.objects.filter(project_id=store_id).first()
 
-    if not _user_can_access_project(project, request.user):
+    if not _user_can_access_project(project, request.user, store_id=store_id):
         from django.http import HttpResponseForbidden
         return HttpResponseForbidden("Forbidden")
 
@@ -328,13 +336,22 @@ def chat_submit(request):
 
     # Query the appropriate backend
     try:
-        if store_id.startswith("local_"):
+        # Pre-Retrieval Intent Classification & Disambiguation
+        from .intent_service import classify_query_intent
+        target_llm = getattr(project, 'llm_model', 'gemini-2.5-flash-lite') if project else 'gemini-2.5-flash-lite'
+        intent_model = target_llm if not ("gemma" in str(target_llm).lower() or ":" in str(target_llm)) else "gemini-2.5-flash-lite"
+        intent_result = classify_query_intent(query, model_id=intent_model)
+
+        if not intent_result.get('requires_retrieval', True) and intent_result.get('response'):
+            bot_response = intent_result['response']
+            source_documents = []
+        elif store_id.startswith("local_"):
             rag_engine = get_rag_engine(store_id)
             bot_response = rag_engine.query(query, system_prompt=system_prompt)
             source_documents = _extract_source_documents(bot_response.get("source_nodes", [])) if isinstance(bot_response, dict) else []
             if isinstance(bot_response, dict):
                 bot_response = bot_response.get("response", "Error generating response.")
-        elif store_id.startswith("rag_") or store_id.startswith("postgres_"):
+        elif store_id.startswith("rag_") or store_id.startswith("postgres_") or (project and project.storage_type == "postgres"):
             from llama_index.core import VectorStoreIndex, Settings
             from llama_index.embeddings.google import GeminiEmbedding
             from llama_index.llms.google_genai import GoogleGenAI
