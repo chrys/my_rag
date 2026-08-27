@@ -103,7 +103,7 @@ class TestSwaggerProjectsAPI:
 
     @pytest.fixture
     def user(self):
-        return User.objects.create_user(username="projuser", password="password123")
+        return User.objects.create_user(username="projuser", password="password123", is_staff=True)
 
     @pytest.fixture
     def client(self, user):
@@ -429,7 +429,7 @@ class TestSwaggerEvaluationAPI:
 
     @pytest.fixture
     def user(self):
-        return User.objects.create_user(username="evaluser", password="password123")
+        return User.objects.create_user(username="evaluser", password="password123", is_staff=True)
 
     @pytest.fixture
     def client(self, user):

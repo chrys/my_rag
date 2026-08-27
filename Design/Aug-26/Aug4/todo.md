@@ -20,13 +20,13 @@
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/projects/test_project_api.py`
   - **Files:** `src/apps/projects/api_views.py`
 
-- [ ] **Task 1.3: Enforce Admin-Only on API Keys, Telemetry & Evaluation Endpoints**
+- [x] **Task 1.3: Enforce Admin-Only on API Keys, Telemetry & Evaluation Endpoints**
   - **Description:** Update `APIKeyViewSet`, `APIUsageViewSet`, `EvaluationDatasetViewSet`, `EvaluationRunViewSet`, and `EvaluationResultMetricsViewSet` with `IsAdminUserOnly`.
   - **Acceptance:** Non-admin `POST /api/keys/` and `POST /api/runs/` -> 403 Forbidden.
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/api Testing/unit/evaluate`
   - **Files:** `src/apps/api/api_views.py`, `src/apps/evaluate/api_views.py`
 
-- [ ] **Checkpoint 1:** Run all Phase 1 RBAC unit tests.
+- [x] **Checkpoint 1:** Run all Phase 1 RBAC unit tests.
 
 ---
 

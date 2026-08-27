@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from src.apps.api.permissions import IsAdminUserOnly
 from .models import EvaluationDataset, EvaluationRun, EvaluationResultMetrics
 from .serializers import (
     EvaluationDatasetSerializer,
@@ -11,25 +12,26 @@ from .serializers import (
 
 
 class EvaluationDatasetViewSet(viewsets.ModelViewSet):
-    def perform_create(self, serializer):
-        project = serializer.validated_data.get('project')
-        if project and project.user and project.user != self.request.user:
-            from rest_framework.exceptions import PermissionDenied
-            raise PermissionDenied("You do not have permission to add to this project.")
-        serializer.save()
-
     """
     API ViewSet for EvaluationDataset model
     """
     queryset = EvaluationDataset.objects.all()
     serializer_class = EvaluationDatasetSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUserOnly]
 
+    def perform_create(self, serializer):
+        project = serializer.validated_data.get('project')
+        if project and project.user and project.user != self.request.user and not (self.request.user.is_staff or self.request.user.is_superuser):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You do not have permission to add to this project.")
+        serializer.save()
 
     def get_queryset(self):
-        """Filter by authenticated user"""
+        """Filter by authenticated admin or user"""
         if getattr(self, 'swagger_fake_view', False):
             return EvaluationDataset.objects.none()
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            return EvaluationDataset.objects.all()
         return EvaluationDataset.objects.filter(project__user=self.request.user)
 
     @action(detail=False, methods=["get"])
@@ -50,15 +52,16 @@ class EvaluationRunViewSet(viewsets.ModelViewSet):
     """
     queryset = EvaluationRun.objects.all()
     serializer_class = EvaluationRunSerializer
-    permission_classes = [IsAuthenticated]
-
-
+    permission_classes = [IsAdminUserOnly]
 
     def get_queryset(self):
-        """Filter by authenticated user"""
+        """Filter by authenticated admin or user"""
         if getattr(self, 'swagger_fake_view', False):
             return EvaluationRun.objects.none()
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            return EvaluationRun.objects.all()
         return EvaluationRun.objects.filter(project__user=self.request.user)
+
 
 class EvaluationResultMetricsViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -66,11 +69,12 @@ class EvaluationResultMetricsViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = EvaluationResultMetrics.objects.all()
     serializer_class = EvaluationResultMetricsSerializer
-    permission_classes = [IsAuthenticated]
-
+    permission_classes = [IsAdminUserOnly]
 
     def get_queryset(self):
-        """Filter by authenticated user"""
+        """Filter by authenticated admin or user"""
         if getattr(self, 'swagger_fake_view', False):
             return EvaluationResultMetrics.objects.none()
-        return EvaluationResultMetrics.objects.filter(evaluation_run__project__user=self.request.user)
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            return EvaluationResultMetrics.objects.all()
+        return EvaluationResultMetrics.objects.filter(run__project__user=self.request.user)

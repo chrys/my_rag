@@ -6,6 +6,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from src.apps.api.permissions import IsAdminUserOnly
 from .models import APIKey, APIUsage
 from .serializers import (
     APIKeySerializer,
@@ -26,10 +27,14 @@ class APIKeyViewSet(viewsets.ModelViewSet):
     - GET /api/keys/{id}/ - Get API key
     - DELETE /api/keys/{id}/ - Delete API key
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUserOnly]
     
     def get_queryset(self):
-        """Return only the authenticated user's API keys"""
+        """Return all API keys for staff admin or user's API keys"""
+        if getattr(self, 'swagger_fake_view', False):
+            return APIKey.objects.none()
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            return APIKey.objects.all()
         return APIKey.objects.filter(user=self.request.user)
     
     def get_serializer_class(self):
@@ -58,13 +63,22 @@ class APIUsageViewSet(viewsets.ReadOnlyModelViewSet):
     
     Endpoints:
     - GET /api/usage/ - List API usage
-    - GET /api/usage/{id}/ - Get usage entry
+    - GET /api/usage/{id}/ - Get API usage details
+    - GET /api/usage/by_key/ - Usage by API key
+    - GET /api/usage/by_endpoint/ - Usage by endpoint
+    - GET /api/usage/summary/ - Usage summary
     """
-    permission_classes = [IsAuthenticated]
+    queryset = APIUsage.objects.all()
+    permission_classes = [IsAdminUserOnly]
     
     def get_queryset(self):
-        """Return usage logs for user's API keys"""
-        user_keys = APIKey.objects.filter(user=self.request.user)
+        """Return usage logs for user's API keys (or all for staff)"""
+        if getattr(self, 'swagger_fake_view', False):
+            return APIUsage.objects.none()
+        user = getattr(self.request, 'user', None)
+        if user and (getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False)):
+            return APIUsage.objects.all().order_by('-created_at')
+        user_keys = APIKey.objects.filter(user=user) if user and user.is_authenticated else APIKey.objects.none()
         return APIUsage.objects.filter(api_key__in=user_keys).order_by('-created_at')
     
     def get_serializer_class(self):

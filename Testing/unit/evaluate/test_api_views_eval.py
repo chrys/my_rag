@@ -23,7 +23,10 @@ def _attach_user(request):
     try:
         user = User.objects.first()
         if not user:
-            user = User.objects.create(username='test_factory_user')
+            user = User.objects.create(username='test_factory_user', is_staff=True)
+        else:
+            user.is_staff = True
+            user.save(update_fields=['is_staff'])
         request.user = user
     except Exception:
         pass
