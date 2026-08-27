@@ -8,7 +8,7 @@
 
 ## Phase 1: Foundation & Admin RBAC Governance (Task 1)
 
-- [ ] **Task 1.1: Implement Custom DRF Permission Classes**
+- [x] **Task 1.1: Implement Custom DRF Permission Classes**
   - **Description:** Create `IsAdminUserOnly` and `IsAdminOrProjectReadOnly` in `src/apps/api/permissions.py` returning standard 403 error payloads.
   - **Acceptance:** Non-staff requests for restricted methods receive 403 Forbidden with proper JSON error message.
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/api/test_rbac_permissions.py`
