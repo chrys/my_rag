@@ -104,3 +104,26 @@ class TestDocumentTenantIsolation:
         res = client.delete(f"/rag/api/documents/secret_b.pdf?store_id={project_b.project_id}")
         assert res.status_code == 200
         assert not Document.objects.filter(pk=doc_in_project_b.pk).exists()
+
+    @patch("src.postgres_rag.PostgresRAGEngine")
+    def test_owner_can_delete_own_document_via_route(
+        self, mock_postgres_engine, user_b, project_b, doc_in_project_b
+    ):
+        mock_inst = MagicMock()
+        mock_postgres_engine.return_value = mock_inst
+
+        client = APIClient()
+        client.force_login(user=user_b)
+
+        res = client.delete(f"/rag/api/documents/secret_b.pdf?store_id={project_b.project_id}")
+        assert res.status_code == 200
+        assert not Document.objects.filter(pk=doc_in_project_b.pk).exists()
+
+    def test_anonymous_user_cannot_delete_document_via_route(
+        self, project_b, doc_in_project_b
+    ):
+        client = APIClient()
+
+        res = client.delete(f"/rag/api/documents/secret_b.pdf?store_id={project_b.project_id}")
+        assert res.status_code in [401, 403]
+        assert Document.objects.filter(pk=doc_in_project_b.pk).exists()

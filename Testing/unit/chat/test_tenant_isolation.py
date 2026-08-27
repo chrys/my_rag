@@ -146,3 +146,57 @@ class TestTenantIsolationAndKeyScoping:
         docs = res.json()
         assert len(docs) == 1
         assert docs[0]["document_name"] == "guide.pdf"
+
+    def test_inactive_api_key_rejected_immediately(self, project_a, user_a):
+        inactive_key = APIKey.objects.create(
+            user=user_a,
+            project=project_a,
+            name="Revoked Key",
+            key="revoked_key_123",
+            is_active=False,
+        )
+        client = APIClient()
+
+        response = client.post(
+            "/rag/api/chat/",
+            json.dumps({"store_id": project_a.project_id, "query": "Query with revoked key"}),
+            content_type="application/json",
+            HTTP_X_API_KEY=inactive_key.key,
+        )
+
+        assert response.status_code in [401, 403]
+
+    @patch("llama_index.embeddings.google.GeminiEmbedding")
+    @patch("llama_index.llms.google_genai.GoogleGenAI")
+    @patch("src.apps.chat.intent_service.classify_query_intent", return_value={"intent": "VECTOR_SEARCH", "requires_retrieval": True, "response": None})
+    @patch("llama_index.core.VectorStoreIndex.from_vector_store")
+    @patch("src.apps.documents.services.get_vector_store")
+    def test_staff_admin_unscoped_api_key_allowed(
+        self, mock_get_store, mock_vector_index, mock_intent, mock_llm, mock_embed, db, project_a
+    ):
+        admin_user = User.objects.create_user(username="admin_unscoped", password="password123", is_staff=True)
+        admin_key = APIKey.objects.create(
+            user=admin_user,
+            project=None,
+            name="Admin Global Key",
+            key="admin_global_key_123",
+            is_active=True,
+        )
+        mock_engine = MagicMock()
+        mock_engine.query.return_value = "Admin global query response"
+        mock_index_inst = MagicMock()
+        mock_index_inst.as_query_engine.return_value = mock_engine
+        mock_vector_index.return_value = mock_index_inst
+
+        client = APIClient()
+
+        response = client.post(
+            "/rag/api/chat/",
+            json.dumps({"store_id": project_a.project_id, "query": "Query as admin with global key"}),
+            content_type="application/json",
+            HTTP_X_API_KEY=admin_key.key,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["response"] == "Admin global query response"
