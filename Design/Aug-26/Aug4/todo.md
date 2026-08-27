@@ -32,7 +32,7 @@
 
 ## Phase 2: Secure Tenant Isolation & Context Boundaries (Task 2)
 
-- [ ] **Task 2.1: Enforce Strict API Key Scoping in Chat and Document Endpoints**
+- [x] **Task 2.1: Enforce Strict API Key Scoping in Chat and Document Endpoints**
   - **Description:** Validate in `src/apps/chat/views.py` and `src/apps/documents/api_views.py` that client API keys must have matching `project_id`. Reject cross-project access and unscoped keys for non-admins immediately.
   - **Acceptance:** API key scoped to project A calling project B returns 403 Forbidden with 0 retrieval queries and 0 token leakage.
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/chat/test_tenant_isolation.py`

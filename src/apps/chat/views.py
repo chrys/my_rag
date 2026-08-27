@@ -32,10 +32,16 @@ def get_rag_engine(*args, **kwargs):
 
 def _user_can_access_project(project: Project | None, user) -> bool:
     """Return whether the current user can access the given project."""
-    if not project or project.user_id is None:
+    if not project:
+        return False
+
+    if getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False):
         return True
 
-    return bool(getattr(user, 'is_authenticated', False) and user.id == project.user_id)
+    if not getattr(user, 'is_authenticated', False):
+        return False
+
+    return project.user_id is None or user.id == project.user_id
 
 
 def _get_project_system_prompt(project: Project | None, store_id: str) -> str:
@@ -123,13 +129,17 @@ def chat(request):
             
             # Enforce project scoping
             if api_key_obj.project and api_key_obj.project.project_id != store_id:
-                return JsonResponse({'error': 'API key is not authorized for this project'}, status=403)
+                return JsonResponse({'error': 'API key is not authorized for this project store.'}, status=403)
+            
+            # Enforce strict key scoping (non-admin keys MUST be tied to a project)
+            if not api_key_obj.project and not (getattr(api_key_obj.user, 'is_staff', False) or getattr(api_key_obj.user, 'is_superuser', False)):
+                return JsonResponse({'error': 'API key is not authorized for this project store.'}, status=403)
             
             request.user = api_key_obj.user
             APIKey.objects.filter(id=api_key_obj.id).update(last_used_at=timezone.now())
 
         if not _user_can_access_project(project, request.user):
-            return JsonResponse({'error': 'Forbidden'}, status=403)
+            return JsonResponse({'error': 'You do not have permission to perform this action. Administrator privileges required.'}, status=403)
         
         # Get prompt if not provided
         if not system_prompt:
@@ -142,7 +152,7 @@ def chat(request):
             source_documents = _extract_source_documents(bot_response.get('source_nodes', [])) if isinstance(bot_response, dict) else []
             if isinstance(bot_response, dict):
                 bot_response = bot_response.get('response', 'Error generating response.')
-        elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
+        elif store_id.startswith('rag_') or store_id.startswith('postgres_') or (project and project.storage_type == 'postgres'):
             from llama_index.core import VectorStoreIndex, Settings
             from llama_index.embeddings.google import GeminiEmbedding
             from llama_index.llms.google_genai import GoogleGenAI
@@ -264,6 +274,7 @@ def chat(request):
             'conversation_id': session_id,
             'user_message': query,
             'bot_response': bot_response,
+            'response': bot_response,
             'bot_response_html': bot_response_html,
             'source_documents': source_documents,
             'response_time': response_time_str,
