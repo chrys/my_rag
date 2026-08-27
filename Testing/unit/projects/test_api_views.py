@@ -23,7 +23,10 @@ def _attach_user(request):
     try:
         user = User.objects.first()
         if not user:
-            user = User.objects.create(username='test_factory_user')
+            user = User.objects.create(username='test_factory_user', is_staff=True)
+        else:
+            user.is_staff = True
+            user.save(update_fields=['is_staff'])
         request.user = user
     except Exception:
         pass
@@ -86,7 +89,8 @@ def authenticated_user():
     """Fixture for creating an authenticated user"""
     user = User.objects.create_user(
         username='testuser',
-        password='testpass123'
+        password='testpass123',
+        is_staff=True
     )
     return user
 
@@ -414,10 +418,11 @@ class TestSystemPromptViewSet:
         """Test that a user can only list their own projects"""
         other_user = User.objects.create_user(username='other', password='pw')
         
+        regular_user = User.objects.create_user(username='isolation_user', password='password123', is_staff=False)
         Project.objects.create(
             project_id='my_project',
             display_name='My Project',
-            user=authenticated_user
+            user=regular_user
         )
         Project.objects.create(
             project_id='other_project',
@@ -426,7 +431,7 @@ class TestSystemPromptViewSet:
         )
         
         request = api_factory.get('/api/projects/')
-        force_authenticate(request, user=authenticated_user)
+        force_authenticate(request, user=regular_user)
         
         view = ProjectViewSet.as_view({'get': 'list'})
         response = view(request)

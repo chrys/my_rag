@@ -14,7 +14,7 @@
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/api/test_rbac_permissions.py`
   - **Files:** `src/apps/api/permissions.py`
 
-- [ ] **Task 1.2: Enforce Project Governance Endpoint Permissions**
+- [x] **Task 1.2: Enforce Project Governance Endpoint Permissions**
   - **Description:** Update `ProjectViewSet` in `src/apps/projects/api_views.py` so `create`, `update`, `partial_update`, and `destroy` require admin privileges (`IsAdminOrProjectReadOnly`).
   - **Acceptance:** Non-admin `POST /api/projects/` -> 403 Forbidden; staff admin `POST /api/projects/` -> 201 Created.
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/projects/test_project_api.py`

@@ -7,6 +7,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from src.apps.api.permissions import IsAdminOrProjectReadOnly
 from .models import Project, SystemPrompt
 from .serializers import (
     ProjectSerializer,
@@ -34,9 +35,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
     - By external_store_id (may contain slashes)
     """
     queryset = Project.objects.all()
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminOrProjectReadOnly]
     lookup_field = 'pk'  # Default lookup field
     lookup_value_regex = '[^/]+'  # Allow anything except forward slash in URL segment
+
+    def get_permissions(self):
+        """Allow authenticated project owners to access prompt action"""
+        if self.action == 'prompt':
+            return [IsAuthenticated()]
+        return [permission() for permission in self.permission_classes]
     
     def get_queryset(self):
         """Filter projects by authenticated user or staff/superuser status"""
