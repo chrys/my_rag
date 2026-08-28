@@ -22,6 +22,8 @@ class ChatMessage(models.Model):
     project = models.ForeignKey(
         Project,
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name='chat_messages',
         help_text="The project this chat is for"
     )
