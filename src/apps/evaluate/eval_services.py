@@ -1075,8 +1075,9 @@ def query_gemini_model(
         if system_prompt:
             config.system_instruction = system_prompt
 
+        target_model = model_name.replace("gemini/", "") if model_name else "gemini-2.5-flash-lite"
         response = client.models.generate_content(
-            model=model_name if model_name else "gemini-2.5-flash-lite",
+            model=target_model,
             contents=prompt,
             config=config
         )
