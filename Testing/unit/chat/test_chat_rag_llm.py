@@ -30,7 +30,13 @@ class TestChatRagLLM:
         mocker.patch('llama_index.embeddings.google.GeminiEmbedding', return_value=mocker.Mock())
         mocker.patch('llama_index.llms.google_genai.GoogleGenAI', return_value=mocker.Mock())
 
+        from django.contrib.auth.models import User
+        user = User.objects.create_user(username="chat_rag_user", password="password")
+        project.user = user
+        project.save()
+
         client = Client()
+        client.force_login(user)
         response = client.post('/rag/api/messages/', {
             'store_id': project.project_id,
             'query': 'What is the content of the indexed documents?'

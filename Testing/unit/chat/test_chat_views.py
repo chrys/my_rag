@@ -352,3 +352,54 @@ class TestChatViews:
         }), content_type='application/json')
         
         assert response.status_code == 400
+
+    def test_chat_api_streaming_sse(self, mocker):
+        project = Project.objects.create(
+            project_id='postgres_streaming_test',
+            display_name='Streaming RAG Project',
+            storage_type='postgres'
+        )
+
+        mock_stream = [
+            'data: {"token": "Hello", "done": false}\n\n',
+            'data: {"token": " streaming", "done": false}\n\n'
+        ]
+        mocker.patch('src.apps.chat.llm_router.stream_llm_response', return_value=iter(mock_stream))
+
+        mock_response = mocker.Mock()
+        mock_response.__str__ = lambda x: "Hello streaming"
+        mock_response.source_nodes = []
+        mock_engine = mocker.Mock()
+        mock_engine.query.return_value = mock_response
+        mock_index = mocker.Mock()
+        mock_index.as_query_engine.return_value = mock_engine
+        mocker.patch("llama_index.embeddings.google.GeminiEmbedding", return_value=mocker.Mock())
+        mocker.patch('llama_index.core.VectorStoreIndex.from_vector_store', return_value=mock_index)
+        mocker.patch('src.apps.documents.services.get_vector_store', return_value=mocker.Mock())
+
+        factory = RequestFactory()
+        request = factory.post(
+            '/rag/api/chat/',
+            data=json.dumps({
+                'store_id': 'postgres_streaming_test',
+                'query': 'Stream me an answer',
+                'stream': True
+            }),
+            content_type='application/json'
+        )
+        request.user = AnonymousUser()
+
+        response = chat(request)
+        assert response.status_code == 200
+        assert response['Content-Type'] == 'text/event-stream'
+
+        chunks = list(response.streaming_content)
+        content_str = "".join([c.decode() if isinstance(c, bytes) else c for c in chunks])
+        assert "Hello" in content_str
+        assert "streaming" in content_str
+        assert '"done": true' in content_str
+
+        from src.apps.chat.models import ChatMessage
+        assert ChatMessage.objects.filter(content='Stream me an answer', message_type='user').exists()
+        assert ChatMessage.objects.filter(content='Hello streaming', message_type='assistant').exists()
+

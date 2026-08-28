@@ -81,6 +81,35 @@ def _extract_source_documents(source_nodes) -> list[str]:
 
 
 
+def _save_chat_messages(project, user, session_id: str, query: str, bot_response: str, bot_response_html: str = None):
+    """Persist user and assistant ChatMessage records."""
+    from django.db import transaction
+    user_for_msg = user if getattr(user, 'is_authenticated', False) else None
+    bot_msg = None
+    try:
+        html_content = bot_response_html or markdown.markdown(bot_response)
+        with transaction.atomic():
+            ChatMessage.objects.create(
+                project=project,
+                user=user_for_msg,
+                session_id=session_id,
+                message_type='user',
+                content=query
+            )
+            bot_msg = ChatMessage.objects.create(
+                project=project,
+                user=user_for_msg,
+                session_id=session_id,
+                message_type='assistant',
+                content=bot_response,
+                response_html=html_content
+            )
+    except Exception as db_err:
+        import logging
+        logging.getLogger(__name__).warning("Failed to store ChatMessage: %s", db_err)
+    return bot_msg
+
+
 @require_http_methods(["POST"])
 @csrf_exempt
 def chat(request):
@@ -144,15 +173,31 @@ def chat(request):
         if not _user_can_access_project(project, request.user, store_id=store_id):
             return JsonResponse({'error': 'You do not have permission to perform this action. Administrator privileges required.'}, status=403)
         
+        is_stream = bool(data.get('stream', False) or 'text/event-stream' in request.META.get('HTTP_ACCEPT', ''))
+        session_id = (
+            data.get('session_id')
+            or data.get('conversation_id')
+            or request.META.get('HTTP_X_SESSION_ID')
+            or request.META.get('HTTP_X_CONVERSATION_ID')
+            or ''
+        )
+
         # Pre-Retrieval Intent Classification & Disambiguation
         from .intent_service import classify_query_intent
-        target_llm = getattr(project, 'llm_model', 'gemini-2.5-flash-lite') if project else 'gemini-2.5-flash-lite'
-        intent_model = target_llm if not ("gemma" in str(target_llm).lower() or ":" in str(target_llm)) else "gemini-2.5-flash-lite"
-        intent_result = classify_query_intent(query, model_id=intent_model)
+        target_llm = getattr(project, 'llm_model', 'gemini/gemini-2.5-flash-lite') if project else 'gemini/gemini-2.5-flash-lite'
+        intent_result = classify_query_intent(query, model_id=target_llm)
 
         if not intent_result.get('requires_retrieval', True) and intent_result.get('response'):
             bot_response = intent_result['response']
             source_documents = []
+            if is_stream:
+                from django.http import StreamingHttpResponse
+                def greeting_stream():
+                    yield f"data: {json.dumps({'token': bot_response, 'done': False})}\n\n"
+                    elapsed = round(time.time() - start_time, 2)
+                    _save_chat_messages(project, request.user, session_id, query, bot_response)
+                    yield f"data: {json.dumps({'done': True, 'sources': [], 'citations': [], 'response_time': f'{elapsed:.2f}s', 'response_time_seconds': elapsed})}\n\n"
+                return StreamingHttpResponse(greeting_stream(), content_type="text/event-stream")
         # Query the appropriate backend
         elif store_id.startswith('local_'):
             rag_engine = get_rag_engine(store_id)
@@ -163,9 +208,8 @@ def chat(request):
         elif store_id.startswith('rag_') or store_id.startswith('postgres_') or (project and project.storage_type == 'postgres'):
             from llama_index.core import VectorStoreIndex, Settings
             from llama_index.embeddings.google import GeminiEmbedding
-            from llama_index.llms.google_genai import GoogleGenAI
             from src.apps.documents.services import get_vector_store
-            from .llm_router import generate_llm_response
+            from .llm_router import generate_llm_response, normalize_model_id
             import os
             
             vector_store = get_vector_store(store_id)
@@ -173,26 +217,24 @@ def chat(request):
                 model_name="models/gemini-embedding-001",
                 api_key=os.getenv("GOOGLE_API_KEY")
             )
-            target_llm = getattr(project, 'llm_model', 'gemini-2.5-flash-lite') if project else 'gemini-2.5-flash-lite'
+            target_llm = getattr(project, 'llm_model', 'gemini/gemini-2.5-flash-lite') if project else 'gemini/gemini-2.5-flash-lite'
             disable_thinking = getattr(project, 'disable_thinking', False) if project else False
-            if "gemma" in target_llm.lower() or "mlx" in target_llm.lower() or ":" in target_llm:
-                from llama_index.llms.ollama import Ollama
-                ollama_url = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434/api/generate")
-                base_url = ollama_url.split('/api/generate')[0]
-                ollama_kwargs = {
-                    "model": target_llm,
-                    "base_url": base_url,
-                    "request_timeout": 60.0,
+            canonical_model = normalize_model_id(target_llm)
+
+            try:
+                from llama_index.llms.litellm import LiteLLM
+                litellm_kwargs = {
+                    "model": canonical_model,
+                    "temperature": 0.2,
+                    "timeout": 60.0,
                 }
-                if disable_thinking:
-                    ollama_kwargs["thinking"] = False
-                    ollama_kwargs["additional_kwargs"] = {"thinking": False}
-                llm = Ollama(**ollama_kwargs)
-            else:
-                llm = GoogleGenAI(
-                    model=target_llm,
-                    api_key=os.getenv("GOOGLE_API_KEY")
-                )
+                if disable_thinking and any(k in canonical_model.lower() for k in ["gemma", "deepseek", "mlx"]):
+                    litellm_kwargs["additional_kwargs"] = {"thinking": False}
+                llm = LiteLLM(**litellm_kwargs)
+            except Exception:
+                from llama_index.llms.google_genai import GoogleGenAI
+                llm = GoogleGenAI(model=target_llm, api_key=os.getenv("GOOGLE_API_KEY"))
+
             from llama_index.core.embeddings import BaseEmbedding
             from llama_index.core.llms import LLM
             if isinstance(embed_model, BaseEmbedding):
@@ -215,7 +257,7 @@ def chat(request):
             except Exception as q_err:
                 err_str = str(q_err).lower()
                 if any(k in err_str for k in ['ollama', '11434', 'failed to connect', 'connection refused']):
-                    raise RuntimeError("Local Ollama server is not running or accessible. Please start Ollama on your machine (http://localhost:11434).") from q_err
+                    raise RuntimeError(f"Local LLM service failure ({canonical_model}): Local Ollama server is not running or accessible. Please start Ollama on your machine (http://localhost:11434).") from q_err
                 bot_response = "Empty Response"
 
             # If vector store yields no matching nodes (LlamaIndex returns "Empty Response"), fall back to LLM router
@@ -227,7 +269,7 @@ def chat(request):
                 source_documents = _extract_source_documents([node.node.metadata for node in response.source_nodes])
         else:
             google_store_id = project.external_store_id if project and project.external_store_id else store_id
-            target_model = getattr(project, 'llm_model', 'gemini-2.5-flash-lite') if project else 'gemini-2.5-flash-lite'
+            target_model = getattr(project, 'llm_model', 'gemini/gemini-2.5-flash-lite') if project else 'gemini/gemini-2.5-flash-lite'
             bot_response = gfs.ask_store_question(
                 google_store_id,
                 query,
@@ -235,47 +277,50 @@ def chat(request):
                 model=target_model
             )
             source_documents = []
-        
+
+        # Handle SSE Streaming response
+        if is_stream:
+            from django.http import StreamingHttpResponse
+            from .llm_router import stream_llm_response
+            def rag_sse_stream():
+                full_text_parts = []
+                system_instruction = system_prompt or "You are a helpful assistant."
+                augmented_prompt = query
+                if source_documents:
+                    augmented_prompt = f"Context documents: {', '.join(source_documents)}\n\nQuery: {query}"
+
+                for chunk_event in stream_llm_response(prompt=augmented_prompt, model_id=target_llm, system_prompt=system_instruction, disable_thinking=getattr(project, 'disable_thinking', False) if project else False):
+                    try:
+                        raw_data = chunk_event.replace("data: ", "").strip()
+                        parsed = json.loads(raw_data)
+                        if "token" in parsed:
+                            full_text_parts.append(parsed["token"])
+                    except Exception:
+                        pass
+                    yield chunk_event
+
+                final_text = "".join(full_text_parts) if full_text_parts else bot_response
+                elapsed = round(time.time() - start_time, 2)
+                _save_chat_messages(project, request.user, session_id, query, final_text)
+                final_payload = json.dumps({
+                    "done": True,
+                    "sources": source_documents,
+                    "citations": source_documents,
+                    "response_time": f"{elapsed:.2f}s",
+                    "response_time_seconds": elapsed
+                })
+                yield f"data: {final_payload}\n\n"
+
+            return StreamingHttpResponse(rag_sse_stream(), content_type="text/event-stream")
+
         # Convert markdown to HTML
         bot_response_html = markdown.markdown(bot_response)
         
         elapsed_seconds = round(time.time() - start_time, 2)
         response_time_str = f"{elapsed_seconds:.2f}s"
         
-        # Extract conversation/session ID if provided
-        session_id = (
-            data.get('session_id')
-            or data.get('conversation_id')
-            or request.META.get('HTTP_X_SESSION_ID')
-            or request.META.get('HTTP_X_CONVERSATION_ID')
-            or ''
-        )
-
         # Store in database
-        from django.db import transaction
-        user_for_msg = request.user if getattr(request.user, 'is_authenticated', False) else None
-        user_msg = None
-        bot_msg = None
-        try:
-            with transaction.atomic():
-                user_msg = ChatMessage.objects.create(
-                    project=project,
-                    user=user_for_msg,
-                    session_id=session_id,
-                    message_type='user',
-                    content=query
-                )
-                bot_msg = ChatMessage.objects.create(
-                    project=project,
-                    user=user_for_msg,
-                    session_id=session_id,
-                    message_type='assistant',
-                    content=bot_response,
-                    response_html=bot_response_html
-                )
-        except Exception as db_err:
-            import logging
-            logging.getLogger(__name__).warning("Failed to store ChatMessage: %s", db_err)
+        bot_msg = _save_chat_messages(project, request.user, session_id, query, bot_response, bot_response_html)
         
         return JsonResponse({
             'message_id': str(bot_msg.id) if bot_msg else '',
@@ -354,8 +399,8 @@ def chat_submit(request):
         elif store_id.startswith("rag_") or store_id.startswith("postgres_") or (project and project.storage_type == "postgres"):
             from llama_index.core import VectorStoreIndex, Settings
             from llama_index.embeddings.google import GeminiEmbedding
-            from llama_index.llms.google_genai import GoogleGenAI
             from src.apps.documents.services import get_vector_store
+            from .llm_router import generate_llm_response, normalize_model_id
             import os
             
             vector_store = get_vector_store(store_id)
@@ -363,26 +408,24 @@ def chat_submit(request):
                 model_name="models/gemini-embedding-001",
                 api_key=os.getenv("GOOGLE_API_KEY")
             )
-            target_llm = getattr(project, 'llm_model', 'gemini-2.5-flash-lite') if project else 'gemini-2.5-flash-lite'
+            target_llm = getattr(project, 'llm_model', 'gemini/gemini-2.5-flash-lite') if project else 'gemini/gemini-2.5-flash-lite'
             disable_thinking = getattr(project, 'disable_thinking', False) if project else False
-            if "gemma" in target_llm.lower() or "mlx" in target_llm.lower() or ":" in target_llm:
-                from llama_index.llms.ollama import Ollama
-                ollama_url = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434/api/generate")
-                base_url = ollama_url.split('/api/generate')[0]
-                ollama_kwargs = {
-                    "model": target_llm,
-                    "base_url": base_url,
-                    "request_timeout": 60.0,
+            canonical_model = normalize_model_id(target_llm)
+
+            try:
+                from llama_index.llms.litellm import LiteLLM
+                litellm_kwargs = {
+                    "model": canonical_model,
+                    "temperature": 0.2,
+                    "timeout": 60.0,
                 }
-                if disable_thinking:
-                    ollama_kwargs["thinking"] = False
-                    ollama_kwargs["additional_kwargs"] = {"thinking": False}
-                llm = Ollama(**ollama_kwargs)
-            else:
-                llm = GoogleGenAI(
-                    model=target_llm,
-                    api_key=os.getenv("GOOGLE_API_KEY")
-                )
+                if disable_thinking and any(k in canonical_model.lower() for k in ["gemma", "deepseek", "mlx"]):
+                    litellm_kwargs["additional_kwargs"] = {"thinking": False}
+                llm = LiteLLM(**litellm_kwargs)
+            except Exception:
+                from llama_index.llms.google_genai import GoogleGenAI
+                llm = GoogleGenAI(model=target_llm, api_key=os.getenv("GOOGLE_API_KEY"))
+
             from llama_index.core.embeddings import BaseEmbedding
             from llama_index.core.llms import LLM
             if isinstance(embed_model, BaseEmbedding):

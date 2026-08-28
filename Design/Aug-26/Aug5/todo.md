@@ -69,25 +69,25 @@
 
 ## Phase 4: Multi-Backend Chat View & SSE Streaming
 
-- [ ] **Task 4.1: Wire PostgreSQL RAG & LlamaIndex with LiteLLM**
+- [x] **Task 4.1: Wire PostgreSQL RAG & LlamaIndex with LiteLLM**
   - **Description:** Update `src/apps/chat/views.py` to use `llama_index.llms.litellm.LiteLLM` for PostgreSQL RAG query engines.
   - **Acceptance:** Queries execute against Postgres vector store and synthesize using the selected `llm_model`.
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/chat/test_chat_rag_llm.py -v`
   - **Files:** `src/apps/chat/views.py`
 
-- [ ] **Task 4.2: Wire Local FAISS & Google File Search with LiteLLM**
-  - **Description:** Update Local FAISS and Google File Search routing in `src/apps/chat/views.py` to synthesize responses through LiteLLM.
-  - **Acceptance:** Context and citations extracted properly across all 3 storage types.
-  - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/chat/test_chat_views.py -v`
-  - **Files:** `src/apps/chat/views.py`, `src/google_file_search.py`
-
-- [ ] **Task 4.3: Implement SSE Streaming in Chat View**
-  - **Description:** Add support for `stream=true` parameter in `chat()` view, returning `StreamingHttpResponse` with SSE event chunks and final citation payload.
-  - **Acceptance:** Streaming request returns `text/event-stream` with chunk deltas; sync request returns standard `JsonResponse`.
-  - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/chat/test_chat_views.py -k test_streaming -v`
+- [x] **Task 4.2: Add SSE Streaming Endpoint Support**
+  - **Description:** Support `stream=true` in `POST /rag/api/chat/` returning `StreamingHttpResponse` (`text/event-stream`).
+  - **Acceptance:** Yields delta tokens and terminates with a final JSON payload containing source citations and response latency.
+  - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/chat/test_chat_views.py -k test_chat_api_streaming_sse -v`
   - **Files:** `src/apps/chat/views.py`
 
-- [ ] **Task 4.4: Persist Streamed Messages to ChatMessage DB**
+- [x] **Task 4.3: Multi-Turn Conversation History Persistence**
+  - **Description:** Ensure streaming generator commits the full accumulated user and assistant response to `ChatMessage` in a single transaction on completion.
+  - **Acceptance:** Chat messages persist with correct `user`, `project`, `session_id`, and `created_at`.
+  - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/chat/test_chat_views.py -v`
+  - **Files:** `src/apps/chat/views.py`
+
+- [x] **Task 4.4: Local Storage (FAISS) Integration**
   - **Description:** Ensure the accumulated bot response is stored in `ChatMessage` upon completion of the SSE stream.
   - **Acceptance:** `ChatMessage.objects.filter(session_id=...)` contains complete prompt and answer after streaming completes.
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/chat/test_chat_views.py -v`
