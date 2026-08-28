@@ -267,13 +267,14 @@ class LocalRAGEngine:
             traceback.print_exc()
             raise
     
-    def query(self, query_text: str, top_k: int = 3) -> dict:
+    def query(self, query_text: str, top_k: int = 3, system_prompt: str = None, **kwargs) -> dict:
         """
         Query the indexed documents
         
         Args:
             query_text: The query string
             top_k: Number of relevant documents to retrieve
+            system_prompt: Optional custom system prompt instructions
             
         Returns:
             Dictionary with query response and source documents
@@ -323,7 +324,8 @@ class LocalRAGEngine:
             if len(source_docs) == 0:
                 response_text = "I don't have any indexed documents to answer this question. Please upload documents first."
             else:
-                prompt = f"Based on the following documents, answer this question: {query_text}\n\nDocuments:{context_text}"
+                sys_prefix = f"System Context: {system_prompt}\n\n" if system_prompt else ""
+                prompt = f"{sys_prefix}Based on the following documents, answer this question: {query_text}\n\nDocuments:{context_text}"
                 response_text = self.llm.complete(prompt).text if hasattr(self.llm, 'complete') else f"No relevant documents found for: {query_text}"
             
             return {

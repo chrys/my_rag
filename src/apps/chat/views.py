@@ -200,11 +200,16 @@ def chat(request):
                 return StreamingHttpResponse(greeting_stream(), content_type="text/event-stream")
         # Query the appropriate backend
         elif store_id.startswith('local_'):
-            rag_engine = get_rag_engine(store_id)
-            bot_response = rag_engine.query(query, system_prompt=system_prompt)
-            source_documents = _extract_source_documents(bot_response.get('source_nodes', [])) if isinstance(bot_response, dict) else []
-            if isinstance(bot_response, dict):
-                bot_response = bot_response.get('response', 'Error generating response.')
+            try:
+                rag_engine = get_rag_engine(store_id)
+                bot_response = rag_engine.query(query, system_prompt=system_prompt)
+                source_documents = _extract_source_documents(bot_response.get('source_nodes', [])) if isinstance(bot_response, dict) else []
+                if isinstance(bot_response, dict):
+                    bot_response = bot_response.get('response', 'Error generating response.')
+            except Exception:
+                from .llm_router import generate_llm_response
+                bot_response = generate_llm_response(prompt=query, model_id=target_llm, system_prompt=system_prompt)
+                source_documents = []
         elif store_id.startswith('rag_') or store_id.startswith('postgres_') or (project and project.storage_type == 'postgres'):
             from llama_index.core import VectorStoreIndex, Settings
             from llama_index.embeddings.google import GeminiEmbedding
