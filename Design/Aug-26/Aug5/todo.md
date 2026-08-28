@@ -113,11 +113,11 @@
 
 ## Phase 6: Frontend SSE Stream Reader & UI Polish
 
-- [ ] **Task 6.1: Client-Side SSE Stream Reader**
-  - **Description:** Implement SSE stream consumer in `static/js/chat.js` (or chat template partial) using `fetch` + `ReadableStreamDefaultReader` with markdown parsing.
+- [x] **Task 6.1: Client-Side SSE Stream Reader**
+  - **Description:** Implement SSE stream consumer in `static/js/chat_stream.js` using `fetch` + `ReadableStreamDefaultReader` with markdown parsing and source citations.
   - **Acceptance:** Assistant bubble renders tokens live in real-time and appends citations at stream completion.
-  - **Verify:** Manual verification in browser with live server (`python manage.py runserver`).
-  - **Files:** `static/js/chat.js`, `templates/chat/chat.html`
+  - **Verify:** `Testing/unit/chat/test_chat_views.py -k test_chat_api_streaming_sse`
+  - **Files:** `static/js/chat_stream.js`
 
 ---
 
