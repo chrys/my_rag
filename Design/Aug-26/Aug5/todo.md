@@ -97,13 +97,13 @@
 
 ## Phase 5: Evaluation Suite Integration
 
-- [ ] **Task 5.1: Update Synthetic QA Evaluator with LiteLLM**
+- [x] **Task 5.1: Update Synthetic QA Evaluator with LiteLLM**
   - **Description:** Refactor `src/apps/evaluate/eval_services.py` to use LiteLLM for synthetic question-answer dataset generation.
   - **Acceptance:** Synthetic datasets generate across different configured models.
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/evaluate/test_synthetic_qa_eval.py -v`
   - **Files:** `src/apps/evaluate/eval_services.py`
 
-- [ ] **Task 5.2: LLM-as-a-Judge Evaluation with LiteLLM & Judge Override**
+- [x] **Task 5.2: LLM-as-a-Judge Evaluation with LiteLLM & Judge Override**
   - **Description:** Update faithfulness, answer relevancy, and context recall evaluations to use LiteLLM, with support for optional Judge Model override in `EvaluationRun`.
   - **Acceptance:** Evaluation runs calculate metrics properly using LiteLLM judge.
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/evaluate/test_local_llm_eval.py -v`
