@@ -4,6 +4,7 @@ Project models for managing file search stores and projects
 
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils.safestring import mark_safe
 
 
 class Project(models.Model):
@@ -103,7 +104,8 @@ class Project(models.Model):
     llm_model = models.CharField(
         max_length=255,
         default="gemini/gemini-2.5-flash-lite",
-        help_text="LiteLLM model identifier used for synthesis, chat, and evaluation (e.g., 'gemini/gemini-2.5-flash', 'anthropic/claude-3-5-sonnet', 'openai/gpt-4o-mini', 'ollama/gemma4:12b-mlx')."
+        verbose_name="Model",
+        help_text=mark_safe('LiteLLM model identifier used for synthesis, chat, and evaluation (e.g. <code>gemini/gemini-2.5-flash</code>, <code>anthropic/claude-3-5-sonnet</code>, <code>openai/gpt-4o-mini</code>, <code>ollama/gemma4:12b-mlx</code>). See <a href="https://models.litellm.ai/" target="_blank" style="color: #3b82f6; text-decoration: underline;">LiteLLM Model Directory</a>.')
     )
     disable_thinking = models.BooleanField(
         default=False,
