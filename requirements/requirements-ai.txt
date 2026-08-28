@@ -4,6 +4,7 @@ llama-index-core
 llama-index-vector-stores-postgres
 llama-index-embeddings-google
 llama-index-llms-google-genai
+llama-index-llms-litellm
 
 # Code AST parsing for LlamaIndex CodeSplitter (TASK 2)
 tree-sitter

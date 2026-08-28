@@ -9,7 +9,7 @@
 
 ## Phase 1: Dependencies & Core LiteLLM Router Foundation
 
-- [ ] **Task 1.1: Add LiteLLM Dependencies**
+- [x] **Task 1.1: Add LiteLLM Dependencies**
   - **Description:** Add `litellm` and `llama-index-llms-litellm` to `requirements/base.txt` and verify imports.
   - **Acceptance:** `litellm` and `llama_index.llms.litellm` can be imported in the virtualenv without errors.
   - **Verify:** `python -c "import litellm; from llama_index.llms.litellm import LiteLLM; print(litellm.__version__)"`
