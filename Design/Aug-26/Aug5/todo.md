@@ -53,13 +53,13 @@
 
 ## Phase 3: Intent Classification & Adaptive HyDE via LiteLLM
 
-- [ ] **Task 3.1: Refactor Intent Classification Service**
+- [x] **Task 3.1: Refactor Intent Classification Service**
   - **Description:** Refactor `src/apps/chat/intent_service.py` to use `litellm.completion` with JSON structured mode and fast cloud routing (`gemini/gemini-2.5-flash-lite`).
   - **Acceptance:** Greetings/chitchat are intercepted with 0 vector searches; structured classification returns valid IntentType enum.
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/chat/test_intent_classification.py -v`
   - **Files:** `src/apps/chat/intent_service.py`
 
-- [ ] **Task 3.2: Refactor Adaptive HyDE Service**
+- [x] **Task 3.2: Refactor Adaptive HyDE Service**
   - **Description:** Refactor `generate_adaptive_hyde_passage()` in `src/apps/chat/services.py` to use `llm_router.generate_llm_response()`.
   - **Acceptance:** Conceptual queries generate hypothetical passages using project's configured model; direct lookups bypass HyDE.
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/chat/test_chat_intent_integration.py -v`

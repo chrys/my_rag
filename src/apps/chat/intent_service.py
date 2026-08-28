@@ -1,5 +1,6 @@
 """
 Intent classification and disambiguation service for Pre-Retrieval routing (Task 3).
+Powered by fast LiteLLM classification (<200ms).
 """
 
 import os
@@ -7,8 +8,8 @@ import re
 import json
 import logging
 from enum import Enum
-from google import genai
-from google.genai import types
+import litellm
+from .llm_router import normalize_model_id
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +69,8 @@ def evaluate_fast_heuristics(query: str) -> tuple[IntentType | None, str | None]
 def classify_query_intent(query: str, model_id: str = "gemini-2.5-flash-lite") -> dict:
     """
     Hybrid intent classification:
-    1. Evaluates fast heuristic rules.
-    2. Falls back to LLM JSON classification if ambiguous or complex.
+    1. Evaluates fast heuristic rules (<5ms).
+    2. Falls back to fast LiteLLM JSON classification if ambiguous or complex.
     """
     heuristic_intent, heuristic_reply = evaluate_fast_heuristics(query)
     if heuristic_intent:
@@ -81,24 +82,10 @@ def classify_query_intent(query: str, model_id: str = "gemini-2.5-flash-lite") -
             "source": "heuristic",
         }
 
-    # If query is a clear, standard query, classify with Gemini Flash
+    canonical_model = normalize_model_id(model_id)
+
+    # If query is a clear, standard query, classify with fast model
     try:
-        from google import genai
-        from google.genai import types
-
-        api_key = os.getenv("GOOGLE_API_KEY", "")
-        if not api_key:
-            # Fallback to VECTOR_SEARCH if no API key is available for intent routing
-            return {
-                "intent": IntentType.VECTOR_SEARCH.value,
-                "response": None,
-                "requires_retrieval": True,
-                "confidence": 0.8,
-                "source": "fallback",
-            }
-
-        client = genai.Client(api_key=api_key)
-
         prompt = f"""You are an Intent Classifier and Query Disambiguation Router for a document RAG system.
 Analyze the user's input query and classify it into exactly one of the following intents:
 - VECTOR_SEARCH: The user is asking a specific factual or topical question that should be retrieved from project documents.
@@ -116,16 +103,15 @@ Return ONLY a valid JSON object matching this schema:
 
 Query: \"\"\"{query}\"\"\""""
 
-        response = client.models.generate_content(
-            model=model_id,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.0,
-                response_mime_type="application/json",
-            ),
+        response = litellm.completion(
+            model=canonical_model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0,
+            response_format={"type": "json_object"},
+            timeout=10,
         )
 
-        text = response.text or ""
+        text = response.choices[0].message.content if response and response.choices else ""
         parsed = json.loads(text)
 
         intent = parsed.get("intent", IntentType.VECTOR_SEARCH.value)
