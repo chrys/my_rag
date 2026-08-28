@@ -1,62 +1,138 @@
 """
-Dynamic LLM Router for handling generation queries across different LLM backends:
-- Google Gemini Cloud API (gemini-2.5-flash-lite)
-- Local Ollama API server at http://localhost:11434/api/generate (gemma4:12b-mlx)
+Dynamic LiteLLM Router for unified inference across model providers:
+- Google Gemini Cloud API (gemini/gemini-2.5-flash-lite, gemini/gemini-3.7-flash)
+- OpenAI (openai/gpt-4o, openai/gpt-4o-mini)
+- Anthropic Claude (anthropic/claude-3-5-sonnet)
+- Local Ollama (ollama/gemma4:12b-mlx, ollama/llama3.3)
+- DeepSeek / Groq / Mistral
 """
 
 import os
+import json
 import logging
-import requests
-from google import genai
-from google.genai import types
+from typing import Any, Dict, Generator, Optional
+import litellm
 
 logger = logging.getLogger(__name__)
+
+# Configure LiteLLM global settings
+litellm.drop_params = True
+litellm.set_verbose = False
 
 OLLAMA_ENDPOINT = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434/api/generate")
 
 
-def generate_llm_response(prompt: str, model_id: str = "gemini-2.5-flash-lite", system_prompt: str = "", disable_thinking: bool = False) -> str:
+def normalize_model_id(model_id: str) -> str:
     """
-    Generate response text based on the selected project LLM model.
-    - 'gemma4:12b-mlx': Routes to local Ollama API server.
-    - Otherwise: Routes to Google Gemini Cloud API.
+    Normalize model identifiers into LiteLLM canonical provider/model format.
     """
-    if "gemma" in model_id.lower() or "mlx" in model_id.lower() or ":" in model_id:
-        try:
-            full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
-            payload = {
-                "model": model_id,
-                "prompt": full_prompt,
-                "stream": False
-            }
-            if disable_thinking:
-                payload["thinking"] = False
-                payload["options"] = {"thinking": False}
-            response = requests.post(OLLAMA_ENDPOINT, json=payload, timeout=60)
-            response.raise_for_status()
-            data = response.json()
-            return data.get("response", "")
-        except Exception as e:
-            logger.error(f"Error invoking local Ollama model '{model_id}': {e}")
-            raise RuntimeError(f"Local LLM service failure ({model_id}): Local Ollama server is not running or accessible. Please start Ollama on your machine (http://localhost:11434).") from e
-    else:
-        # Default: Gemini Cloud API
-        try:
-            api_key = os.getenv("GOOGLE_API_KEY", "")
-            client = genai.Client(api_key=api_key)
-            config = types.GenerateContentConfig(
-                temperature=0.2,
-                max_output_tokens=1024
-            )
-            if system_prompt:
-                config.system_instruction = system_prompt
+    if not model_id:
+        return "gemini/gemini-2.5-flash-lite"
+    model_str = model_id.strip()
+    if "/" in model_str:
+        return model_str
+    if model_str.startswith("gemini-") or model_str.startswith("models/"):
+        return f"gemini/{model_str}"
+    if ":" in model_str or "gemma" in model_str.lower() or "llama" in model_str.lower() or "mlx" in model_str.lower():
+        return f"ollama/{model_str}"
+    if model_str.startswith("gpt-") or model_str.startswith("o1") or model_str.startswith("o3"):
+        return f"openai/{model_str}"
+    if model_str.startswith("claude-"):
+        return f"anthropic/{model_str}"
+    return f"gemini/{model_str}"
 
-            response = client.models.generate_content(
-                model=model_id if model_id else "gemini-2.5-flash-lite",
-                contents=prompt,
-                config=config,
-            )
-            return response.text if hasattr(response, 'text') else str(response)
-        except Exception as e:
-            logger.error(f"Error invoking Gemini cloud model '{model_id}': {e}")
-            raise e
+
+def generate_llm_response(
+    prompt: str,
+    model_id: str = "gemini-2.5-flash-lite",
+    system_prompt: str = "",
+    temperature: float = 0.2,
+    max_tokens: int = 1024,
+    disable_thinking: bool = False,
+    extra_headers: Optional[Dict[str, Any]] = None,
+) -> str:
+    """
+    Generate synchronous response text using LiteLLM.
+    """
+    canonical_model = normalize_model_id(model_id)
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+
+    kwargs: Dict[str, Any] = {
+        "model": canonical_model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "timeout": 60,
+    }
+
+    if disable_thinking and any(k in canonical_model.lower() for k in ["gemma", "deepseek", "mlx"]):
+        kwargs["extra_body"] = {"thinking": False}
+
+    if extra_headers:
+        kwargs["extra_headers"] = extra_headers
+
+    try:
+        response = litellm.completion(**kwargs)
+        if response and response.choices:
+            return response.choices[0].message.content or ""
+        return ""
+    except Exception as exc:
+        err_str = str(exc)
+        if any(k in err_str.lower() for k in ["ollama", "11434", "connection refused", "apiconnectionerror"]):
+            logger.error(f"Error invoking local Ollama model '{canonical_model}': {exc}")
+            raise RuntimeError(
+                f"Local LLM service failure ({canonical_model}): Local Ollama server is not running or accessible. Please start Ollama on your machine (http://localhost:11434)."
+            ) from exc
+        logger.error(f"Error invoking model '{canonical_model}': {exc}")
+        raise exc
+
+
+def stream_llm_response(
+    prompt: str,
+    model_id: str = "gemini-2.5-flash-lite",
+    system_prompt: str = "",
+    temperature: float = 0.2,
+    max_tokens: int = 1024,
+    disable_thinking: bool = False,
+) -> Generator[str, None, None]:
+    """
+    Generator yielding SSE-formatted token chunks for streaming HTTP responses.
+    """
+    canonical_model = normalize_model_id(model_id)
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+
+    kwargs: Dict[str, Any] = {
+        "model": canonical_model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "stream": True,
+        "timeout": 60,
+    }
+
+    if disable_thinking and any(k in canonical_model.lower() for k in ["gemma", "deepseek", "mlx"]):
+        kwargs["extra_body"] = {"thinking": False}
+
+    try:
+        response_stream = litellm.completion(**kwargs)
+        for chunk in response_stream:
+            if chunk and chunk.choices and hasattr(chunk.choices[0], "delta"):
+                delta = getattr(chunk.choices[0].delta, "content", None)
+                if delta:
+                    payload = json.dumps({"token": delta, "done": False})
+                    yield f"data: {payload}\n\n"
+    except Exception as exc:
+        err_str = str(exc)
+        logger.error(f"Streaming error on model '{canonical_model}': {exc}")
+        if any(k in err_str.lower() for k in ["ollama", "11434", "connection refused"]):
+            err_msg = f"Local LLM service failure ({canonical_model}): Local Ollama server is not running or accessible (http://localhost:11434)."
+        else:
+            err_msg = str(exc)
+        err_payload = json.dumps({"error": err_msg, "done": True})
+        yield f"data: {err_payload}\n\n"

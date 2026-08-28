@@ -15,13 +15,13 @@
   - **Verify:** `python -c "import litellm; from llama_index.llms.litellm import LiteLLM; print(litellm.__version__)"`
   - **Files:** `requirements/base.txt`
 
-- [ ] **Task 1.2: Refactor LLM Router (`llm_router.py`)**
+- [x] **Task 1.2: Refactor LLM Router (`llm_router.py`)**
   - **Description:** Implement `generate_llm_response()` and `stream_llm_response()` using `litellm.completion()`, with normalized Ollama offline error mapping, thinking flags, and global fallbacks.
   - **Acceptance:** Sync generation returns clean response text; streaming generator yields SSE `data: {"token": "...", "done": false}\n\n` chunks.
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/chat/test_llm_router.py -v`
   - **Files:** `src/apps/chat/llm_router.py`
 
-- [ ] **Task 1.3: Router Unit Tests**
+- [x] **Task 1.3: Router Unit Tests**
   - **Description:** Add comprehensive unit tests in `Testing/unit/chat/test_llm_router.py` testing sync completions, streaming generators, error handling, and parameter normalization.
   - **Acceptance:** 100% pass rate on all router tests.
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/chat/test_llm_router.py -v`
