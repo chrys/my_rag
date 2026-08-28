@@ -46,8 +46,14 @@ class TestProjectModel:
             project_id='model_defaults_test',
             display_name='Model Defaults Test'
         )
-        assert project.llm_model == 'gemini-2.5-flash-lite'
+        assert project.llm_model == 'gemini/gemini-2.5-flash-lite'
         assert project.embedding_model == 'models/gemini-embedding-001'
+
+        # Test custom LiteLLM model string
+        project.llm_model = 'anthropic/claude-3-5-sonnet'
+        project.save()
+        project.refresh_from_db()
+        assert project.llm_model == 'anthropic/claude-3-5-sonnet'
 
     def test_embedding_model_immutability_guardrail_when_indexed(self):
         """Test clean() raises ValidationError when attempting to change embedding_model after indexing documents"""

@@ -101,17 +101,9 @@ class Project(models.Model):
         help_text="Embedding model to use (cannot be changed after first source is indexed)."
     )
     llm_model = models.CharField(
-        max_length=100,
-        choices=[
-            ("gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite (Cloud)"),
-            ("gemini-3.5-flash-lite", "Gemini 3.5 Flash Lite (Cloud)"),
-            ("gemini-3.7-flash", "Gemini 3.7 Flash (Cloud)"),
-            ("gemma4:12b-mlx", "Gemma 4 12B MLX (Local Ollama)"),
-            ("gemma4:e2b-mlx", "Gemma 4 E2B MLX (Local Ollama - Ultra Fast)"),
-            ("gemma4:e4b-mlx", "Gemma 4 E4B MLX (Local Ollama - Balanced)"),
-        ],
-        default="gemini-2.5-flash-lite",
-        help_text="LLM model used for synthesis, chat, and evaluation queries."
+        max_length=255,
+        default="gemini/gemini-2.5-flash-lite",
+        help_text="LiteLLM model identifier used for synthesis, chat, and evaluation (e.g., 'gemini/gemini-2.5-flash', 'anthropic/claude-3-5-sonnet', 'openai/gpt-4o-mini', 'ollama/gemma4:12b-mlx')."
     )
     disable_thinking = models.BooleanField(
         default=False,

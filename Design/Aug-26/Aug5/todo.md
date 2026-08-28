@@ -31,19 +31,19 @@
 
 ## Phase 2: Project Model Configuration & Free-Text Model Input
 
-- [ ] **Task 2.1: Update Project Model for Free-Text LLM Input**
+- [x] **Task 2.1: Update Project Model for Free-Text LLM Input**
   - **Description:** Change `Project.llm_model` in `src/apps/projects/models.py` to a `CharField(max_length=255, default='gemini/gemini-2.5-flash-lite')` without rigid choices, allowing any LiteLLM string.
   - **Acceptance:** Model accepts any valid LiteLLM identifier string.
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/projects/test_models.py -v`
   - **Files:** `src/apps/projects/models.py`
 
-- [ ] **Task 2.2: Generate and Apply Django Migrations**
+- [x] **Task 2.2: Generate and Apply Django Migrations**
   - **Description:** Create Django migration for `Project.llm_model` update and apply to database.
   - **Acceptance:** Migration applies cleanly on clean SQLite and PostgreSQL setups.
   - **Verify:** `DJANGO_ENV=testing python manage.py migrate`
-  - **Files:** `src/apps/projects/migrations/0015_alter_project_llm_model.py`
+  - **Files:** `src/apps/projects/migrations/0016_alter_project_llm_model.py`
 
-- [ ] **Task 2.3: Update Admin & Serializers**
+- [x] **Task 2.3: Update Admin & Serializers**
   - **Description:** Update Django Admin form and DRF serializers for `Project` to support free-text `llm_model` with helpful provider format hints.
   - **Acceptance:** Admin UI and DRF endpoints accept and validate `llm_model`.
   - **Verify:** `DJANGO_ENV=testing pytest Testing/unit/projects/test_serializers.py -v`
