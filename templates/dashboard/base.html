@@ -54,6 +54,11 @@
                 <span class="badge badge-secondary">
                     👤 {{ request.user.username }}
                 </span>
+                {% if request.user.is_staff or request.user.is_superuser %}
+                <a href="/rag/admin/" class="outline secondary" style="padding: 0.35rem 0.65rem; margin-bottom: 0; font-size: 0.8rem; text-decoration: none;">
+                    ⚙️ Admin UI
+                </a>
+                {% endif %}
                 <a href="{% url 'logout' %}" class="outline secondary" style="padding: 0.35rem 0.65rem; margin-bottom: 0; font-size: 0.8rem; text-decoration: none;">
                     Logout
                 </a>

@@ -63,7 +63,6 @@ HEALTH_CHECK_KEY = os.environ.get('HEALTH_CHECK_KEY', 'rag-health-secret-key')
 
 # Application definition
 INSTALLED_APPS = [
-    'unfold',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -209,41 +208,5 @@ REMOTE_POSTGRES_CONFIG = {
     'PORT': os.getenv('postgres_port', '5432'),
 }
 
-# django-unfold administration configuration
-UNFOLD = {
-    "SITE_TITLE": "RAG Dashboard",
-    "SITE_HEADER": "RAG Administration",
-    "SIDEBAR": {
-        "show_search": True,
-        "show_all_applications": True,
-        "navigation": [
-            {
-                "title": "Navigation",
-                "items": [
-                    {
-                        "title": "Projects",
-                        "icon": "folder",
-                        "link": reverse_lazy("custom_admin:projects_project_changelist"),
-                    },
-                    {
-                        "title": "API Keys",
-                        "icon": "key",
-                        "link": reverse_lazy("custom_admin:api_apikey_changelist"),
-                    },
-                    {
-                        "title": "Chat Workflow",
-                        "icon": "chat",
-                        "link": reverse_lazy("custom_admin:chat-workflow"),
-                    },
-                    {
-                        "title": "Evaluation Workflow",
-                        "icon": "star",
-                        "link": reverse_lazy("custom_admin:evaluation-workflow"),
-                    },
-                ],
-            },
-        ],
-    },
-}
 
 

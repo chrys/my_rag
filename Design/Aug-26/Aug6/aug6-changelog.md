@@ -86,13 +86,34 @@
 - `src/apps/projects/migrations/0018_remove_project_chunking.py`: Dropped legacy `chunking` field from `Project`.
 - `src/apps/documents/migrations/0008_alter_document_chunking_strategy.py`: Standardized `Document.chunking_strategy` choices.
 
+### G. Task 5: Role-Based Separation of Django Admin & Pico.css Dashboard
+- **Admin Access Enforcement (`is_staff` / `is_superuser`)**:
+  - Directs admin users to the **Django admin UI** (`/rag/admin/`) upon login, visiting `/rag/`, or navigating to `/rag/dashboard/` (unless previewing via `?preview=1`).
+  - Added an "⚙️ Admin UI" button to the Pico top navbar when an admin is previewing the client interface.
+  - Page helpers (`admin_page`, `chat_page`, `evaluate_page`) in `apps/chat/pages.py` automatically route admins to Django admin workflows (`/rag/unfold/chat/`, `/rag/unfold/evaluate/`).
+- **Regular User Access Enforcement (`not is_staff and not is_superuser`)**:
+  - Directs regular authenticated users to the **Pico.css dashboard** (`/rag/dashboard/`) on login and when visiting `/rag/`.
+  - Updated `CustomUnfoldAdminSite.has_permission()` and wrapped both `custom_admin_site.admin_view` and `standard_admin.site.admin_view` to automatically intercept and redirect regular users to `/rag/dashboard/` if they attempt to access `/rag/admin/` or `/rag/unfold/`.
+
+### H. Task 6: Store IDs Availability on API Keys Interface
+- **Pico.css Dashboard (`templates/dashboard/partials/api_keys.html`)**:
+  - **Active Project Store ID Card**: Prominently displays the target `store_id` (`project.project_id`) with 1-click clipboard copy and an explanatory tooltip on how to pass it in `/rag/api/chat/` requests.
+  - **Available Store IDs Section**: Added an interactive accordion card displaying all store IDs available to the specific user, including Project Name, Backend (`postgres`, `google`, `local`), Store ID (`project_id`), External Store ID (if applicable), and 1-click Copy buttons.
+  - **Scoped Store ID Table Column**: Added a dedicated "Scoped Store ID" column with quick-copy icons directly in the API keys table.
+  - **Key Generation Modal & Alert**: Display scoped Project and Store ID during key generation and in the post-creation confirmation banner.
+- **Django Admin (`src/apps/api/admin.py`)**:
+  - Added `store_id` display to `list_display`, `readonly_fields`, and `fieldsets` in `APIKeyAdmin`.
+
 ---
 
 ## 3. Verification & Test Results
 
 - **Unit & Regression Test Suites**:
+  - `Testing/unit/test_rag_auth_urls.py`: **13 passed** (Verifies admin login/redirects to `/rag/admin/`, dashboard redirection to `/rag/admin/`, preview param override, regular user login/redirects to `/rag/dashboard/`, and admin route blocking for non-staff).
   - `Testing/unit/api/test_ping_health.py`: **8 passed** (Missing key 403, Invalid key 403, Header key 200, Query param 200, Bearer token 200, /rag/ prefix 200, Active API key 200, Cached DB health 200).
   - `Testing/unit/documents/test_sources_management.py`: **5 passed** (SimHash similarity, Multi-axis filtering, Atomic single & bulk delete, Chunk inspector, Upload duplicate detection).
-  - `Testing/unit/projects/test_dashboard_views.py`: **4 passed** (Dashboard routing, Parameters, Prompt, API Keys).
-  - **Full Suite**: `DJANGO_ENV=testing pytest Testing/unit/documents Testing/unit/projects Testing/unit/api/test_ping_health.py -v`: **218 passed**, 0 failed (100% pass rate).
+  - `Testing/unit/projects/test_dashboard_views.py`: **4 passed** (Dashboard routing, Parameters, Prompt, API Keys + Store IDs availability).
+  - **Full Suite Across Apps**: `DJANGO_ENV=testing pytest Testing/unit/test_rag_auth_urls.py Testing/unit/projects Testing/unit/documents Testing/unit/chat Testing/unit/api -v`: **430 passed**, 0 failed (100% pass rate).
+
+
 

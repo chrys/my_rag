@@ -12,7 +12,7 @@ from django.urls import reverse
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from unfold.views import UnfoldModelAdminViewMixin
+from src.apps.chat.admin_views import AdminViewMixin
 from src.apps.projects.models import Project
 from src.apps.evaluate.models import (
     EvaluationDataset,
@@ -33,7 +33,7 @@ from src.apps.evaluate.eval_services import (
 )
 
 
-class EvaluationWorkflowView(UnfoldModelAdminViewMixin, TemplateView):
+class EvaluationWorkflowView(AdminViewMixin, TemplateView):
     """
     Custom administration view representing the Evaluation Workflow dashboard,
     conforming to the django-unfold style guide.
@@ -90,7 +90,7 @@ class EvaluationWorkflowView(UnfoldModelAdminViewMixin, TemplateView):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class QaSetupWorkflowView(UnfoldModelAdminViewMixin, TemplateView):
+class QaSetupWorkflowView(AdminViewMixin, TemplateView):
     """
     Custom administration view representing the Dataset Configuration workspace,
     preserving django-unfold sidebars and main navigation.
@@ -217,7 +217,7 @@ class QaSetupWorkflowView(UnfoldModelAdminViewMixin, TemplateView):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class RunEvaluationView(UnfoldModelAdminViewMixin, View):
+class RunEvaluationView(AdminViewMixin, View):
     """
     POST endpoint to execute retrieval accuracy evaluations.
     """
@@ -290,7 +290,7 @@ def get_manual_workspace_context(run: ManualEvaluationRun) -> dict:
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class CreateManualEvaluationRunView(UnfoldModelAdminViewMixin, View):
+class CreateManualEvaluationRunView(AdminViewMixin, View):
     """
     POST endpoint to initialize a Manual Evaluation Run from text inputs or CSV file upload.
     """
@@ -356,7 +356,7 @@ class CreateManualEvaluationRunView(UnfoldModelAdminViewMixin, View):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class GenerateManualAnswerView(UnfoldModelAdminViewMixin, View):
+class GenerateManualAnswerView(AdminViewMixin, View):
     """
     POST endpoint to generate RAG answer for a single ManualEvaluationItem.
     """
@@ -370,7 +370,7 @@ class GenerateManualAnswerView(UnfoldModelAdminViewMixin, View):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class BatchGenerateManualAnswersView(UnfoldModelAdminViewMixin, View):
+class BatchGenerateManualAnswersView(AdminViewMixin, View):
     """
     POST endpoint to generate RAG answers for all pending items in a ManualEvaluationRun.
     """
@@ -392,7 +392,7 @@ class BatchGenerateManualAnswersView(UnfoldModelAdminViewMixin, View):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class RateManualItemView(UnfoldModelAdminViewMixin, View):
+class RateManualItemView(AdminViewMixin, View):
     """
     POST endpoint to update the Red/Orange/Green rating of a ManualEvaluationItem.
     """
@@ -409,7 +409,7 @@ class RateManualItemView(UnfoldModelAdminViewMixin, View):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class LocalLLMModelListView(UnfoldModelAdminViewMixin, View):
+class LocalLLMModelListView(AdminViewMixin, View):
     """
     GET endpoint to discover and list available local Ollama models.
     """
@@ -424,7 +424,7 @@ class LocalLLMModelListView(UnfoldModelAdminViewMixin, View):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class RunLocalLLMBenchmarkView(UnfoldModelAdminViewMixin, View):
+class RunLocalLLMBenchmarkView(AdminViewMixin, View):
     """
     POST endpoint to initialize and launch multi-model local LLM benchmark evaluation.
     """
@@ -509,7 +509,7 @@ class RunLocalLLMBenchmarkView(UnfoldModelAdminViewMixin, View):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class LocalLLMBenchmarkStatusView(UnfoldModelAdminViewMixin, View):
+class LocalLLMBenchmarkStatusView(AdminViewMixin, View):
     """
     GET polling endpoint to query the execution status and progress of a local LLM benchmark run.
     """
@@ -564,7 +564,7 @@ class LocalLLMBenchmarkStatusView(UnfoldModelAdminViewMixin, View):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class ExportLocalLLMCSVEvaluationView(UnfoldModelAdminViewMixin, View):
+class ExportLocalLLMCSVEvaluationView(AdminViewMixin, View):
     """
     GET endpoint to export benchmark evaluation results as a 12-column CSV file.
     """

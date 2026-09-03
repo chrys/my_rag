@@ -2,7 +2,7 @@
 Project views for managing file search stores and projects
 """
 
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
@@ -500,7 +500,11 @@ def _get_user_projects(request):
 def dashboard_view(request):
     """
     Main Pico.css dashboard view. Resolves the active project and active tab.
+    Admins are routed to the Django admin UI, while regular users use Pico.css.
     """
+    if (request.user.is_staff or request.user.is_superuser) and not request.GET.get("preview"):
+        return redirect("/rag/admin/")
+
     projects = _get_user_projects(request)
     project_id = request.GET.get("project_id") or request.session.get("active_project_id")
     

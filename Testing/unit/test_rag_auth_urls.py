@@ -114,3 +114,60 @@ def test_authenticated_regular_user_visiting_rag_root_redirects_to_dashboard(cli
 
     assert response.status_code == 302
     assert response.url == "/rag/dashboard/"
+
+
+@pytest.mark.django_db
+def test_authenticated_admin_visiting_dashboard_redirects_to_django_admin(client):
+    admin_user = User.objects.create_superuser(
+        username="dash_admin_direct",
+        email="admin_direct@example.com",
+        password="AdminPassword123!"
+    )
+    client.force_login(admin_user)
+    response = client.get("/rag/dashboard/")
+
+    assert response.status_code == 302
+    assert response.url == "/rag/admin/"
+
+
+@pytest.mark.django_db
+def test_authenticated_admin_with_preview_param_can_access_dashboard(client):
+    admin_user = User.objects.create_superuser(
+        username="dash_admin_preview",
+        email="admin_preview@example.com",
+        password="AdminPassword123!"
+    )
+    client.force_login(admin_user)
+    response = client.get("/rag/dashboard/?preview=1")
+
+    assert response.status_code == 200
+    assert b"My RAG Studio" in response.content
+    assert b"Admin UI" in response.content
+
+
+@pytest.mark.django_db
+def test_regular_user_visiting_unfold_admin_redirects_to_dashboard(client):
+    regular_user = User.objects.create_user(
+        username="unfold_blocked_user",
+        email="blocked@example.com",
+        password="UserPassword123!"
+    )
+    client.force_login(regular_user)
+    response = client.get("/rag/unfold/")
+
+    assert response.status_code == 302
+    assert response.url == "/rag/dashboard/"
+
+
+@pytest.mark.django_db
+def test_regular_user_visiting_standard_admin_redirects_to_dashboard(client):
+    regular_user = User.objects.create_user(
+        username="admin_blocked_user",
+        email="blocked2@example.com",
+        password="UserPassword123!"
+    )
+    client.force_login(regular_user)
+    response = client.get("/rag/admin/")
+
+    assert response.status_code == 302
+    assert response.url == "/rag/dashboard/"

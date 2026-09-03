@@ -1,5 +1,5 @@
 from django.contrib import admin
-from unfold.admin import ModelAdmin
+from django.contrib.admin import ModelAdmin
 from src.apps.my_rag_project.admin import custom_admin_site
 from .models import ChatMessage, ChatFeedback
 
@@ -38,5 +38,13 @@ class ChatFeedbackAdmin(ModelAdmin):
             return obj.query[:40] + '...' if len(obj.query) > 40 else obj.query
         return '-'
     query_preview.short_description = 'Query'
+
+
+try:
+    admin.site.register(ChatMessage, ChatMessageAdmin)
+    admin.site.register(ChatFeedback, ChatFeedbackAdmin)
+except admin.sites.AlreadyRegistered:
+    pass
+
 
 

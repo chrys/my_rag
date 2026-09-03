@@ -1,8 +1,4 @@
-"""
-Custom Admin Site configuration for the my_rag_project.
-Integrates django-unfold and overrides permission rules to allow regular authenticated users.
-"""
-
+from django.contrib.admin import AdminSite
 from django.contrib.auth.forms import AuthenticationForm as DjangoAuthenticationForm
 from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.contrib.auth.decorators import login_not_required
@@ -12,19 +8,14 @@ from django.urls import path, reverse
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
-from unfold.sites import UnfoldAdminSite
-from unfold.widgets import BASE_INPUT_CLASSES
 
 
 class CustomUnfoldAuthenticationForm(DjangoAuthenticationForm):
     """
-    Authentication form styled for Unfold that allows any active user to log in.
+    Standard authentication form for admin login.
     """
-    def __init__(self, request=None, *args, **kwargs):
-        super().__init__(request, *args, **kwargs)
-        self.fields["username"].widget.attrs["autofocus"] = ""
-        self.fields["username"].widget.attrs["class"] = " ".join(BASE_INPUT_CLASSES)
-        self.fields["password"].widget.attrs["class"] = " ".join(BASE_INPUT_CLASSES)
+    pass
+
 
 
 class CustomLoginView(LoginView):
@@ -60,42 +51,52 @@ class CustomDashboardLoginView(LoginView):
         return redirect_to
 
 
-class CustomUnfoldAdminSite(UnfoldAdminSite):
+class CustomUnfoldAdminSite(AdminSite):
     """
-    Custom administration site utilizing django-unfold theme.
-    Overrides standard permissions to allow regular authenticated users access to the dashboard.
+    Standard Django administration site.
+    Restricted to staff and superuser accounts. Regular users are redirected to Pico.css dashboard.
     """
+    site_header = "Django administration"
+    site_title = "Django site admin"
+    index_title = "Site administration"
     login_form = CustomUnfoldAuthenticationForm
 
     def has_permission(self, request: HttpRequest) -> bool:
         """
         Check if the user has permission to access this admin site.
-        Allows any active authenticated user.
-
-        Parameters
-        ----------
-        request : HttpRequest
-            The incoming HTTP request object.
-
-        Returns
-        -------
-        bool
-            True if the user is authenticated and active, False otherwise.
+        Only staff and superuser accounts have access to the Django admin UI.
+        Regular users must use the Pico.css dashboard.
         """
-        return bool(request.user and request.user.is_authenticated and request.user.is_active)
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.is_active
+            and (request.user.is_staff or request.user.is_superuser)
+        )
+
+    def admin_view(self, view, cacheable=False):
+        """
+        Wrap admin views so that authenticated non-admin users are automatically
+        redirected to the Pico.css dashboard instead of seeing a permission denied screen.
+        """
+        inner = super().admin_view(view, cacheable=cacheable)
+        def wrapper(request, *args, **kwargs):
+            if request.user.is_authenticated and not (request.user.is_staff or request.user.is_superuser):
+                return HttpResponseRedirect(reverse("projects:dashboard"))
+            return inner(request, *args, **kwargs)
+        return wrapper
 
     @method_decorator(never_cache)
     @login_not_required
     def login(self, request: HttpRequest, extra_context=None):
         """
         Display the login form for the given HttpRequest.
-        Redirects admins to the Django admin page.
+        Redirects admins to the Django admin page and regular users to the Pico.css dashboard.
         """
-        if request.method == "GET" and self.has_permission(request):
+        if request.method == "GET" and request.user.is_authenticated:
             if request.user.is_staff or request.user.is_superuser:
                 return HttpResponseRedirect(reverse("admin:index"))
-            index_path = reverse("admin:index", current_app=self.name)
-            return HttpResponseRedirect(index_path)
+            return HttpResponseRedirect(reverse("projects:dashboard"))
 
         context = {
             **self.each_context(request),
@@ -218,3 +219,20 @@ class CustomUnfoldAdminSite(UnfoldAdminSite):
 
 
 custom_admin_site = CustomUnfoldAdminSite(name="custom_admin")
+
+from django.contrib import admin as standard_admin
+
+# Ensure default admin.site also routes authenticated non-staff users to Pico dashboard
+_orig_admin_view = standard_admin.site.admin_view
+
+
+def _staff_enforced_admin_view(view, cacheable=False):
+    inner = _orig_admin_view(view, cacheable=cacheable)
+    def wrapper(request, *args, **kwargs):
+        if request.user.is_authenticated and not (request.user.is_staff or request.user.is_superuser):
+            return HttpResponseRedirect(reverse("projects:dashboard"))
+        return inner(request, *args, **kwargs)
+    return wrapper
+
+
+standard_admin.site.admin_view = _staff_enforced_admin_view

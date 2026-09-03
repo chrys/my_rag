@@ -97,3 +97,5 @@ class TestDashboardViews:
         response = client.get(f"/rag/projects/{project.project_id}/api-keys-tab/")
         assert response.status_code == 200
         assert b"Test Key" in response.content
+        assert b"apikey_test_proj" in response.content
+        assert b"Available Store IDs" in response.content

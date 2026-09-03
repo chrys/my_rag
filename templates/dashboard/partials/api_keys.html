@@ -11,14 +11,89 @@
         </button>
     </header>
 
+    <!-- Active Project Store ID Card -->
+    <div style="background: var(--pico-card-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 0.9rem 1.2rem; margin-bottom: 1.25rem;">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem;">
+            <div>
+                <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--pico-muted-color); font-weight: 600;">
+                    Target Store ID for {{ current_project.display_name }}
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
+                    <code id="active-store-id-val" class="font-mono" style="font-size: 0.95rem; padding: 0.25rem 0.5rem; background: var(--pico-code-background-color); border-radius: 4px;">{{ current_project.project_id }}</code>
+                    <button type="button" class="outline secondary" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; margin-bottom: 0;"
+                            onclick="navigator.clipboard.writeText('{{ current_project.project_id }}'); this.innerText='✓ Copied'; setTimeout(() => this.innerText='📋 Copy', 2000);">
+                        📋 Copy
+                    </button>
+                </div>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--pico-muted-color); max-width: 420px;">
+                💡 Pass this <code>store_id</code> in your JSON body (e.g. <code>{"store_id": "{{ current_project.project_id }}", "query": "..."}</code>) when calling <code>/rag/api/chat/</code>.
+            </div>
+        </div>
+    </div>
+
+    <!-- Available Store IDs for this User -->
+    {% if projects %}
+    <details style="background: var(--pico-card-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 0.6rem 1rem; margin-bottom: 1.5rem;" open>
+        <summary style="font-weight: 600; font-size: 0.85rem; cursor: pointer; color: var(--pico-color);">
+            📦 Available Store IDs for {{ request.user.username|default:"Current User" }} ({{ projects|length }})
+        </summary>
+        <div style="margin-top: 0.75rem; overflow-x: auto;">
+            <table class="table-compact" style="margin-bottom: 0; font-size: 0.85rem;">
+                <thead>
+                    <tr>
+                        <th>Project Name</th>
+                        <th>Backend</th>
+                        <th>Store ID (<code>project_id</code>)</th>
+                        {% if current_project.external_store_id %}
+                        <th>External Store ID</th>
+                        {% endif %}
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in projects %}
+                    <tr {% if p.project_id == current_project.project_id %}style="font-weight: 600;"{% endif %}>
+                        <td>
+                            {{ p.display_name }}
+                            {% if p.project_id == current_project.project_id %}
+                                <span class="badge badge-secondary" style="font-size: 0.65rem; margin-left: 0.35rem;">ACTIVE</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge badge-secondary" style="font-size: 0.7rem;">{{ p.storage_type }}</span></td>
+                        <td><code class="font-mono" style="font-size: 0.8rem;">{{ p.project_id }}</code></td>
+                        {% if current_project.external_store_id %}
+                        <td>
+                            {% if p.external_store_id %}
+                                <code class="font-mono" style="font-size: 0.75rem;">{{ p.external_store_id }}</code>
+                            {% else %}
+                                <span style="color: var(--pico-muted-color); font-size: 0.8rem;">—</span>
+                            {% endif %}
+                        </td>
+                        {% endif %}
+                        <td style="text-align: right;">
+                            <button type="button" class="outline secondary" style="padding: 0.15rem 0.5rem; font-size: 0.75rem; margin-bottom: 0;"
+                                    onclick="navigator.clipboard.writeText('{{ p.project_id }}'); this.innerText='✓ Copied'; setTimeout(() => this.innerText='Copy', 2000);">
+                                Copy
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </details>
+    {% endif %}
+
     {% if just_created_key %}
     <div style="padding: 0.75rem 1rem; background-color: #dcfce7; color: #166534; border: 1px solid #86efac; border-radius: var(--pico-border-radius); margin-bottom: 1.25rem;">
         <div style="font-weight: 600; margin-bottom: 0.25rem;">🎉 New API Key Generated: <strong>{{ just_created_key.name }}</strong></div>
-        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+        <div style="font-size: 0.8rem; margin-bottom: 0.5rem;">Scoped Store ID: <code class="font-mono" style="background: #bbf7d0; color: #14532d;">{{ current_project.project_id }}</code></div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
             <input type="text" value="{{ just_created_key.key }}" readonly id="new-raw-key-val" class="font-mono" style="margin-bottom: 0; background: #f0fdf4; color: #14532d; font-size: 0.85rem;">
             <button type="button" class="primary" style="padding: 0.35rem 0.75rem; margin-bottom: 0; font-size: 0.8rem; white-space: nowrap;"
                     onclick="navigator.clipboard.writeText(document.getElementById('new-raw-key-val').value); this.innerText='Copied!'; setTimeout(() => this.innerText='Copy', 2000);">
-                Copy
+                Copy Key
             </button>
         </div>
         <small style="color: #15803d; display: block; margin-top: 0.35rem;">⚠️ Copy this key now. For security, full keys are not shown again.</small>
@@ -32,6 +107,7 @@
                 <tr>
                     <th>Key Prefix</th>
                     <th>Name</th>
+                    <th>Scoped Store ID</th>
                     <th>Created</th>
                     <th>Last Used</th>
                     <th>Status</th>
@@ -43,6 +119,16 @@
                 <tr>
                     <td><code class="font-mono">{{ key.key|slice:":12" }}...</code></td>
                     <td><strong>{{ key.name }}</strong></td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 0.35rem;">
+                            <code class="font-mono" style="font-size: 0.8rem;">{{ key.project.project_id|default:current_project.project_id }}</code>
+                            <button type="button" class="outline secondary" style="padding: 0.1rem 0.35rem; font-size: 0.7rem; margin-bottom: 0;"
+                                    title="Copy Store ID"
+                                    onclick="navigator.clipboard.writeText('{{ key.project.project_id|default:current_project.project_id }}'); this.innerText='✓'; setTimeout(() => this.innerText='📋', 1500);">
+                                📋
+                            </button>
+                        </div>
+                    </td>
                     <td>{{ key.created_at|date:"M d, Y" }}</td>
                     <td>{{ key.last_used_at|date:"M d, Y H:i"|default:"Never" }}</td>
                     <td>
@@ -84,6 +170,11 @@
                 <button aria-label="Close" rel="prev" @click="showModal = false" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--pico-color);">×</button>
             </header>
             
+            <div style="margin-bottom: 1rem; padding: 0.75rem; background: var(--pico-card-background-color); border-radius: var(--pico-border-radius); border: 1px solid var(--pico-card-border-color, #e2e8f0); font-size: 0.85rem;">
+                <div>Project: <strong>{{ current_project.display_name }}</strong></div>
+                <div style="margin-top: 0.25rem;">Store ID: <code class="font-mono">{{ current_project.project_id }}</code></div>
+            </div>
+
             <form hx-post="{% url 'projects:create_project_api_key' current_project.project_id %}"
                   hx-target="#dashboard-workspace"
                   @submit="showModal = false">
@@ -101,3 +192,4 @@
         </article>
     </div>
 </article>
+

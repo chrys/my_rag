@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib import admin
-from unfold.admin import ModelAdmin
+from django.contrib.admin import ModelAdmin
 from src.apps.my_rag_project.admin import custom_admin_site
 from .models import Project, SystemPrompt
 
@@ -200,3 +200,11 @@ class SystemPromptAdmin(ModelAdmin):
     list_filter = ("created_at",)
     search_fields = ("project__display_name",)
     readonly_fields = ("created_at", "updated_at")
+
+
+try:
+    admin.site.register(Project, ProjectAdmin)
+    admin.site.register(SystemPrompt, SystemPromptAdmin)
+except admin.sites.AlreadyRegistered:
+    pass
+

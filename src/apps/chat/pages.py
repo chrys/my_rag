@@ -19,20 +19,26 @@ def index(request):
 @login_required
 @require_http_methods(["GET"])
 def admin_page(request):
-    """Admin dashboard - redirects to Pico.css dashboard"""
+    """Admin dashboard - redirects admins to Django admin, regular users to Pico.css dashboard"""
+    if request.user.is_staff or request.user.is_superuser:
+        return redirect('/rag/admin/')
     return redirect('/rag/dashboard/')
 
 
 @login_required
 @require_http_methods(["GET"])
 def chat_page(request):
-    """Chat interface - redirects to chat tab on dashboard"""
+    """Chat interface - redirects admins to admin chat workflow, regular users to Pico.css chat tab"""
+    if request.user.is_staff or request.user.is_superuser:
+        return redirect('/rag/unfold/chat/')
     return redirect('/rag/dashboard/?tab=chat')
 
 
 @login_required
 @require_http_methods(["GET"])
 def evaluate_page(request):
-    """Redirect to evaluation tab on dashboard"""
+    """Evaluation interface - redirects admins to admin evaluation workflow, regular users to Pico.css evaluate tab"""
+    if request.user.is_staff or request.user.is_superuser:
+        return redirect('/rag/unfold/evaluate/')
     return redirect('/rag/dashboard/?tab=evaluate')
 
