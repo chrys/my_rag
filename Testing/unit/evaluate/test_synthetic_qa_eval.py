@@ -273,8 +273,9 @@ class TestRunEvaluationView:
     @pytest.fixture
     def setup_user_and_project(self):
         """Create a user and project for view tests"""
-        user = User.objects.create_user(username="testadmin", password="password")
+        user = User.objects.create_superuser(username="testadmin", password="password")
         project = Project.objects.create(
+
             project_id="postgres_test_proj",
             display_name="Postgres Project",
         )

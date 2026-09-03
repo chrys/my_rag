@@ -107,7 +107,8 @@ class TestManualEvaluationViews:
 
     @pytest.fixture
     def user(self):
-        return User.objects.create_user(username="admin_user", password="password")
+        return User.objects.create_superuser(username="admin_user", password="password")
+
 
     @pytest.fixture
     def project(self):
