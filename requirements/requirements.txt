@@ -5,6 +5,7 @@ sentry-sdk
 markdown
 pypdf
 numpy
+typing-extensions>=4.5.0
 
 # Optional vector-indexing dependencies for local/postgres RAG features live in
 # requirements-ai.txt so the default install stays small enough for production.
@@ -12,7 +13,7 @@ numpy
 
 # Django stack
 django
-django-unfold
+
 djangorestframework==3.14.0
 django-cors-headers==4.3.0
 django-extensions==3.2.3

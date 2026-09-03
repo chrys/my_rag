@@ -15,9 +15,12 @@ psycopg2-binary
 # Configuration
 python-dotenv
 google-genai
+litellm
 sentry-sdk
+typing-extensions>=4.5.0
 
 # Document processing
 markdown
 pypdf
 numpy
+
