@@ -78,7 +78,6 @@ class Document(models.Model):
     )
     
     CHUNKING_CHOICES = [
-        ("project_default", "Use Project Default"),
         ("auto_detect", "Auto-Detect by File Extension"),
         ("markdown", "Markdown Header Splitter"),
         ("code", "Code / AST Splitter"),

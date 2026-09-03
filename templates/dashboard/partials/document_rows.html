@@ -1,0 +1,56 @@
+{% for doc in documents %}
+<tr id="doc-row-{{ doc.id }}">
+    <td>
+        <input type="checkbox" class="doc-row-checkbox" value="{{ doc.id }}" style="margin-bottom: 0;">
+    </td>
+    <td>
+        <strong style="color: var(--pico-color);">{{ doc.display_name|default:doc.document_name }}</strong>
+        {% if doc.content_hash %}
+            <br/><span style="font-family: monospace; font-size: 0.7rem; color: var(--pico-muted-color);">SHA: {{ doc.content_hash|truncatechars:16 }}</span>
+        {% endif %}
+    </td>
+    <td style="font-size: 0.8rem; color: var(--pico-muted-color);">
+        {{ doc.file_size|filesizeformat|default:"-" }}
+    </td>
+    <td>
+        <span class="badge badge-secondary" style="font-size: 0.7rem;">
+            ⚙️ {{ doc.chunking_strategy_display|default:doc.chunking_strategy }}
+        </span>
+    </td>
+    <td style="font-size: 0.8rem; color: var(--pico-muted-color);">
+        {{ doc.created_at|date:"M d, Y H:i" }}
+    </td>
+    <td>
+        {% if doc.state == 'INDEXED' %}
+            <span class="badge badge-success">● INDEXED</span>
+        {% elif doc.state == 'PENDING' %}
+            <span class="badge badge-warning">● PENDING</span>
+        {% else %}
+            <span class="badge badge-danger">● FAILED</span>
+        {% endif %}
+    </td>
+    <td style="text-align: right;">
+        <button type="button" class="outline secondary" style="padding: 0.2rem 0.45rem; font-size: 0.75rem; margin-bottom: 0;"
+                hx-get="{% url 'documents:inspect_document' current_project.project_id %}?document_id={{ doc.id }}"
+                hx-target="#dashboard-workspace"
+                hx-swap="beforeend"
+                title="Inspect Chunks">
+            👁 Inspect
+        </button>
+        <button type="button" class="outline contrast" style="padding: 0.2rem 0.45rem; font-size: 0.75rem; margin-bottom: 0;"
+                hx-post="{% url 'documents:delete_source' current_project.project_id doc.id %}"
+                hx-confirm="Are you sure you want to delete '{{ doc.display_name|default:doc.document_name }}' and purge its vector embeddings?"
+                hx-target="#doc-row-{{ doc.id }}"
+                hx-swap="outerHTML"
+                title="Delete Document">
+            🗑
+        </button>
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="7" style="text-align: center; color: var(--pico-muted-color); padding: 2rem 0;">
+        No documents match the selected filters or search query.
+    </td>
+</tr>
+{% endfor %}

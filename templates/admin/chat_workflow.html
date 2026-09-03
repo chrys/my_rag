@@ -37,7 +37,6 @@
                                 data-storage="{{ p.storage_type }}"
                                 data-synthesizer="{{ p.synthesizer|yesno:'Enabled,Disabled' }}"
                                 data-parsing="{{ p.get_document_parsing_display }}"
-                                data-chunking="{{ p.get_chunking_display }}"
                                 data-embed="{{ p.get_embedding_model_display }}"
                                 data-custom-prompt="{{ p.custom_prompt|yesno:'Active,Inactive' }}">
                             {{ p.display_name }} ({{ p.storage_type }})
@@ -61,10 +60,7 @@
                         <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 block uppercase">Document Parsing</span>
                         <span id="meta-parsing" class="text-sm font-semibold text-gray-800 dark:text-gray-200">-</span>
                     </div>
-                    <div>
-                        <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 block uppercase">Chunking Strategy</span>
-                        <span id="meta-chunking" class="text-sm font-semibold text-gray-800 dark:text-gray-200">-</span>
-                    </div>
+
                     <div>
                         <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 block uppercase">Embedding Model</span>
                         <span id="meta-embed" class="text-sm font-semibold text-gray-800 dark:text-gray-200">-</span>
@@ -144,7 +140,6 @@ document.addEventListener("DOMContentLoaded", function() {
     const metaStorage = document.getElementById("meta-storage");
     const metaSynthesizer = document.getElementById("meta-synthesizer");
     const metaParsing = document.getElementById("meta-parsing");
-    const metaChunking = document.getElementById("meta-chunking");
     const metaEmbed = document.getElementById("meta-embed");
     const metaCustomPrompt = document.getElementById("meta-custom-prompt");
 
@@ -175,7 +170,6 @@ document.addEventListener("DOMContentLoaded", function() {
         metaStorage.textContent = selected.dataset.storage || "-";
         metaSynthesizer.textContent = selected.dataset.synthesizer || "-";
         metaParsing.textContent = selected.dataset.parsing || "-";
-        metaChunking.textContent = selected.dataset.chunking || "-";
         metaEmbed.textContent = selected.dataset.embed || "-";
         metaCustomPrompt.textContent = selected.dataset.customPrompt || "-";
 

@@ -13,9 +13,9 @@ from src.apps.chat.views import chat as chat_api_view, chatbot_feedback as feedb
 urlpatterns = [
     # Root path redirect to /rag/
     path('', RedirectView.as_view(url='/rag/', permanent=False)),
-    # Custom Unfold Admin Site under /rag/
-    path('rag/dashboard/', custom_admin_site.urls),
-    # Admin at root level under /rag/
+    # Custom Unfold Admin Site under /rag/unfold/ and /rag/admin/
+    path('rag/unfold/', custom_admin_site.urls),
+    # Admin at root level under /rag/admin/
     path('rag/admin/', admin.site.urls),
     # Custom login route before default auth urls
     path('rag/accounts/login/', CustomLoginView.as_view(), name='login'),

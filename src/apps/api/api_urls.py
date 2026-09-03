@@ -5,7 +5,7 @@ from src.apps.documents.api_views import DocumentViewSet
 from src.apps.documents.views import delete_document
 from src.apps.chat.api_views import ChatMessageViewSet
 from src.apps.evaluate.api_views import EvaluationDatasetViewSet, EvaluationResultMetricsViewSet, EvaluationRunViewSet
-from src.apps.api.api_views import APIKeyViewSet, APIUsageViewSet
+from src.apps.api.api_views import APIKeyViewSet, APIUsageViewSet, ping_view, health_view
 
 # Create router and register viewsets
 router = DefaultRouter()
@@ -22,8 +22,12 @@ router.register(r'keys', APIKeyViewSet, basename='apikey')
 router.register(r'usage', APIUsageViewSet, basename='apiusage')
 
 urlpatterns = [
+    # Connectivity & Health check endpoints (protected by secret key)
+    path('ping/', ping_view, name='api_ping'),
+    path('health/', health_view, name='api_health'),
     # Must come BEFORE router.urls — the DRF router splits 'file.txt' into pk + format suffix
     # so filenames with dots never reach get_object(). This explicit route catches them first.
     re_path(r'^documents/(?P<document_id>[^/]+\.[^/]+)$', delete_document, name='document-delete'),
     path('', include(router.urls)),
 ]
+

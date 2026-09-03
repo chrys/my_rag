@@ -57,6 +57,10 @@ import sys
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-default-key-change-in-prod')
 os.environ['SECRET_KEY'] = SECRET_KEY
 
+# Health Check & Ping Security Key (Item 3)
+HEALTH_CHECK_KEY = os.environ.get('HEALTH_CHECK_KEY', 'rag-health-secret-key')
+
+
 # Application definition
 INSTALLED_APPS = [
     'unfold',

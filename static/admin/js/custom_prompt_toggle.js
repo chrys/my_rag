@@ -62,7 +62,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const responseModeSelect = document.querySelector('select[name="response_mode"]');
         const useHydeCheckbox = document.querySelector('input[name="use_hyde"]');
         const synthesizerCheckbox = document.querySelector('input[name="synthesizer"]');
-        const chunkingSelect = document.querySelector('select[name="chunking"]');
         const embeddingSelect = document.querySelector('select[name="embedding_model"]');
         const llmSelect = document.querySelector('select[name="llm_model"]');
 
@@ -108,21 +107,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
-            // 4. Chunking
-            if (chunkingSelect) {
-                const row = getFieldRow(chunkingSelect, 'field-chunking');
-                if (isGoogle) {
-                    chunkingSelect.value = 'gfs-default';
-                    chunkingSelect.disabled = true;
-                    if (row) row.style.opacity = '0.5';
-                } else {
-                    if (chunkingSelect.value === 'gfs-default') {
-                        chunkingSelect.value = 'fixed-size';
-                    }
-                    chunkingSelect.disabled = false;
-                    if (row) row.style.opacity = '1.0';
-                }
-            }
 
             // 5. Embedding Model
             if (embeddingSelect) {
@@ -171,7 +155,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (responseModeSelect) responseModeSelect.disabled = false;
                 if (useHydeCheckbox) useHydeCheckbox.disabled = false;
                 if (synthesizerCheckbox) synthesizerCheckbox.disabled = false;
-                if (chunkingSelect) chunkingSelect.disabled = false;
                 if (embeddingSelect) embeddingSelect.disabled = false;
                 if (llmSelect) {
                     Array.from(llmSelect.options).forEach(opt => { opt.disabled = false; });

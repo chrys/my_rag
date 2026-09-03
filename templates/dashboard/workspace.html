@@ -1,0 +1,27 @@
+{% if current_project %}
+    {% if active_tab == 'parameters' %}
+        {% include "dashboard/partials/parameters.html" %}
+    {% elif active_tab == 'prompt' %}
+        {% include "dashboard/partials/prompt.html" %}
+    {% elif active_tab == 'api_keys' %}
+        {% include "dashboard/partials/api_keys.html" %}
+    {% elif active_tab == 'sources' %}
+        {% include "dashboard/partials/sources.html" %}
+    {% elif active_tab == 'chat' %}
+        {% include "dashboard/partials/chat.html" %}
+    {% elif active_tab == 'evaluate' %}
+        {% include "dashboard/partials/evaluate.html" %}
+    {% elif active_tab == 'monitor' %}
+        {% include "dashboard/partials/monitor.html" %}
+    {% else %}
+        {% include "dashboard/partials/parameters.html" %}
+    {% endif %}
+{% else %}
+    <article style="text-align: center; padding: 3rem 1.5rem;">
+        <h3>No Project Selected</h3>
+        <p style="color: var(--pico-muted-color);">You do not have any active RAG projects yet.</p>
+        <a href="{% url 'projects:create' %}" role="button" class="primary">
+            + Create New Project
+        </a>
+    </article>
+{% endif %}

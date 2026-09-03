@@ -11,6 +11,7 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import RequestFactory
 from django.http import Http404, HttpResponse
+from django.urls import reverse
 from src.apps.evaluate.models import EvaluationDataset, EvaluationRun, EvaluationResultMetrics
 from src.apps.evaluate.views import (
     evaluation_dashboard,
@@ -64,7 +65,7 @@ class TestEvaluationViews:
 
         response = qa_setup(request, project_id=project.project_id)
         assert response.status_code == 302
-        assert "/rag/dashboard/evaluate/qa-setup/" in response.url
+        assert reverse("custom_admin:qa-setup-workflow", kwargs={"project_id": project.project_id}) in response.url
 
     @patch("src.apps.evaluate.admin_views.QaSetupWorkflowView.render_to_response")
     def test_qa_setup_get(self, mock_render, factory, user, project):

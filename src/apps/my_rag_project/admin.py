@@ -30,7 +30,7 @@ class CustomUnfoldAuthenticationForm(DjangoAuthenticationForm):
 class CustomLoginView(LoginView):
     """
     Standard login view redirecting admin/staff users to Django admin
-    and standard users to the Unfold dashboard.
+    and standard users to the Pico.css dashboard.
     """
     template_name = "registration/login.html"
     redirect_authenticated_user = True
@@ -40,23 +40,23 @@ class CustomLoginView(LoginView):
         if user.is_authenticated and (user.is_staff or user.is_superuser):
             return reverse("admin:index")
         redirect_to = self.get_redirect_url()
-        if not redirect_to or redirect_to in ["/rag/", "/", "/rag/dashboard/", "/rag/dashboard"]:
-            return reverse("custom_admin:index")
+        if not redirect_to or redirect_to in ["/rag/", "/", "/rag/dashboard/", "/rag/dashboard", "/rag/unfold/", "/rag/unfold"]:
+            return reverse("projects:dashboard")
         return redirect_to
 
 
 class CustomDashboardLoginView(LoginView):
     """
     Dashboard login view redirecting admin users to Django admin
-    and non-admin users to the Unfold dashboard.
+    and non-admin users to the Pico.css dashboard.
     """
     def get_success_url(self) -> str:
         user = self.request.user
         if user.is_authenticated and (user.is_staff or user.is_superuser):
             return reverse("admin:index")
         redirect_to = self.get_redirect_url()
-        if not redirect_to or redirect_to in ["/rag/", "/", "/rag/dashboard/", "/rag/dashboard"]:
-            return reverse("custom_admin:index")
+        if not redirect_to or redirect_to in ["/rag/", "/", "/rag/dashboard/", "/rag/dashboard", "/rag/unfold/", "/rag/unfold"]:
+            return reverse("projects:dashboard")
         return redirect_to
 
 

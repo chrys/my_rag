@@ -23,6 +23,99 @@ security:
 
 paths:
   # ==========================================
+  # SYSTEM CONNECTIVITY & HEALTH
+  # ==========================================
+  /ping/:
+    get:
+      summary: Lightweight Connectivity Ping
+      description: |
+        Ultra-low-latency in-memory response (<1ms) with zero database queries.
+        Used by external applications, microservices, and load balancers to verify service availability.
+        Requires authentication via shared health secret (`X-Health-Key`, `Authorization: Bearer <key>`, or `?key=<key>`) or active API key to prevent unauthorized probing.
+      operationId: pingCheck
+      tags:
+        - Health
+      security:
+        - healthKeyAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: key
+          in: query
+          required: false
+          description: Optional query parameter alternative to `X-Health-Key`
+          schema:
+            type: string
+            example: rag-health-secret-key
+        - name: token
+          in: query
+          required: false
+          description: Alternative query parameter name for health key
+          schema:
+            type: string
+            example: rag-health-secret-key
+      responses:
+        '200':
+          description: Service is reachable and responding
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PingResponse'
+        '403':
+          description: Invalid or missing health key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorResponse'
+
+  /health/:
+    get:
+      summary: Deep Health Check with Cached Database Connectivity
+      description: |
+        Verifies API service responsiveness and PostgreSQL database connectivity.
+        Database connectivity checks are cached for 15 seconds to prevent connection pool exhaustion under high frequency monitoring.
+        Requires authentication via shared health secret (`X-Health-Key`, `Authorization: Bearer <key>`, or `?key=<key>`) or active API key.
+      operationId: healthCheck
+      tags:
+        - Health
+      security:
+        - healthKeyAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: key
+          in: query
+          required: false
+          description: Optional query parameter alternative to `X-Health-Key`
+          schema:
+            type: string
+            example: rag-health-secret-key
+        - name: token
+          in: query
+          required: false
+          description: Alternative query parameter name for health key
+          schema:
+            type: string
+            example: rag-health-secret-key
+      responses:
+        '200':
+          description: Service and database are healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '403':
+          description: Invalid or missing health key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorResponse'
+        '503':
+          description: Database connectivity degraded or failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  # ==========================================
   # CHAT & CONVERSATION
   # ==========================================
   /chat/:
@@ -637,6 +730,11 @@ components:
       in: cookie
       name: sessionid
       description: Django session cookie
+    healthKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Health-Key
+      description: Shared secret key for health and ping endpoints (also accepts `Authorization: Bearer <key>` or `?key=<key>`).
 
   schemas:
     ChatQueryRequest:
@@ -949,3 +1047,66 @@ components:
         detail:
           type: string
           example: "Invalid credentials provided or project not found."
+
+    PingResponse:
+      type: object
+      required:
+        - status
+        - message
+        - service
+        - timestamp
+      properties:
+        status:
+          type: string
+          example: "ok"
+        message:
+          type: string
+          example: "pong"
+        service:
+          type: string
+          example: "my_rag"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-09-03T10:13:34.123456Z"
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - service
+        - database
+        - cached
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded]
+          example: "healthy"
+        service:
+          type: string
+          example: "my_rag"
+        database:
+          type: string
+          example: "connected"
+        cached:
+          type: boolean
+          example: true
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-09-03T10:13:35.000000Z"
+
+    ForbiddenErrorResponse:
+      type: object
+      required:
+        - status
+        - error
+      properties:
+        status:
+          type: string
+          example: "forbidden"
+        error:
+          type: string
+          example: "Invalid or missing health key. Provide X-Health-Key header or ?key= query parameter."
+

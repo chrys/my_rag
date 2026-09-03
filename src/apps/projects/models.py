@@ -79,19 +79,6 @@ class Project(models.Model):
         default="markitdown",
         help_text="Document parsing backend (cannot be changed after first source is indexed)."
     )
-    chunking = models.CharField(
-        max_length=50,
-        choices=[
-            ("gfs-default", "Google File Search - Default"),
-            ("fixed-size", "Fixed-size"),
-            ("sentence-paragraph", "Sentence/paragraph"),
-            ("recursive", "Recursive"),
-            ("document-structure", "Document-structure"),
-            ("semantic", "Semantic"),
-        ],
-        default="fixed-size",
-        help_text="Text chunking strategy"
-    )
     embedding_model = models.CharField(
         max_length=100,
         choices=[
@@ -170,7 +157,6 @@ class Project(models.Model):
             self.use_hyde = False
             self.synthesizer = False
             self.response_mode = "compact"
-            self.chunking = "gfs-default"
             self.embedding_model = "models/gemini-embedding-001"
 
         if self.pk:
@@ -190,7 +176,6 @@ class Project(models.Model):
             self.use_hyde = False
             self.synthesizer = False
             self.response_mode = "compact"
-            self.chunking = "gfs-default"
             self.embedding_model = "models/gemini-embedding-001"
             if not self.external_store_id:
                 try:

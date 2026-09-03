@@ -16,6 +16,105 @@ security:
   - cookieAuth: []
 
 paths:
+  # ==========================================
+  # SYSTEM CONNECTIVITY & HEALTH
+  # ==========================================
+  /ping/:
+    get:
+      summary: Lightweight Connectivity Ping
+      description: |
+        Ultra-low-latency in-memory response (<1ms) with zero database queries.
+        Used by external applications, microservices, and load balancers to verify service availability.
+        Requires authentication via shared health secret (`X-Health-Key`, `Authorization: Bearer <key>`, or `?key=<key>`) or active API key.
+      operationId: pingCheck
+      tags:
+        - Health
+      security:
+        - healthKeyAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: key
+          in: query
+          required: false
+          description: Optional query parameter alternative to `X-Health-Key`
+          schema:
+            type: string
+            example: rag-health-secret-key
+      responses:
+        '200':
+          description: Service is reachable and responding
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  message:
+                    type: string
+                    example: "pong"
+                  service:
+                    type: string
+                    example: "my_rag"
+                  timestamp:
+                    type: string
+                    format: date-time
+        '403':
+          description: Invalid or missing health key
+
+  /health/:
+    get:
+      summary: Deep Health Check with Cached Database Connectivity
+      description: |
+        Verifies API service responsiveness and PostgreSQL database connectivity.
+        Database connectivity checks are cached for 15 seconds to prevent connection pool exhaustion under load.
+        Requires authentication via shared health secret (`X-Health-Key`, `Authorization: Bearer <key>`, or `?key=<key>`) or active API key.
+      operationId: healthCheck
+      tags:
+        - Health
+      security:
+        - healthKeyAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: key
+          in: query
+          required: false
+          description: Optional query parameter alternative to `X-Health-Key`
+          schema:
+            type: string
+            example: rag-health-secret-key
+      responses:
+        '200':
+          description: Service and database are healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  service:
+                    type: string
+                    example: "my_rag"
+                  database:
+                    type: string
+                    example: "connected"
+                  cached:
+                    type: boolean
+                    example: true
+                  timestamp:
+                    type: string
+                    format: date-time
+        '403':
+          description: Invalid or missing health key
+        '503':
+          description: Database connectivity degraded or failed
+
+  # ==========================================
+  # CHAT & CONVERSATION
+  # ==========================================
   /chat/:
     post:
       summary: Direct RAG Chat Query

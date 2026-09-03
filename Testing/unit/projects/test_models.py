@@ -197,7 +197,6 @@ class TestProjectModel:
                 display_name='GFS Valid Project',
                 storage_type='google',
                 llm_model=model_name,
-                chunking='fixed-size',
                 embedding_model='models/gemini-embedding-001'
             )
             project.full_clean()
@@ -317,7 +316,6 @@ class TestProjectModel:
         )
         assert project.synthesizer is False
         assert project.document_parsing == 'markitdown'
-        assert project.chunking == 'fixed-size'
         assert project.embedding_model == 'models/gemini-embedding-001'
         assert project.custom_prompt is False
 
@@ -328,13 +326,11 @@ class TestProjectModel:
             display_name='Params Custom',
             synthesizer=True,
             document_parsing='markitdown',
-            chunking='semantic',
             embedding_model='gemini-1',
             custom_prompt=True
         )
         assert project.synthesizer is True
         assert project.document_parsing == 'markitdown'
-        assert project.chunking == 'semantic'
         assert project.embedding_model == 'gemini-1'
         assert project.custom_prompt is True
 

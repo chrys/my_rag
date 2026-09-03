@@ -35,8 +35,8 @@ Each project exposes configurable parameters under the **Parameters** and **Sour
   - Boolean configuration toggle on the `Project` model designed to enable/disable answer synthesis. Rendered in admin metadata panels ([chat_workflow.html](file:///Users/chrys/Projects/my_rag/templates/admin/chat_workflow.html)), but not yet wired to bypass main chat LLM generation.
 - **Document Parsing (`document_parsing`)** — `[IMMUTABLE / TODO]`
   - Choice field for document extraction backends (`markitdown`). Document ingestion in `LlamaIndexIngestionPipeline` currently defaults to `SimpleDirectoryReader`. **Note: Cannot be changed after the first source is indexed; disabled in admin when documents exist.**
-- **Chunking Options (`chunking`)** — `[IMMUTABLE / PARTIALLY IMPLEMENTED]`
-  - Selectable text chunking strategies (`fixed-size`, `sentence-paragraph`, `recursive`, `document-structure`, `semantic`). The default `fixed-size` strategy (LlamaIndex sentence splitter) is active; other options are schema placeholders. **Note: Cannot be changed after the first source is indexed.**
+- **Chunking Strategies** — `[ACTIVE / DOCUMENT LEVEL]`
+  - Text chunking is configured at the **Document level** (`Document.chunking_strategy`) with `auto_detect` as the default parser. Specific parsers include Markdown Header Splitter, Code/AST Splitter, Hierarchical (Parent-Child), and Sentence Boundary.
 - **Embedding Models (`embedding_model`)** — `[IMMUTABLE / ACTIVE]`
   - Choice field for vector embedding models (`gemini-1`). `gemini-1` (`models/gemini-embedding-001` with 3072 dimensions) is active and used in vector store ingestion. **Note: Cannot be changed after the first source is indexed; disabled in admin when documents exist.**
 - **Custom Prompt (`custom_prompt` / `custom_prompt_text`)** — `[ACTIVE]`

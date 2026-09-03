@@ -545,6 +545,79 @@ def check_document_hygiene(file_path: str, filename: str) -> dict:
     }
 
 
+def compute_text_simhash(text: str) -> int:
+    """
+    Computes a 64-bit SimHash fingerprint for near-duplicate text detection.
+    """
+    import hashlib
+    words = [w for w in re.findall(r'\w+', text.lower()) if len(w) > 1]
+    if not words:
+        return 0
+    features = words + [f"{words[i]}_{words[i+1]}" for i in range(len(words)-1)]
+    v = [0] * 64
+    for feat in features:
+        h = int(hashlib.md5(feat.encode('utf-8')).hexdigest(), 16)
+        for i in range(64):
+            if (h >> i) & 1:
+                v[i] += 1
+            else:
+                v[i] -= 1
+    fingerprint = 0
+    for i in range(64):
+        if v[i] > 0:
+            fingerprint |= (1 << i)
+    return fingerprint
+
+
+def simhash_similarity(hash1: int, hash2: int) -> float:
+    """
+    Computes normalized similarity [0.0, 1.0] from Hamming distance of two 64-bit SimHashes.
+    """
+    if hash1 == 0 or hash2 == 0:
+        return 0.0
+    x = hash1 ^ hash2
+    hamming_dist = bin(x).count('1')
+    return 1.0 - (hamming_dist / 64.0)
+
+
+def check_near_duplicate(project, extracted_text: str, threshold: float = 0.85):
+    """
+    Checks if extracted_text has high textual similarity with an already indexed document.
+    Returns: (matching_doc, similarity_percentage) or (None, 0.0)
+    """
+    if not extracted_text or not project:
+        return None, 0.0
+
+    target_hash = compute_text_simhash(extracted_text)
+    if target_hash == 0:
+        return None, 0.0
+
+    for doc in project.documents.filter(state="INDEXED"):
+        file_path = getattr(doc, "file_path", None)
+        if not file_path or not os.path.exists(file_path):
+            possible_paths = [
+                doc.document_name,
+                os.path.join(os.getcwd(), "uploads", doc.document_name),
+                os.path.join(os.getcwd(), "uploads", str(project.project_id), doc.document_name),
+            ]
+            file_path = next((p for p in possible_paths if p and os.path.exists(p)), None)
+
+        if not file_path or not os.path.exists(file_path):
+            continue
+
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                existing_text = f.read(50000)
+            existing_hash = compute_text_simhash(existing_text)
+            sim = simhash_similarity(target_hash, existing_hash)
+            if sim >= threshold:
+                return doc, round(sim * 100, 1)
+        except Exception:
+            continue
+
+    return None, 0.0
+
+
 def strip_noisy_artifacts(text: str) -> str:
     """
     Cleans up boilerplate artifacts before ingestion:

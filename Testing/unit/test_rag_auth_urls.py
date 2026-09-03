@@ -63,7 +63,7 @@ def test_admin_login_redirects_to_django_admin_via_dashboard_login(client):
         email="dash_admin@example.com",
         password="AdminPassword123!"
     )
-    response = client.post("/rag/dashboard/login/?next=/rag/dashboard/", {
+    response = client.post("/rag/unfold/login/?next=/rag/unfold/", {
         "username": "dashboard_admin",
         "password": "AdminPassword123!"
     })
@@ -79,7 +79,7 @@ def test_regular_user_login_redirects_to_dashboard_via_dashboard_login(client):
         email="dash_user@example.com",
         password="UserPassword123!"
     )
-    response = client.post("/rag/dashboard/login/?next=/rag/dashboard/", {
+    response = client.post("/rag/unfold/login/?next=/rag/unfold/", {
         "username": "dashboard_user",
         "password": "UserPassword123!"
     })

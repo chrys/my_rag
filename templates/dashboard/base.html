@@ -1,0 +1,178 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}RAG Studio Dashboard{% endblock %}</title>
+    <!-- Pico.css Custom Theme -->
+    <link rel="stylesheet" href="{% static 'css/pico.custom.css' %}">
+    <!-- HTMX for reactive partial updates -->
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <!-- Alpine.js for lightweight client micro-interactions -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="{% static 'js/theme_toggle.js' %}"></script>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+</head>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    <div class="app-container">
+        <!-- Sticky Top Navigation Bar -->
+        <header class="top-navbar">
+            <a href="{% url 'projects:dashboard' %}" class="top-navbar-brand">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                <span>My RAG Studio</span>
+            </a>
+
+            <div class="top-navbar-controls">
+                {% if projects %}
+                <div class="project-select-wrapper">
+                    <select id="top-project-selector" 
+                            name="project_id" 
+                            hx-get="{% url 'projects:dashboard' %}" 
+                            hx-target="body" 
+                            hx-push-url="true"
+                            aria-label="Active Project">
+                        {% for p in projects %}
+                        <option value="{{ p.project_id }}" {% if current_project and current_project.project_id == p.project_id %}selected{% endif %}>
+                            {{ p.display_name }} ({{ p.storage_type }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <button id="theme-toggle-btn" 
+                        class="outline secondary" 
+                        onclick="toggleTheme()" 
+                        style="padding: 0.35rem 0.75rem; margin-bottom: 0; font-size: 0.8rem;">
+                    🌙 Dark
+                </button>
+
+                {% if request.user.is_authenticated %}
+                <span class="badge badge-secondary">
+                    👤 {{ request.user.username }}
+                </span>
+                <a href="{% url 'logout' %}" class="outline secondary" style="padding: 0.35rem 0.65rem; margin-bottom: 0; font-size: 0.8rem; text-decoration: none;">
+                    Logout
+                </a>
+                {% endif %}
+            </div>
+        </header>
+
+        <!-- Main Workspace Grid (Left Sidebar + Content Stage) -->
+        <div class="workspace-container">
+            <!-- Left Navigation Sidebar -->
+            <aside class="sidebar-navigation">
+                {% if current_project %}
+                <!-- Configuration -->
+                <div class="sidebar-menu-group">
+                    <div class="sidebar-menu-title">Configuration</div>
+                    <a href="{% url 'projects:parameters' current_project.project_id %}" 
+                       class="sidebar-link {% if active_tab == 'parameters' %}active{% endif %}"
+                       hx-get="{% url 'projects:parameters' current_project.project_id %}" 
+                       hx-target="#dashboard-workspace" 
+                       hx-push-url="true"
+                       onclick="setActiveSidebarLink(this)">
+                        ⚙️ Parameters
+                    </a>
+                    <a href="{% url 'projects:prompt' current_project.project_id %}" 
+                       class="sidebar-link {% if active_tab == 'prompt' %}active{% endif %}"
+                       hx-get="{% url 'projects:prompt' current_project.project_id %}" 
+                       hx-target="#dashboard-workspace" 
+                       hx-push-url="true"
+                       onclick="setActiveSidebarLink(this)">
+                        📝 Prompt
+                    </a>
+                    <a href="{% url 'projects:api_keys' current_project.project_id %}" 
+                       class="sidebar-link {% if active_tab == 'api_keys' %}active{% endif %}"
+                       hx-get="{% url 'projects:api_keys' current_project.project_id %}" 
+                       hx-target="#dashboard-workspace" 
+                       hx-push-url="true"
+                       onclick="setActiveSidebarLink(this)">
+                        🔑 API Keys
+                    </a>
+                </div>
+
+                <!-- Index -->
+                <div class="sidebar-menu-group">
+                    <div class="sidebar-menu-title">Index</div>
+                    <a href="{% url 'projects:sources' current_project.project_id %}" 
+                       class="sidebar-link {% if active_tab == 'sources' %}active{% endif %}"
+                       hx-get="{% url 'projects:sources' current_project.project_id %}" 
+                       hx-target="#dashboard-workspace" 
+                       hx-push-url="true"
+                       onclick="setActiveSidebarLink(this)">
+                        📑 Sources
+                    </a>
+                </div>
+
+                <!-- Chat -->
+                <div class="sidebar-menu-group">
+                    <div class="sidebar-menu-title">Chat Workflow</div>
+                    <a href="{% url 'projects:chat' current_project.project_id %}" 
+                       class="sidebar-link {% if active_tab == 'chat' %}active{% endif %}"
+                       hx-get="{% url 'projects:chat' current_project.project_id %}" 
+                       hx-target="#dashboard-workspace" 
+                       hx-push-url="true"
+                       onclick="setActiveSidebarLink(this)">
+                        💬 Chat
+                    </a>
+                </div>
+
+                <!-- Evaluate -->
+                <div class="sidebar-menu-group">
+                    <div class="sidebar-menu-title">Evaluation</div>
+                    <a href="{% url 'projects:evaluate' current_project.project_id %}" 
+                       class="sidebar-link {% if active_tab == 'evaluate' %}active{% endif %}"
+                       hx-get="{% url 'projects:evaluate' current_project.project_id %}" 
+                       hx-target="#dashboard-workspace" 
+                       hx-push-url="true"
+                       onclick="setActiveSidebarLink(this)">
+                        📊 Evaluate
+                    </a>
+                </div>
+
+                <!-- Monitor -->
+                <div class="sidebar-menu-group">
+                    <div class="sidebar-menu-title">Operations</div>
+                    <a href="{% url 'projects:monitor' current_project.project_id %}" 
+                       class="sidebar-link {% if active_tab == 'monitor' %}active{% endif %}"
+                       hx-get="{% url 'projects:monitor' current_project.project_id %}" 
+                       hx-target="#dashboard-workspace" 
+                       hx-push-url="true"
+                       onclick="setActiveSidebarLink(this)">
+                        📈 Monitor
+                    </a>
+                </div>
+                {% else %}
+                <p style="font-size: 0.85rem; color: var(--pico-muted-color); padding: 0.5rem;">
+                    No projects found. Please create a project to get started.
+                </p>
+                {% endif %}
+            </aside>
+
+            <!-- Dynamic Main Stage Workspace Target -->
+            <main class="main-stage">
+                <div id="dashboard-workspace">
+                    {% block workspace_content %}
+                        {% include "dashboard/workspace.html" %}
+                    {% endblock %}
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        function setActiveSidebarLink(clickedElement) {
+            document.querySelectorAll('.sidebar-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            if (clickedElement) {
+                clickedElement.classList.add('active');
+            }
+        }
+    </script>
+</body>
+</html>

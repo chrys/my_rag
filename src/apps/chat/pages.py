@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required
 @login_required
 @require_http_methods(["GET"])
 def index(request):
-    """Home page - redirects to Django admin for admin users and unfold dashboard for regular users"""
+    """Home page - redirects to Django admin for admin users and Pico.css dashboard for regular users"""
     if request.user.is_staff or request.user.is_superuser:
         return redirect('/rag/admin/')
     return redirect('/rag/dashboard/')
@@ -19,22 +19,20 @@ def index(request):
 @login_required
 @require_http_methods(["GET"])
 def admin_page(request):
-    """Admin dashboard - redirects to Django admin for admin users and unfold dashboard for regular users"""
-    if request.user.is_staff or request.user.is_superuser:
-        return redirect('/rag/admin/')
+    """Admin dashboard - redirects to Pico.css dashboard"""
     return redirect('/rag/dashboard/')
 
 
 @login_required
 @require_http_methods(["GET"])
 def chat_page(request):
-    """Chat interface - redirects to unfold chat panel"""
-    return redirect('/rag/dashboard/chat/')
+    """Chat interface - redirects to chat tab on dashboard"""
+    return redirect('/rag/dashboard/?tab=chat')
 
 
 @login_required
 @require_http_methods(["GET"])
 def evaluate_page(request):
-    """Redirect to evaluation dashboard panel"""
-    return redirect('/rag/dashboard/evaluate/')
+    """Redirect to evaluation tab on dashboard"""
+    return redirect('/rag/dashboard/?tab=evaluate')
 

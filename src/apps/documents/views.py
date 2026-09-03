@@ -6,6 +6,7 @@ from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
 from django.utils.text import get_valid_filename
 from django.db import models
 import os
@@ -252,10 +253,65 @@ def inspect_document(request, store_id):
             os.unlink(filepath)
 
 
+def _render_document_list_response(request, project, store_id, storage=None):
+    """Render documents for either Pico.css workspace, table rows, or legacy template"""
+    target = request.headers.get("HX-Target", "")
+    if target == "documents-tbody":
+        docs_qs = Document.objects.filter(project=project).order_by('-created_at') if project else []
+        return render(request, 'dashboard/partials/document_rows.html', {
+            'documents': docs_qs,
+            'current_project': project,
+            'store_id': store_id,
+        })
+    elif target == "dashboard-workspace" or "dashboard" in request.headers.get("HX-Current-URL", "") or "dashboard" in request.path:
+        docs_qs = Document.objects.filter(project=project).order_by('-created_at') if project else []
+        indexed_count = Document.objects.filter(project=project, state='INDEXED').count() if project else 0
+        from src.apps.projects.views import _get_user_projects
+        return render(request, 'dashboard/partials/sources.html', {
+            'current_project': project,
+            'projects': _get_user_projects(request),
+            'active_tab': 'sources',
+            'documents': docs_qs,
+            'documents_count': indexed_count,
+            'store_id': store_id,
+        })
+    
+    if project and project.storage_type in ['google', 'postgres']:
+        docs_qs = Document.objects.filter(project=project)
+        documents = [_doc_adapter(d) for d in docs_qs]
+    else:
+        if storage is None:
+            storage = get_local_project_storage()
+        local_projects = storage.list_projects()
+        proj = next((p for p in local_projects if p['id'] == store_id), None)
+        if proj:
+            documents = [
+                {
+                    'name': doc_name,
+                    'display_name': doc_name,
+                    'mime_type': 'document',
+                    'indexed_at': doc_info.get('indexed_at') if isinstance(doc_info, dict) else None,
+                    'state': type('State', (), {'name': 'INDEXED'})()
+                }
+                for doc_name, doc_info in (
+                    ((d, proj['documents'].get(d)) if isinstance(proj['documents'], dict) else (d, {}))
+                    for d in proj.get('documents', []) if d
+                )
+            ]
+        else:
+            documents = []
+    
+    return render(request, 'partials/document_items.html', {
+        'documents': documents,
+        'store_id': store_id,
+        'url_prefix': '/rag',
+    })
+
+
 @require_http_methods(["POST"])
 @csrf_exempt
 def upload_document(request, store_id):
-    """Upload and index a document"""
+    """Upload and index a document with multi-tier deduplication"""
     storage = get_local_project_storage()
     
     if 'file' not in request.FILES:
@@ -295,6 +351,102 @@ def upload_document(request, store_id):
             for chunk in file.chunks():
                 tmp.write(chunk)
             filepath = tmp.name
+
+        project = Project.objects.filter(project_id=store_id).first()
+        from src.apps.documents.services import compute_file_sha256, check_near_duplicate
+        content_hash = compute_file_sha256(filepath)
+
+        force_reupload = (request.POST.get('force_reupload') == 'true' or 
+                          request.GET.get('force_reupload') == 'true' or
+                          request.POST.get('force_replace') == 'true' or
+                          request.GET.get('force_replace') == 'true')
+
+        if not force_reupload and project:
+            # 1. Tier 1: Exact Binary Duplicate Check (SHA-256)
+            existing_doc = Document.objects.filter(
+                project=project,
+                content_hash=content_hash,
+                state='INDEXED'
+            ).first()
+
+            if existing_doc:
+                if os.path.exists(filepath):
+                    os.unlink(filepath)
+                
+                target = request.headers.get("HX-Target", "")
+                if target == "dashboard-workspace" or "dashboard" in request.headers.get("HX-Current-URL", "") or "dashboard" in request.path:
+                    docs_qs = Document.objects.filter(project=project).order_by('-created_at') if project else []
+                    indexed_count = Document.objects.filter(project=project, state='INDEXED').count() if project else 0
+                    from src.apps.projects.views import _get_user_projects
+                    return render(request, 'dashboard/partials/sources.html', {
+                        'current_project': project,
+                        'projects': _get_user_projects(request),
+                        'active_tab': 'sources',
+                        'documents': docs_qs,
+                        'documents_count': indexed_count,
+                        'store_id': store_id,
+                        'duplicate_modal': {
+                            'filename': filename,
+                            'content_hash': content_hash,
+                            'existing_doc': existing_doc,
+                        }
+                    })
+
+                return render(request, 'partials/document_duplicate_modal.html', {
+                    'store_id': store_id,
+                    'filename': filename,
+                    'content_hash': content_hash,
+                    'existing_doc': existing_doc,
+                    'current_project': project,
+                })
+
+            # 2. Tier 2: Near-Duplicate Revision Check (SimHash >= 85%)
+            if not (request.POST.get('allow_revision') == 'true' or request.GET.get('allow_revision') == 'true'):
+                sample_text = ""
+                try:
+                    if file_ext in ['.txt', '.md', '.csv', '.json', '.html', '.py', '.js', '.ts']:
+                        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                            sample_text = f.read(20000)
+                    elif file_ext == '.pdf':
+                        from pypdf import PdfReader
+                        reader = PdfReader(filepath)
+                        pages_text = [p.extract_text() for p in reader.pages[:10] if p.extract_text()]
+                        sample_text = "\n".join(pages_text)
+                except Exception:
+                    sample_text = ""
+
+                if sample_text and len(sample_text.strip()) > 50:
+                    matched_doc, sim_score = check_near_duplicate(project, sample_text, threshold=0.85)
+                    if matched_doc and matched_doc.content_hash != content_hash:
+                        if os.path.exists(filepath):
+                            os.unlink(filepath)
+                        
+                        target = request.headers.get("HX-Target", "")
+                        if target == "dashboard-workspace" or "dashboard" in request.headers.get("HX-Current-URL", "") or "dashboard" in request.path:
+                            docs_qs = Document.objects.filter(project=project).order_by('-created_at') if project else []
+                            indexed_count = Document.objects.filter(project=project, state='INDEXED').count() if project else 0
+                            from src.apps.projects.views import _get_user_projects
+                            return render(request, 'dashboard/partials/sources.html', {
+                                'current_project': project,
+                                'projects': _get_user_projects(request),
+                                'active_tab': 'sources',
+                                'documents': docs_qs,
+                                'documents_count': indexed_count,
+                                'store_id': store_id,
+                                'revision_modal': {
+                                    'new_filename': filename,
+                                    'existing_doc': matched_doc,
+                                    'similarity_pct': round(sim_score * 100, 1),
+                                }
+                            })
+
+                        return render(request, 'partials/document_revision_modal.html', {
+                            'store_id': store_id,
+                            'new_filename': filename,
+                            'existing_doc': matched_doc,
+                            'similarity_pct': round(sim_score * 100, 1),
+                            'current_project': project,
+                        })
         
         try:
             if store_id.startswith('local_'):
@@ -308,8 +460,6 @@ def upload_document(request, store_id):
                     os.unlink(filepath)
                     return JsonResponse({'error': 'Failed to index document'}, status=500)
             elif store_id.startswith('rag_') or store_id.startswith('postgres_'):
-                project = Project.objects.filter(project_id=store_id).first()
-
                 if store_id.startswith('postgres_'):
                     conn_success, conn_error = test_postgres_connection()
                     if not conn_success:
@@ -327,13 +477,7 @@ def upload_document(request, store_id):
                                     'expiration_date': expiration_date,
                                 }
                             )
-                        docs_qs = Document.objects.filter(project=project)
-                        documents = [_doc_adapter(d) for d in docs_qs]
-                        return render(request, 'partials/document_items.html', {
-                            'documents': documents,
-                            'store_id': store_id,
-                            'url_prefix': '/rag',
-                        })
+                        return _render_document_list_response(request, project, store_id, storage)
 
                 # RAG project indexing
                 from src.apps.documents.services import LlamaIndexIngestionPipeline
@@ -378,13 +522,7 @@ def upload_document(request, store_id):
                                 'expiration_date': expiration_date,
                             }
                         )
-                    docs_qs = Document.objects.filter(project=project)
-                    documents = [_doc_adapter(d) for d in docs_qs]
-                    return render(request, 'partials/document_items.html', {
-                        'documents': documents,
-                        'store_id': store_id,
-                        'url_prefix': '/rag',
-                    })
+                        return _render_document_list_response(request, project, store_id, storage)
                 
                 if success:
                     if project:
@@ -415,13 +553,7 @@ def upload_document(request, store_id):
                                 'expiration_date': expiration_date,
                             }
                         )
-                    docs_qs = Document.objects.filter(project=project)
-                    documents = [_doc_adapter(d) for d in docs_qs]
-                    return render(request, 'partials/document_items.html', {
-                        'documents': documents,
-                        'store_id': store_id,
-                        'url_prefix': '/rag',
-                    })
+                    return _render_document_list_response(request, project, store_id, storage)
             else:
                 # Google File Search storage branch
                 from src.google_file_search import GoogleFileSearchPermissionError
@@ -522,34 +654,7 @@ def upload_document(request, store_id):
         
         # Return updated documents list
         project = Project.objects.filter(project_id=store_id).first()
-        if project and project.storage_type in ['google', 'postgres']:
-            docs_qs = Document.objects.filter(project=project)
-            documents = [_doc_adapter(d) for d in docs_qs]
-        else:
-            local_projects = storage.list_projects()
-            proj = next((p for p in local_projects if p['id'] == store_id), None)
-            if proj:
-                documents = [
-                    {
-                        'name': doc_name,
-                        'display_name': doc_name,
-                        'mime_type': 'document',
-                        'indexed_at': doc_info.get('indexed_at') if isinstance(doc_info, dict) else None,
-                        'state': type('State', (), {'name': 'INDEXED'})()
-                    }
-                    for doc_name, doc_info in (
-                        ((d, proj['documents'].get(d)) if isinstance(proj['documents'], dict) else (d, {}))
-                        for d in proj.get('documents', []) if d
-                    )
-                ]
-            else:
-                documents = []
-        
-        return render(request, 'partials/document_items.html', {
-            'documents': documents,
-            'store_id': store_id,
-            'url_prefix': '/rag',
-        })
+        return _render_document_list_response(request, project, store_id, storage)
     
     except Exception as e:
         import traceback
@@ -899,6 +1004,159 @@ def google_calendar_status(request, store_id):
     project = get_object_or_404(Project, project_id=store_id)
     gcal_source = getattr(project, 'google_calendar_source', None)
     return render_google_calendar_section(request, project, gcal_source)
+
+
+@login_required
+@require_http_methods(["GET"])
+def filter_sources_view(request, store_id):
+    """
+    HTMX endpoint for dynamic search and multi-axis filtering of documents.
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+    project = get_object_or_404(Project, project_id=store_id)
+    qs = project.documents.all().order_by("-created_at")
+
+    # Name search
+    search = request.GET.get("search", "").strip()
+    if search:
+        qs = qs.filter(
+            models.Q(document_name__icontains=search) | models.Q(display_name__icontains=search)
+        )
+
+    # Date range filter
+    date_range = request.GET.get("date_range", "all")
+    now = timezone.now()
+    if date_range == "today":
+        qs = qs.filter(created_at__date=now.date())
+    elif date_range == "7days":
+        qs = qs.filter(created_at__gte=now - timedelta(days=7))
+    elif date_range == "30days":
+        qs = qs.filter(created_at__gte=now - timedelta(days=30))
+
+    # File type filter
+    file_type = request.GET.get("file_type", "all")
+    if file_type == "md":
+        qs = qs.filter(document_name__iendswith=".md")
+    elif file_type == "pdf":
+        qs = qs.filter(document_name__iendswith=".pdf")
+    elif file_type == "txt":
+        qs = qs.filter(document_name__iendswith=".txt")
+    elif file_type == "code":
+        qs = qs.filter(
+            models.Q(document_name__iendswith=".py") |
+            models.Q(document_name__iendswith=".js") |
+            models.Q(document_name__iendswith=".ts") |
+            models.Q(document_name__iendswith=".html")
+        )
+
+    # Status filter
+    status = request.GET.get("status", "all")
+    if status in ["INDEXED", "PENDING", "FAILED"]:
+        qs = qs.filter(state=status)
+
+    context = {
+        "current_project": project,
+        "documents": qs,
+    }
+    return render(request, "dashboard/partials/document_rows.html", context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def inspect_document_view(request, store_id):
+    """Inspect chunk nodes and metadata preview for a document."""
+    project = get_object_or_404(Project, project_id=store_id)
+    doc_id = request.GET.get("document_id")
+    document = get_object_or_404(Document, id=doc_id, project=project)
+
+    preview_text = "No preview available."
+    file_path = getattr(document, "file_path", None)
+    if file_path and os.path.exists(file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                preview_text = f.read(4000)
+        except Exception as e:
+            preview_text = f"Error reading file preview: {e}"
+
+    context = {
+        "current_project": project,
+        "document": document,
+        "document_content_preview": preview_text,
+    }
+    return render(request, "dashboard/partials/inspect_document_modal.html", context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def delete_source_view(request, store_id, doc_id):
+    """Single document hard deletion with PGVector vector purging."""
+    project = get_object_or_404(Project, project_id=store_id)
+    document = get_object_or_404(Document, id=doc_id, project=project)
+
+    # Clean up from RAG engine / vector store
+    try:
+        if project.storage_type == "postgres":
+            from src.postgres_rag import PostgresRAGEngine
+            engine = PostgresRAGEngine(project_id=project.project_id)
+            engine.delete_document(document.document_name)
+        elif project.storage_type == "google" and document.store_file_id:
+            gfs.delete_document_from_store(document.store_file_id)
+    except Exception as e:
+        logger.warning(f"Error purging vector embeddings for {document.document_name}: {e}")
+
+    # Remove physical file if present
+    file_path = getattr(document, "file_path", None)
+    if file_path and os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+        except OSError:
+            pass
+
+    document.delete()
+    return HttpResponse("")
+
+
+@login_required
+@require_http_methods(["POST"])
+def bulk_delete_sources_view(request, store_id):
+    """Bulk document hard deletion with PGVector vector purging."""
+    from django.http import JsonResponse
+    project = get_object_or_404(Project, project_id=store_id)
+    doc_ids = request.POST.getlist("document_ids")
+
+    deleted_count = 0
+    for doc_id in doc_ids:
+        try:
+            doc = Document.objects.filter(id=doc_id, project=project).first()
+            if not doc:
+                continue
+            if project.storage_type == "postgres":
+                try:
+                    from src.postgres_rag import PostgresRAGEngine
+                    engine = PostgresRAGEngine(project_id=project.project_id)
+                    engine.delete_document(doc.document_name)
+                except Exception:
+                    pass
+            elif project.storage_type == "google" and doc.store_file_id:
+                try:
+                    gfs.delete_document_from_store(doc.store_file_id)
+                except Exception:
+                    pass
+            
+            file_path = getattr(doc, "file_path", None)
+            if file_path and os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except OSError:
+                    pass
+            doc.delete()
+            deleted_count += 1
+        except Exception as e:
+            logger.warning(f"Error deleting doc {doc_id}: {e}")
+
+    return JsonResponse({"success": True, "deleted_count": deleted_count})
+
 
 
 

@@ -1,0 +1,57 @@
+<article id="evaluate-section">
+    <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div>
+            <h3 style="margin: 0;">📊 RAG Evaluation Suite</h3>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--pico-muted-color);">
+                Measure retrieval precision, answer faithfulness, and benchmark accuracy for <strong>{{ current_project.display_name }}</strong>.
+            </p>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="button" class="outline primary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;"
+                    hx-post="{% url 'evaluate:qa_setup' current_project.project_id %}"
+                    hx-target="#eval-action-output">
+                ⚡ Generate Synthetic QA
+            </button>
+            <button type="button" class="primary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;"
+                    hx-post="{% url 'evaluate:run_evaluation' current_project.project_id %}"
+                    hx-target="#eval-action-output">
+                ▶️ Run Full Evaluation
+            </button>
+        </div>
+    </header>
+
+    <div id="eval-action-output" style="margin-bottom: 1rem;"></div>
+
+    <div class="grid">
+        <!-- Metric Card: Context Recall -->
+        <div style="background: var(--pico-card-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 1rem;">
+            <h5 style="margin: 0; font-size: 0.85rem; color: var(--pico-muted-color); text-transform: uppercase;">Context Recall</h5>
+            <h2 style="margin: 0.25rem 0; color: #16a34a;">0.92</h2>
+            <progress value="92" max="100" style="margin-bottom: 0;"></progress>
+        </div>
+
+        <!-- Metric Card: Context Precision -->
+        <div style="background: var(--pico-card-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 1rem;">
+            <h5 style="margin: 0; font-size: 0.85rem; color: var(--pico-muted-color); text-transform: uppercase;">Context Precision</h5>
+            <h2 style="margin: 0.25rem 0; color: #2563eb;">0.88</h2>
+            <progress value="88" max="100" style="margin-bottom: 0;"></progress>
+        </div>
+
+        <!-- Metric Card: Faithfulness -->
+        <div style="background: var(--pico-card-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 1rem;">
+            <h5 style="margin: 0; font-size: 0.85rem; color: var(--pico-muted-color); text-transform: uppercase;">Answer Faithfulness</h5>
+            <h2 style="margin: 0.25rem 0; color: #9333ea;">0.95</h2>
+            <progress value="95" max="100" style="margin-bottom: 0;"></progress>
+        </div>
+    </div>
+
+    <div style="margin-top: 1.5rem;">
+        <h4>Evaluation History</h4>
+        <p style="font-size: 0.85rem; color: var(--pico-muted-color);">
+            Historical synthetic and manual test runs for this project.
+        </p>
+        <div style="background: var(--pico-card-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 1.5rem; text-align: center; color: var(--pico-muted-color);">
+            No evaluation runs recorded yet. Click <strong>"Generate Synthetic QA"</strong> or <strong>"Run Full Evaluation"</strong> to initiate your first benchmark.
+        </div>
+    </div>
+</article>

@@ -1,0 +1,291 @@
+<article id="sources-section" x-data="{ selectedDocs: [] }">
+    <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div>
+            <h3 style="margin: 0;">📑 Sources & Documents</h3>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--pico-muted-color);">
+                Ingest, inspect, deduplicate, and manage document knowledge bases for <strong>{{ current_project.display_name }}</strong>.
+            </p>
+        </div>
+        <div>
+            <span class="badge badge-primary">{{ current_project.document_count }} INDEXED</span>
+        </div>
+    </header>
+
+    <!-- Upload Card -->
+    <div style="background: var(--pico-card-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 1.25rem; margin-bottom: 1.5rem;">
+        <h4 style="font-size: 1rem; margin-bottom: 0.75rem;">Upload & Ingest Document</h4>
+
+        <form id="source-upload-form"
+              hx-post="{% url 'documents:upload' current_project.project_id %}"
+              hx-target="#dashboard-workspace"
+              hx-indicator="#upload-loading-banner"
+              hx-disabled-elt="#upload-submit-btn, #doc-file-input, #chunking-strategy-select"
+              hx-encoding="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="grid">
+                <div>
+                    <label for="doc-file-input">
+                        Select File (.pdf, .md, .py, .js, .ts, .html, .txt)
+                        <input type="file" id="doc-file-input" name="file" required onchange="handleFileSelected(this)">
+                    </label>
+                </div>
+                <div>
+                    <label for="chunking-strategy-select">
+                        Chunking Parser Strategy
+                        <select name="chunking_strategy" id="chunking-strategy-select" onchange="updateStrategyBanner()">
+                            <option value="auto_detect" selected>⚡ Auto-Detect (Recommended)</option>
+                            <option value="markdown">Markdown Header Splitter</option>
+                            <option value="code">Code / AST Splitter</option>
+                            <option value="hierarchical">Hierarchical (Parent-Child)</option>
+                            <option value="sentence">Sentence Boundary</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Auto-detect info banner -->
+            <div id="auto-detect-banner" style="display: none; padding: 0.5rem 0.75rem; border-radius: var(--pico-border-radius); font-size: 0.8rem; margin-bottom: 0.75rem; background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;">
+                ⚡ <span id="auto-detect-text"></span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
+                <label for="track-exp-checkbox" style="margin-bottom: 0; font-size: 0.85rem;">
+                    <input type="checkbox" id="track-exp-checkbox" name="is_expired" onchange="document.getElementById('exp-date-container').style.display = this.checked ? 'block' : 'none'">
+                    Track Document Expiration
+                </label>
+
+                <div id="exp-date-container" style="display: none;">
+                    <input type="datetime-local" name="expiration_date" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-bottom: 0;">
+                </div>
+
+                <button type="submit" id="upload-submit-btn" class="primary" style="padding: 0.4rem 1.25rem; font-size: 0.85rem; margin-bottom: 0;">
+                    <span class="btn-normal">⬆️ Upload & Ingest</span>
+                    <span class="btn-loading" style="display: none;">⏳ Ingesting & Indexing...</span>
+                </button>
+            </div>
+
+            <!-- Upload Loading Indicator Banner -->
+            <div id="upload-loading-banner" class="htmx-indicator upload-progress-box">
+                <svg class="animate-spin" style="width: 1.5rem; height: 1.5rem; color: var(--pico-primary);" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" style="opacity: 0.25;"></circle>
+                    <path class="opacity-75" fill="currentColor" style="opacity: 0.75;" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <div>
+                    <div style="font-weight: 600; font-size: 0.88rem; color: var(--pico-primary);">Uploading and indexing document...</div>
+                    <div style="font-size: 0.78rem; color: var(--pico-muted-color); margin-top: 0.1rem;">Extracting content, checking hygiene & deduplication, and generating vector embeddings. Please wait.</div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Search & Filter Controls -->
+    <div style="background: var(--pico-card-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 1rem; margin-bottom: 1.25rem;">
+        <div class="grid" style="margin-bottom: 0;">
+            <div>
+                <input type="search" id="source-search-input" name="search" placeholder="🔍 Search document name..." 
+                       hx-get="{% url 'documents:filter_sources' current_project.project_id %}"
+                       hx-trigger="keyup changed delay:250ms"
+                       hx-target="#documents-table-body"
+                       hx-include="#filter-date-range, #filter-file-type, #filter-status"
+                       style="margin-bottom: 0; font-size: 0.85rem;">
+            </div>
+            <div>
+                <select id="filter-date-range" name="date_range"
+                        hx-get="{% url 'documents:filter_sources' current_project.project_id %}"
+                        hx-trigger="change"
+                        hx-target="#documents-table-body"
+                        hx-include="#source-search-input, #filter-file-type, #filter-status"
+                        style="margin-bottom: 0; font-size: 0.85rem;">
+                    <option value="all" selected>📅 All Time</option>
+                    <option value="today">Today</option>
+                    <option value="7days">Last 7 Days</option>
+                    <option value="30days">Last 30 Days</option>
+                </select>
+            </div>
+            <div>
+                <select id="filter-file-type" name="file_type"
+                        hx-get="{% url 'documents:filter_sources' current_project.project_id %}"
+                        hx-trigger="change"
+                        hx-target="#documents-table-body"
+                        hx-include="#source-search-input, #filter-date-range, #filter-status"
+                        style="margin-bottom: 0; font-size: 0.85rem;">
+                    <option value="all" selected>📂 All File Types</option>
+                    <option value="md">Markdown (.md)</option>
+                    <option value="code">Code (.py, .js, .ts, .html)</option>
+                    <option value="pdf">PDF (.pdf)</option>
+                    <option value="txt">Text (.txt)</option>
+                </select>
+            </div>
+            <div>
+                <select id="filter-status" name="status"
+                        hx-get="{% url 'documents:filter_sources' current_project.project_id %}"
+                        hx-trigger="change"
+                        hx-target="#documents-table-body"
+                        hx-include="#source-search-input, #filter-date-range, #filter-file-type"
+                        style="margin-bottom: 0; font-size: 0.85rem;">
+                    <option value="all" selected>📊 All Statuses</option>
+                    <option value="INDEXED">Indexed</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="FAILED">Failed</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Action Toolbar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; font-size: 0.85rem;">
+        <div>
+            <span style="color: var(--pico-muted-color);">Bulk Actions:</span>
+            <button type="button" class="outline contrast" style="padding: 0.2rem 0.6rem; font-size: 0.75rem; margin-left: 0.5rem; margin-bottom: 0;"
+                    onclick="submitBulkDelete('{{ current_project.project_id }}')">
+                🗑 Delete Selected
+            </button>
+        </div>
+        <div style="color: var(--pico-muted-color);">
+            Showing <strong id="visible-doc-count">{{ documents|length }}</strong> documents
+        </div>
+    </div>
+
+    <!-- Document Table -->
+    <div class="overflow-auto">
+        <table class="table-compact">
+            <thead>
+                <tr>
+                    <th style="width: 36px;">
+                        <input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll(this)">
+                    </th>
+                    <th>Document Name</th>
+                    <th>Size</th>
+                    <th>Parser Strategy</th>
+                    <th>Indexed Date</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="documents-table-body">
+                {% include "dashboard/partials/document_rows.html" %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Third Party Connectors (Accordions) -->
+    <div style="margin-top: 2rem;">
+        <details>
+            <summary style="font-weight: 600;">💎 Obsidian Vault Sync Connector</summary>
+            <div style="padding: 1rem 0;">
+                <form hx-post="{% url 'documents:obsidian_save_path' current_project.project_id %}" hx-target="#dashboard-workspace">
+                    {% csrf_token %}
+                    <div class="grid">
+                        <div>
+                            <label for="vault_path">Local Obsidian Vault Path</label>
+                            <input type="text" id="vault_path" name="vault_path" placeholder="/Users/username/Documents/MyVault" class="font-mono">
+                        </div>
+                        <div style="display: flex; align-items: flex-end; gap: 0.5rem;">
+                            <button type="submit" class="secondary" style="margin-bottom: 0.5rem;">Save Vault</button>
+                            <button type="button" class="primary" style="margin-bottom: 0.5rem;"
+                                    hx-post="{% url 'documents:obsidian_index' current_project.project_id %}"
+                                    hx-target="#dashboard-workspace">
+                                🔄 Full Sync
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </details>
+
+        <details style="margin-top: 0.5rem;">
+            <summary style="font-weight: 600;">📅 Google Calendar Sync Connector</summary>
+            <div style="padding: 1rem 0;">
+                <p style="font-size: 0.85rem; color: var(--pico-muted-color);">
+                    Sync calendar event descriptions and schedules into the project's vector store.
+                </p>
+                <button type="button" class="outline primary" 
+                        hx-post="{% url 'documents:google_calendar_sync' current_project.project_id %}"
+                        hx-target="#dashboard-workspace">
+                    📅 Sync Google Calendar
+                </button>
+            </div>
+        </details>
+    </div>
+</article>
+
+<script>
+    function handleFileSelected(input) {
+        if (!input.files || input.files.length === 0) return;
+        const file = input.files[0];
+        const ext = '.' + file.name.split('.').pop().toLowerCase();
+        const banner = document.getElementById('auto-detect-banner');
+        const text = document.getElementById('auto-detect-text');
+        
+        let parserName = 'Sentence Boundary Splitter (512-token)';
+        if (ext === '.md') parserName = 'Markdown Header Splitter';
+        else if (['.py', '.js', '.ts', '.html'].includes(ext)) parserName = 'Code / AST Splitter (' + ext + ')';
+        else if (ext === '.pdf') parserName = 'Document Splitter (PDF)';
+        
+        text.innerText = 'Detected ' + ext + ' file: System will use ' + parserName;
+        banner.style.display = 'block';
+    }
+
+    function updateStrategyBanner() {
+        const select = document.getElementById('chunking-strategy-select');
+        const banner = document.getElementById('auto-detect-banner');
+        const text = document.getElementById('auto-detect-text');
+        if (select.value !== 'auto_detect') {
+            text.innerText = 'Manual Override: Using ' + select.options[select.selectedIndex].text;
+            banner.style.display = 'block';
+        }
+    }
+
+    function toggleSelectAll(master) {
+        const checkboxes = document.querySelectorAll('.doc-row-checkbox');
+        checkboxes.forEach(cb => cb.checked = master.checked);
+    }
+
+    function submitBulkDelete(projectId) {
+        const selected = Array.from(document.querySelectorAll('.doc-row-checkbox:checked')).map(cb => cb.value);
+        if (selected.length === 0) {
+            alert('Please select at least one document to delete.');
+            return;
+        }
+        if (!confirm('Are you sure you want to permanently delete ' + selected.length + ' document(s) and their vector embeddings?')) {
+            return;
+        }
+
+        const formData = new FormData();
+        selected.forEach(id => formData.append('document_ids', id));
+        
+        fetch('/rag/projects/' + projectId + '/sources/bulk-delete/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: formData
+        }).then(response => {
+            if (response.ok) {
+                htmx.ajax('GET', '/rag/projects/' + projectId + '/sources/', '#dashboard-workspace');
+            }
+        });
+    }
+
+    document.addEventListener('htmx:configRequest', function(evt) {
+        if (evt.detail.elt && evt.detail.elt.id === 'source-upload-form') {
+            const btn = document.getElementById('upload-submit-btn');
+            if (btn) {
+                btn.setAttribute('aria-busy', 'true');
+                const normal = btn.querySelector('.btn-normal');
+                const loading = btn.querySelector('.btn-loading');
+                if (normal) normal.style.display = 'none';
+                if (loading) loading.style.display = 'inline';
+            }
+        }
+    });
+</script>
+
+{% if duplicate_modal %}
+    {% include "partials/document_duplicate_modal.html" with filename=duplicate_modal.filename content_hash=duplicate_modal.content_hash existing_doc=duplicate_modal.existing_doc store_id=store_id current_project=current_project %}
+{% endif %}
+
+{% if revision_modal %}
+    {% include "partials/document_revision_modal.html" with new_filename=revision_modal.new_filename existing_doc=revision_modal.existing_doc similarity_pct=revision_modal.similarity_pct store_id=store_id current_project=current_project %}
+{% endif %}

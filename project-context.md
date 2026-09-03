@@ -102,6 +102,10 @@ A RAG-based dashboard using Django and LlamaIndex.
 ## Git commands
 - DO NOT run modifying git commands (e.g., git add, git commit, git push, git checkout, git reset). I will commit and push code when needed. You may only use git in read-only mode for investigation (e.g., git status, git log, git diff). 
 
+## API Documentation Governance
+- **Mandatory API Documentation Sync**: Whenever any changes are made to the API (such as adding/modifying endpoints, request/response schemas, parameters, or authentication methods across `src/apps/api/`, `src/apps/chat/`, `src/apps/documents/`, `src/apps/projects/`), the OpenAPI specifications under `Documentation/API/` (specifically `Documentation/API/external_swagger.yaml` and `Documentation/API/swgger.yaml`) **MUST** be updated immediately in the same task.
+- Ensure all endpoints, parameters, security schemes, error codes (401, 403, 404, 500, 503), and payload schemas accurately mirror the active Django code.
+
 ## Implementation Guardrails
 
 ### Dos
@@ -110,7 +114,7 @@ A RAG-based dashboard using Django and LlamaIndex.
 - Secure by default: `{% csrf_token %}`, permission mixins, input validation
 - Test your code before committing
 - Move complex logic to services or model methods
-- Update documentation with changes
+- Update documentation with changes (including `Documentation/API/` for API updates)
 - Include comments next to modified lines
 - Handle errors gracefully with try/except and logging
 

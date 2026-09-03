@@ -1,0 +1,103 @@
+<article id="api-keys-section" x-data="{ showModal: false, keyName: '', rawKey: '', rawKeyModal: false }">
+    <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div>
+            <h3 style="margin: 0;">🔑 Project API Keys</h3>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--pico-muted-color);">
+                Manage REST API authentication keys scoped specifically to <strong>{{ current_project.display_name }}</strong>.
+            </p>
+        </div>
+        <button type="button" class="primary" style="padding: 0.4rem 1rem; font-size: 0.85rem;" @click="showModal = true">
+            + Generate New API Key
+        </button>
+    </header>
+
+    {% if just_created_key %}
+    <div style="padding: 0.75rem 1rem; background-color: #dcfce7; color: #166534; border: 1px solid #86efac; border-radius: var(--pico-border-radius); margin-bottom: 1.25rem;">
+        <div style="font-weight: 600; margin-bottom: 0.25rem;">🎉 New API Key Generated: <strong>{{ just_created_key.name }}</strong></div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+            <input type="text" value="{{ just_created_key.key }}" readonly id="new-raw-key-val" class="font-mono" style="margin-bottom: 0; background: #f0fdf4; color: #14532d; font-size: 0.85rem;">
+            <button type="button" class="primary" style="padding: 0.35rem 0.75rem; margin-bottom: 0; font-size: 0.8rem; white-space: nowrap;"
+                    onclick="navigator.clipboard.writeText(document.getElementById('new-raw-key-val').value); this.innerText='Copied!'; setTimeout(() => this.innerText='Copy', 2000);">
+                Copy
+            </button>
+        </div>
+        <small style="color: #15803d; display: block; margin-top: 0.35rem;">⚠️ Copy this key now. For security, full keys are not shown again.</small>
+    </div>
+    {% endif %}
+
+    {% if api_keys %}
+    <div class="overflow-auto">
+        <table class="table-compact" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+            <thead>
+                <tr>
+                    <th>Key Prefix</th>
+                    <th>Name</th>
+                    <th>Created</th>
+                    <th>Last Used</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for key in api_keys %}
+                <tr>
+                    <td><code class="font-mono">{{ key.key|slice:":12" }}...</code></td>
+                    <td><strong>{{ key.name }}</strong></td>
+                    <td>{{ key.created_at|date:"M d, Y" }}</td>
+                    <td>{{ key.last_used_at|date:"M d, Y H:i"|default:"Never" }}</td>
+                    <td>
+                        {% if key.is_active %}
+                            <span class="badge badge-success">ACTIVE</span>
+                        {% else %}
+                            <span class="badge badge-danger">REVOKED</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <button type="button" class="outline secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; margin-bottom: 0;"
+                                hx-post="{% url 'projects:toggle_project_api_key' current_project.project_id key.id %}"
+                                hx-target="#dashboard-workspace">
+                            {% if key.is_active %}Revoke{% else %}Activate{% endif %}
+                        </button>
+                        <button type="button" class="outline contrast" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; margin-bottom: 0;"
+                                hx-post="{% url 'projects:delete_project_api_key' current_project.project_id key.id %}"
+                                hx-confirm="Are you sure you want to delete this API key?"
+                                hx-target="#dashboard-workspace">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color: var(--pico-muted-color); font-size: 0.9rem; text-align: center; padding: 2rem 0;">
+        No API keys generated for this project yet. Click "+ Generate New API Key" above to create one.
+    </p>
+    {% endif %}
+
+    <!-- Generate API Key Modal Dialog -->
+    <div class="pico-modal-backdrop" x-show="showModal" x-transition style="display: none;">
+        <article style="max-width: 480px; width: 100%; margin: 0 1rem;">
+            <header style="display: flex; justify-content: space-between; align-items: center;">
+                <h4 style="margin: 0;">Generate Project API Key</h4>
+                <button aria-label="Close" rel="prev" @click="showModal = false" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--pico-color);">×</button>
+            </header>
+            
+            <form hx-post="{% url 'projects:create_project_api_key' current_project.project_id %}"
+                  hx-target="#dashboard-workspace"
+                  @submit="showModal = false">
+                {% csrf_token %}
+                <label for="new_key_name">
+                    Key Name / Identifier
+                    <input type="text" id="new_key_name" name="name" placeholder="e.g. Production Backend Service" required>
+                </label>
+
+                <footer style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                    <button type="button" class="secondary" @click="showModal = false">Cancel</button>
+                    <button type="submit" class="primary">Create Key</button>
+                </footer>
+            </form>
+        </article>
+    </div>
+</article>

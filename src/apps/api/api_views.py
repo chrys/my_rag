@@ -134,3 +134,122 @@ class APIUsageViewSet(viewsets.ReadOnlyModelViewSet):
             'error_count': usage.filter(status_code__gte=400).count(),
             'by_endpoint': list(usage.values('endpoint').annotate(count=Count('id')).order_by('-count')),
         })
+
+
+# --- Health & Ping Check Endpoints (Items 2 & 3) ---
+
+import hmac
+import os
+import time
+from datetime import datetime, timezone
+from django.conf import settings
+from django.http import JsonResponse
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+
+_DB_HEALTH_CACHE = {"status": "unknown", "timestamp": 0.0}
+_DB_CACHE_TTL_SECONDS = 15.0
+
+
+def _verify_health_secret(request) -> bool:
+    """
+    Validates health check secret key (Item 3).
+    Supported authentication channels:
+    1. Header: X-Health-Key: <key>
+    2. Header: Authorization: Bearer <key>
+    3. Query param: ?key=<key> or ?token=<key>
+    4. Active User/Project API key
+    """
+    configured_secret = getattr(settings, 'HEALTH_CHECK_KEY', None) or os.environ.get('HEALTH_CHECK_KEY', '')
+
+    provided_key = request.headers.get('X-Health-Key')
+    if not provided_key:
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            provided_key = auth_header[7:].strip()
+    if not provided_key:
+        provided_key = request.GET.get('key') or request.GET.get('token')
+
+    if not provided_key:
+        return False
+
+    # Check against shared secret key
+    if configured_secret and hmac.compare_digest(provided_key, configured_secret):
+        return True
+
+    # Allow active API Keys as well
+    try:
+        if APIKey.objects.filter(key=provided_key, is_active=True).exists():
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def ping_view(request):
+    """
+    Lightweight Ping Endpoint (Items 2 & 3).
+    - Requires valid health secret token or API key (Item 3).
+    - Returns pure in-memory JSON payload with zero database hits (<1ms) (Item 2).
+    """
+    if not _verify_health_secret(request):
+        return JsonResponse(
+            {
+                "status": "forbidden",
+                "error": "Invalid or missing health key. Provide X-Health-Key header or ?key= query parameter."
+            },
+            status=403
+        )
+
+    return JsonResponse({
+        "status": "ok",
+        "message": "pong",
+        "service": "my_rag",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def health_view(request):
+    """
+    Health Check Endpoint with Cached Database Connectivity (Items 2 & 3).
+    - Requires valid health secret token or API key (Item 3).
+    - Caches database connectivity status for 15s to prevent connection pool exhaustion (Item 2).
+    """
+    if not _verify_health_secret(request):
+        return JsonResponse(
+            {
+                "status": "forbidden",
+                "error": "Invalid or missing health key. Provide X-Health-Key header or ?key= query parameter."
+            },
+            status=403
+        )
+
+    now = time.time()
+    db_status = _DB_HEALTH_CACHE["status"]
+    if now - _DB_HEALTH_CACHE["timestamp"] > _DB_CACHE_TTL_SECONDS or db_status == "unknown":
+        try:
+            from django.db import connection
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1;")
+                cursor.fetchone()
+            db_status = "connected"
+        except Exception as e:
+            db_status = f"unhealthy: {str(e)}"
+
+        _DB_HEALTH_CACHE["status"] = db_status
+        _DB_HEALTH_CACHE["timestamp"] = now
+
+    is_healthy = db_status == "connected"
+    return JsonResponse({
+        "status": "healthy" if is_healthy else "degraded",
+        "service": "my_rag",
+        "database": db_status,
+        "cached": (now - _DB_HEALTH_CACHE["timestamp"]) < 1.0 and db_status == "connected",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }, status=200 if is_healthy else 503)
+

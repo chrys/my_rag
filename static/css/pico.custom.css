@@ -1,0 +1,246 @@
+/* Pico.css v2 with Custom Blue Palette & Modern Dashboard Layout */
+@import url("https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.blue.min.css");
+
+:root {
+  --pico-font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --pico-primary: #2563eb;
+  --pico-primary-background: #1d4ed8;
+  --pico-primary-hover: #1e40af;
+  --pico-primary-focus: rgba(37, 99, 235, 0.25);
+  --pico-primary-inverse: #ffffff;
+  --pico-border-radius: 0.5rem;
+  --pico-form-element-spacing-vertical: 0.5rem;
+  --pico-form-element-spacing-horizontal: 0.75rem;
+}
+
+[data-theme="dark"] {
+  --pico-primary: #3b82f6;
+  --pico-primary-background: #2563eb;
+  --pico-primary-hover: #60a5fa;
+  --pico-background-color: #0f172a;
+  --pico-card-background-color: #1e293b;
+  --pico-card-border-color: #334155;
+  --pico-muted-color: #94a3b8;
+  --pico-muted-border-color: #334155;
+}
+
+/* App Layout Grid */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Sticky Top Bar */
+.top-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--pico-card-background-color);
+  border-bottom: 1px solid var(--pico-card-border-color, #e2e8f0);
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.top-navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--pico-primary);
+  text-decoration: none;
+}
+
+.top-navbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.project-select-wrapper {
+  min-width: 260px;
+  margin-bottom: 0 !important;
+}
+
+.project-select-wrapper select {
+  margin-bottom: 0 !important;
+  font-weight: 600;
+}
+
+/* Main Workspace Grid */
+.workspace-container {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: calc(100vh - 65px);
+}
+
+/* Left Sidebar Navigation */
+.sidebar-navigation {
+  background: var(--pico-card-background-color);
+  border-right: 1px solid var(--pico-card-border-color, #e2e8f0);
+  padding: 1.25rem 0.75rem;
+}
+
+.sidebar-menu-group {
+  margin-bottom: 1.25rem;
+}
+
+.sidebar-menu-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--pico-muted-color);
+  padding: 0.25rem 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--pico-border-radius);
+  color: var(--pico-color);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  margin-bottom: 0.15rem;
+}
+
+.sidebar-link:hover {
+  background-color: rgba(37, 99, 235, 0.08);
+  color: var(--pico-primary);
+}
+
+.sidebar-link.active {
+  background-color: var(--pico-primary);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Main Workspace Content Area */
+.main-stage {
+  padding: 1.5rem 2rem;
+  max-width: 1200px;
+  width: 100%;
+}
+
+/* Status Badges & Pills */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  line-height: 1;
+}
+
+.badge-success { background: #dcfce7; color: #15803d; }
+.badge-warning { background: #fef9c3; color: #854d0e; }
+.badge-danger { background: #fee2e2; color: #b91c1c; }
+.badge-primary { background: #dbeafe; color: #1d4ed8; }
+.badge-secondary { background: #f1f5f9; color: #475569; }
+
+[data-theme="dark"] .badge-success { background: #14532d; color: #86efac; }
+[data-theme="dark"] .badge-warning { background: #713f12; color: #fde047; }
+[data-theme="dark"] .badge-danger { background: #7f1d1d; color: #fca5a5; }
+[data-theme="dark"] .badge-primary { background: #1e3a8a; color: #93c5fd; }
+[data-theme="dark"] .badge-secondary { background: #334155; color: #cbd5e1; }
+
+/* Interactive Modals */
+.pico-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+/* Form Helper & Mono font */
+.font-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.table-compact th, .table-compact td {
+  padding: 0.45rem 0.65rem;
+  font-size: 0.85rem;
+}
+
+/* Constrain all SVGs and icons */
+svg {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+svg:not([width]):not([height]) {
+  width: 1.25rem;
+  height: 1.25rem;
+  max-width: 100%;
+}
+
+.icon-sm {
+  width: 1rem !important;
+  height: 1rem !important;
+}
+
+.icon-md {
+  width: 1.5rem !important;
+  height: 1.5rem !important;
+}
+
+.icon-lg {
+  width: 2rem !important;
+  height: 2rem !important;
+}
+
+/* Common Tailwind dimensional utilities used across partial templates */
+.w-3, .h-3 { width: 0.75rem !important; height: 0.75rem !important; }
+.w-3\.5, .h-3\.5 { width: 0.875rem !important; height: 0.875rem !important; }
+.w-4, .h-4 { width: 1rem !important; height: 1rem !important; }
+.w-5, .h-5 { width: 1.25rem !important; height: 1.25rem !important; }
+.w-6, .h-6 { width: 1.5rem !important; height: 1.5rem !important; }
+.w-8, .h-8 { width: 2rem !important; height: 2rem !important; }
+.w-10, .h-10 { width: 2.5rem !important; height: 2.5rem !important; }
+.w-12, .h-12 { width: 3rem !important; height: 3rem !important; }
+
+/* HTMX Loading Indicator Support */
+.htmx-indicator {
+  display: none !important;
+}
+
+.htmx-request.htmx-indicator,
+.htmx-request .htmx-indicator {
+  display: flex !important;
+}
+
+@keyframes spin-anim {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin-anim 1s linear infinite !important;
+}
+
+.upload-progress-box {
+  margin-top: 1rem;
+  padding: 0.85rem 1.15rem;
+  border-radius: var(--pico-border-radius);
+  background: var(--pico-card-background-color);
+  border: 1px solid var(--pico-primary);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.12);
+  align-items: center;
+  gap: 0.9rem;
+}
+

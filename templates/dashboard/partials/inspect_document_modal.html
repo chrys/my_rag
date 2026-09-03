@@ -1,0 +1,38 @@
+<div class="pico-modal-backdrop" id="inspect-document-modal">
+    <article style="max-width: 720px; width: 100%; margin: 0 1rem; max-height: 85vh; display: flex; flex-direction: column;">
+        <header style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--pico-card-border-color, #e2e8f0); padding-bottom: 0.75rem;">
+            <div>
+                <h4 style="margin: 0; font-size: 1.1rem;">👁 Document Chunk Node Inspector</h4>
+                <p style="margin: 0; font-size: 0.8rem; color: var(--pico-muted-color);">
+                    {{ document.display_name|default:document.document_name }} ({{ document.chunking_strategy }})
+                </p>
+            </div>
+            <button aria-label="Close" rel="prev" onclick="document.getElementById('inspect-document-modal').remove()"
+                    style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--pico-color);">×</button>
+        </header>
+
+        <div style="flex: 1; overflow-y: auto; padding: 1rem 0;">
+            <div class="grid" style="margin-bottom: 1rem;">
+                <div style="background: var(--pico-card-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 0.5rem 0.75rem; font-size: 0.8rem;">
+                    <strong>Content SHA-256:</strong><br/>
+                    <span class="font-mono" style="color: var(--pico-primary);">{{ document.content_hash|default:"None" }}</span>
+                </div>
+                <div style="background: var(--pico-card-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 0.5rem 0.75rem; font-size: 0.8rem;">
+                    <strong>Ingestion State:</strong><br/>
+                    <span class="badge badge-success">{{ document.state }}</span>
+                </div>
+            </div>
+
+            <h5>Extracted Text Sample / Node Preview</h5>
+            <div style="background: var(--pico-card-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 1rem; max-height: 300px; overflow-y: auto;">
+                <pre class="font-mono" style="margin: 0; font-size: 0.8rem; white-space: pre-wrap; word-break: break-word;">{{ document_content_preview }}</pre>
+            </div>
+        </div>
+
+        <footer style="display: flex; justify-content: flex-end; border-top: 1px solid var(--pico-card-border-color, #e2e8f0); padding-top: 0.75rem;">
+            <button type="button" class="secondary" onclick="document.getElementById('inspect-document-modal').remove()">
+                Close
+            </button>
+        </footer>
+    </article>
+</div>

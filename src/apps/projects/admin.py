@@ -46,7 +46,6 @@ class ProjectAdminForm(forms.ModelForm):
             cleaned_data['use_hyde'] = False
             cleaned_data['synthesizer'] = False
             cleaned_data['response_mode'] = 'compact'
-            cleaned_data['chunking'] = 'gfs-default'
             cleaned_data['embedding_model'] = 'models/gemini-embedding-001'
 
         custom_prompt = cleaned_data.get('custom_prompt', False)
@@ -105,7 +104,6 @@ class ProjectAdmin(ModelAdmin):
                     "is_active",
                     "synthesizer",
                     "document_parsing",
-                    "chunking",
                     "embedding_model",
                     "llm_model",
                     "disable_thinking",
