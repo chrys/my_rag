@@ -18,6 +18,8 @@ google-genai
 litellm
 sentry-sdk
 typing-extensions>=4.5.0
+pydantic<2.13.0
+
 
 # Document processing
 markdown

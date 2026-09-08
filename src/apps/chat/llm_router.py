@@ -19,7 +19,23 @@ logger = logging.getLogger(__name__)
 litellm.drop_params = True
 litellm.set_verbose = False
 
+# Fix Pydantic 2.13+ forward reference issue in LiteLLM Message/Choices/ModelResponse
+try:
+    import litellm.types.utils as _litellm_utils
+    from litellm.types.llms.openai import ChatCompletionReasoningSummaryTextBlock as _ReasoningBlock
+    if not hasattr(_litellm_utils, "ChatCompletionReasoningSummaryTextBlock"):
+        setattr(_litellm_utils, "ChatCompletionReasoningSummaryTextBlock", _ReasoningBlock)
+    if hasattr(_litellm_utils, "Message"):
+        _litellm_utils.Message.model_rebuild()
+    if hasattr(_litellm_utils, "Choices"):
+        _litellm_utils.Choices.model_rebuild()
+    if hasattr(_litellm_utils, "ModelResponse"):
+        _litellm_utils.ModelResponse.model_rebuild()
+except Exception as _rebuild_err:
+    logger.debug(f"LiteLLM model rebuild notice: {_rebuild_err}")
+
 OLLAMA_ENDPOINT = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434/api/generate")
+
 
 
 def normalize_model_id(model_id: str) -> str:

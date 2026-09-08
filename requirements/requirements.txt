@@ -6,6 +6,8 @@ markdown
 pypdf
 numpy
 typing-extensions>=4.5.0
+pydantic<2.13.0
+
 
 # Optional vector-indexing dependencies for local/postgres RAG features live in
 # requirements-ai.txt so the default install stays small enough for production.
