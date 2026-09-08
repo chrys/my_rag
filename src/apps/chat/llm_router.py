@@ -97,7 +97,8 @@ def generate_llm_response(
         return ""
     except Exception as exc:
         err_str = str(exc)
-        if any(k in err_str.lower() for k in ["ollama", "11434", "connection refused", "apiconnectionerror"]):
+        is_ollama_model = canonical_model.startswith("ollama/") or ":" in canonical_model
+        if is_ollama_model and any(k in err_str.lower() for k in ["ollama", "11434", "connection refused", "failed to connect"]):
             logger.error(f"Error invoking local Ollama model '{canonical_model}': {exc}")
             raise RuntimeError(
                 f"Local LLM service failure ({canonical_model}): Local Ollama server is not running or accessible. Please start Ollama on your machine (http://localhost:11434)."
@@ -146,7 +147,8 @@ def stream_llm_response(
     except Exception as exc:
         err_str = str(exc)
         logger.error(f"Streaming error on model '{canonical_model}': {exc}")
-        if any(k in err_str.lower() for k in ["ollama", "11434", "connection refused"]):
+        is_ollama_model = canonical_model.startswith("ollama/") or ":" in canonical_model
+        if is_ollama_model and any(k in err_str.lower() for k in ["ollama", "11434", "connection refused", "failed to connect"]):
             err_msg = f"Local LLM service failure ({canonical_model}): Local Ollama server is not running or accessible (http://localhost:11434)."
         else:
             err_msg = str(exc)
