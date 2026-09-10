@@ -1,303 +1,355 @@
-# Specification: Native In-Process Website Scraping & Incremental Indexing Engine (Option 1)
+# Spec: Native In-Process Website Scraping & Incremental Indexing Engine (Sep 1)
 
 ---
 
-## 1. Objective & Scope
+## 1. Objective
 
 ### Problem Statement & Background Context
-The platform currently supports indexing local files, Obsidian vaults ([ObsidianSource](file:///Users/chrys/Projects/my_rag/src/apps/documents/models.py#L141-L182)), and Google Calendar events ([GoogleCalendarSource](file:///Users/chrys/Projects/my_rag/src/apps/documents/models.py#L238-L306)) into PostgreSQL PGVector and Google File Search. However, users frequently need to ground AI assistants against live websites and documentation portals. 
+The platform currently supports indexing local files, Obsidian vaults ([ObsidianSource](file:///Users/chrys/Projects/my_rag/src/apps/documents/models.py#L141-L182)), and Google Calendar events ([GoogleCalendarSource](file:///Users/chrys/Projects/my_rag/src/apps/documents/models.py#L238-L306)) into PostgreSQL PGVector and Google File Search. Users frequently need to ground AI assistants against live documentation portals, company websites, and blogs.
 
-This specification defines the functional requirements and architectural specifications for **Option 1: Native In-Process Sitemap & HTTP Spider Web Scraping with Incremental Re-Indexing**. It enables users to create a project by entering a root URL, automatically scrape and index all sub-pages under that domain, and subsequently check for and index newly published or updated web pages on demand.
+This specification establishes **Option 1: Native In-Process Sitemap & HTTP Spider Web Scraping with Incremental Re-Indexing**. It enables users to create a project by entering a root URL, automatically crawls and indexes pages in a background thread, provides live HTMX progress tracking, and allows users to incrementally discover and index new or updated pages on demand.
+
+### Target Users & Use Cases
+- **Knowledge Worker / Researcher:** Wants to ground an AI assistant on an external documentation portal or public wiki by entering a single URL.
+- **Project Administrator:** Periodically checks a company documentation site or blog to ingest newly published articles with a single click.
 
 ### High-Level Goals
-1. **Seamless Project Creation:** Allow users to create a RAG project by specifying a website root URL.
+1. **Dedicated "Website Project" UI Preset:** Streamlined project creation wizard where the user inputs a website URL, with the system provisioning a project and attaching a `WebSource` under the hood.
 2. **Sitemap-First Discovery with Spider Fallback:** Automatically discover site pages via `sitemap.xml` (or `robots.txt` discovery), falling back to a bounded, recursive HTML link spider (BFS).
-3. **High-Fidelity Text Extraction & Hygiene:** Strip boilerplate (navbars, menus, cookie consent banners, footers, ads) and convert raw HTML into clean, semantic Markdown enriched with URL and page metadata.
-4. **On-Demand Incremental Indexing:** Provide a delta-sync mechanism where the user can trigger an inspection for newly added or modified pages, queueing and vector-indexing only the diff without reprocessing unchanged pages.
-5. **Zero External Infrastructure Overhead:** Execute entirely within the Django application runtime using lightweight Python libraries (`httpx`, `BeautifulSoup4`, `trafilatura` / `markitdown`), avoiding heavy headless browser daemons.
+3. **Optimized Lightweight Content Extraction:** Strip boilerplate (navbars, menus, cookie banners, footers, ads) using base `trafilatura` (minimal dependency footprint, no `trafilatura[all]`), falling back to `markitdown`/`BeautifulSoup` if necessary.
+4. **Auto-Crawl & Live HTMX Polling:** Asynchronous background thread execution with live HTMX polling so the web worker is never blocked.
+5. **Automated Delta Sync & Vector Hygiene:** On-demand check for updates that indexes newly created pages, re-embeds modified pages (purging stale vectors), and purges embeddings for remote 404/deleted pages.
+6. **Zero External Daemon Overhead:** Runs completely within the existing Django application environment without requiring Celery, Redis, or headless browser binaries.
 
-### Out of Scope (Non-Goals for Option 1)
-- Scraping JavaScript-heavy Single Page Applications (SPAs) that require full client-side DOM execution (covered by Option 2: Headless Browser).
+### Out of Scope (Non-Goals)
+- Scraping JavaScript-heavy Single Page Applications (SPAs) that require full client-side DOM execution (Option 2).
 - Bypassing CAPTCHAs, Cloudflare Turnstile, or authenticated paywalls/logins.
-- Cross-domain or unconstrained recursive crawling across the entire open web.
+- Unbounded open-web crawling across third-party domains.
+- Automated cron/celery daemon scheduling (on-demand user trigger for MVP).
 
 ---
 
-## 2. User Personas & Core User Stories
+## 2. Tech Stack
 
-### User Personas
-- **Knowledge Worker / Researcher:** Wants to ground a chatbot on a public product documentation site, API guide, or institutional wiki.
-- **Project Administrator:** Wants to monitor an evolving corporate site or blog and periodically bring new articles into the existing vector store without manual file uploads.
-
-### Core User Stories
-1. **Initial Site Ingestion:**
-   *As a user, when I create a new project, I want to enter a website URL (e.g. `https://docs.example.com/`) so that all valid content pages under that site are scraped, converted to Markdown, and embedded into my project's vector store.*
-2. **Reviewing Discovered Pages:**
-   *As a user, I want to view a dedicated "Web Sources" table showing each discovered page URL, its title, HTTP status, indexing state (`PENDING`, `INDEXED`, `FAILED`), and last-scraped timestamp.*
-3. **On-Demand Incremental Sync ("Index New Pages"):**
-   *As a user, when new articles or pages are published on the website, I want to click "Check for New Pages" to discover them, and then click "Index New" to vectorize only the newly added or updated pages without wasting tokens on existing content.*
-4. **Full Re-Index:**
-   *As a user, if the website has undergone a major restructure, I want to trigger a full re-scrape and re-index that refreshes all existing pages.*
+- **Backend Framework:** Django 5 / 6 + Django REST Framework
+- **Runtime & Language:** Python 3.10+ (macOS / Linux)
+- **Vector Indexing & Retrieval:** LlamaIndex Core (`VectorStoreIndex`, `Settings`), `PGVectorStore` (PostgreSQL), `GeminiEmbedding` (`gemini-embedding-001`)
+- **HTTP Client & Spider:** `httpx` (async/sync HTTP client), `BeautifulSoup4` (link extraction and DOM fallback)
+- **Content Cleaning & Markdown:** `trafilatura` (standard base package, no extras), Microsoft `markitdown`
+- **Frontend / Interactivity:** HTMX (dynamic polling & out-of-band swaps), Bootstrap 5, Vanilla CSS
 
 ---
 
-## 3. Functional Requirements & System Architecture
+## 3. Commands
 
-```
-                                  [ User Enters URL ]
-                                           │
-                                           ▼
-                       ┌───────────────────────────────────────┐
-                       │       1. Domain & URL Validator       │
-                       │ (Normalize scheme, domain boundary)   │
-                       └───────────────────┬───────────────────┘
-                                           │
-                                           ▼
-                       ┌───────────────────────────────────────┐
-                       │     2. Sitemap-First Discovery        │
-                       │   (Check robots.txt / sitemap.xml)    │
-                       └───────┬───────────────────────┬───────┘
-                      Sitemap  │                       │ No Sitemap
-                       Found   ▼                       ▼
-               ┌───────────────────────┐       ┌───────────────────────┐
-               │ Fast Sitemap Extractor│       │ Bounded BFS Spider    │
-               │ (URLs & <lastmod>)    │       │ (Same-domain recursion)│
-               └───────────────┬───────┘       └───────┬───────────────┘
-                               │                       │
-                               └───────────┬───────────┘
-                                           │ Discovered URLs
-                                           ▼
-                       ┌───────────────────────────────────────┐
-                       │      3. State Registry & Diff Gate    │
-                       │ (Compare with existing WebPage table) │
-                       └───────┬───────────────────────┬───────┘
-                    New URL    │                       │ Existing URL (Sync Mode)
-                               ▼                       ▼
-               ┌───────────────────────┐       ┌───────────────────────┐
-               │ Status: PENDING       │       │ HTTP HEAD (ETag/mtime)│
-               └───────────────┬───────┘       └───────┬───────────────┘
-                               │                       │ Changed
-                               └───────────┬───────────┘
-                                           │ User Triggers "Index New"
-                                           ▼
-                       ┌───────────────────────────────────────┐
-                       │    4. Clean & Extract Pipeline        │
-                       │ (Trafilatura/MarkItDown boilerplate   │
-                       │  removal -> semantic Markdown)        │
-                       └───────────────────┬───────────────────┘
-                                           │ Clean Markdown + Metadata
-                                           ▼
-                       ┌───────────────────────────────────────┐
-                       │ 5. LlamaIndex Vector Ingestion Engine │
-                       │ (PGVectorStore / Google File Search)  │
-                       └───────────────────────────────────────┘
-```
+```bash
+# Environment setup
+source .venv/bin/activate
+pip install trafilatura beautifulsoup4
 
-### 3.1. Project & Source Configuration
-- **Root URL Normalization:** Strip query parameters, tracking fragments (`#...`), and ensure trailing slash consistency (`https://example.com/docs/`).
-- **Domain Boundary Lockdown:** Restrict crawling strictly to the same Fully Qualified Domain Name (FQDN) or subpath prefix (e.g. if `https://example.com/docs/` is given, URLs under `https://example.com/blog/` or `https://other.com` are skipped unless explicitly permitted).
-- **Crawl Limits:** Configurable project defaults:
-  - `max_pages`: Maximum pages to crawl per job (default: 250, hard ceiling: 1,000).
-  - `max_depth`: Maximum link traversal depth from root (default: 4).
-  - `crawl_delay_ms`: Politeness delay between outbound requests (default: 250ms).
+# Local server execution
+python manage.py runserver
 
-### 3.2. Page Discovery Engine
-1. **Sitemap-First Pass:**
-   - Attempt retrieval of `{root_url}/sitemap.xml`, `{root_url}/sitemap_index.xml`, and inspect `{root_url}/robots.txt` for `Sitemap:` directives.
-   - Parse XML sitemaps recursively (handling sitemap indices and standard urlsets).
-   - Extract `<loc>` (URL) and `<lastmod>` (ISO timestamp).
-2. **Recursive Spider Pass (Fallback or Augmentation):**
-   - If no sitemap is available or if sitemap yields fewer pages than anticipated:
-     - Initialize a Queue with the root URL.
-     - Extract all `<a href="...">` anchor tags.
-     - Resolve relative links against the base URL.
-     - Enforce domain boundary, depth limit, and ignore non-content schemes (`mailto:`, `tel:`, `javascript:`, `ftp:`).
-     - Filter out binary file extensions (`.jpg`, `.jpeg`, `.png`, `.gif`, `.svg`, `.mp4`, `.zip`, `.tar`, `.exe`, `.dmg`).
+# Unit test execution
+DJANGO_ENV=testing .venv/bin/pytest Testing/unit/documents/test_web_scraper.py -v
+DJANGO_ENV=testing .venv/bin/pytest Testing/unit/documents -v
 
-### 3.3. HTML Hygiene & Content Extraction
-- **Boilerplate Removal:**
-  - Strip non-content HTML structures: `<nav>`, `<header>`, `<footer>`, `<aside>`, `<script>`, `<style>`, `<noscript>`, SVG graphics, cookie banner modals, and social share widgets.
-- **Conversion to Markdown:**
-  - Convert the extracted article container into semantic GitHub Flavored Markdown (preserving headers `#`, lists, tables, and fenced code blocks).
-- **Metadata Tagging:**
-  - Every extracted page must generate enriched chunk metadata:
-    - `source_url`: Full canonical URL of the web page.
-    - `title`: Extracted `<title>` or OpenGraph `og:title` / `<h1>`.
-    - `description`: `<meta name="description">` or first paragraph summary.
-    - `published_date`: Extracted `<article:published_time>` or sitemap `<lastmod>`.
-    - `project_id`: Target RAG project identifier.
+# Regression test execution
+DJANGO_ENV=testing .venv/bin/pytest Testing/regression -v
 
-### 3.4. Incremental Discovery & Delta Detection Requirements
-When the user requests to check for new web pages:
-1. **Discovery Diffing:**
-   - Run the discovery pass (re-inspecting `sitemap.xml` and/or re-scanning links from root).
-   - Compare discovered URLs against the project's existing `WebPage` records in the database.
-   - Any URL not found in the database is created with state `PENDING`.
-2. **Modification Detection (Known Pages):**
-   - If the sitemap provides `<lastmod>`, compare with `WebPage.last_scraped_at`. If `lastmod > last_scraped_at`, flag page as `MODIFIED`.
-   - If no sitemap, issue lightweight HTTP `HEAD` requests using `If-Modified-Since` and `If-None-Match` (`ETag`). If `304 Not Modified` is returned, skip download.
-   - If HTTP `GET` is executed, compute SHA-256 `content_hash` of the cleaned Markdown body. If the hash matches the stored hash, leave status as `INDEXED`; if it differs, flag as `MODIFIED`.
-3. **Execution Separation:**
-   - **Step A: "Check for Updates" (Discovery):** Scans the website and updates database counters (*e.g., "Found 8 new pages, 2 updated pages"*), without performing vector indexing yet.
-   - **Step B: "Index New / Modified Pages":** Only fetches, converts, and vector-indexes pages whose state is `PENDING` or `MODIFIED`.
+# Run all test suites
+DJANGO_ENV=testing .venv/bin/pytest Testing/unit -v
 
----
-
-## 4. Data Model Specifications
-
-Following the pattern established by `ObsidianSource` / `GoogleCalendarSource` in [`src/apps/documents/models.py`](file:///Users/chrys/Projects/my_rag/src/apps/documents/models.py):
-
-### 4.1. `WebSource` Model (One-to-One with Project)
-Represents the website configuration for a project.
-
-| Field | Type | Attributes | Description |
-| :--- | :--- | :--- | :--- |
-| `project` | OneToOneField | `Project`, on_delete=CASCADE, related_name='web_source' | Associated RAG project. |
-| `root_url` | URLField | max_length=1024 | The starting entrypoint URL (e.g. `https://docs.mycompany.com/`). |
-| `allowed_domain` | CharField | max_length=255 | Normalized domain boundary (e.g. `docs.mycompany.com`). |
-| `max_depth` | PositiveIntegerField | default=4 | Maximum link depth traversal limit. |
-| `max_pages` | PositiveIntegerField | default=250 | Hard cutoff for total crawled pages. |
-| `sync_status` | CharField | max_length=20, default='IDLE' | `IDLE`, `DISCOVERING`, `INDEXING`, `COMPLETED`, `FAILED`. |
-| `total_pages_count` | IntegerField | default=0 | Total discovered URLs. |
-| `indexed_pages_count` | IntegerField | default=0 | Total successfully indexed pages. |
-| `pending_pages_count` | IntegerField | default=0 | Pages awaiting indexing. |
-| `failed_pages_count` | IntegerField | default=0 | Pages that failed scraping/indexing. |
-| `last_synced_at` | DateTimeField | null=True, blank=True | Timestamp of last discovery/sync run. |
-| `created_at` | DateTimeField | auto_now_add=True | Creation timestamp. |
-| `updated_at` | DateTimeField | auto_now=True | Last update timestamp. |
-
-### 4.2. `WebPage` Model (ForeignKey to WebSource)
-Tracks individual URLs, their content hashes, and vector indexing states.
-
-| Field | Type | Attributes | Description |
-| :--- | :--- | :--- | :--- |
-| `web_source` | ForeignKey | `WebSource`, on_delete=CASCADE, related_name='pages' | Parent WebSource. |
-| `url` | URLField | max_length=2048, db_index=True | Normalized URL of the page. |
-| `title` | CharField | max_length=500, blank=True | Page title extracted from `<title>` / `<h1>`. |
-| `depth` | PositiveIntegerField | default=0 | Discovery depth from root. |
-| `status` | CharField | max_length=20, default='PENDING' | `PENDING`, `INDEXING`, `INDEXED`, `MODIFIED`, `FAILED`. |
-| `content_hash` | CharField | max_length=64, blank=True | SHA-256 hash of extracted clean Markdown content. |
-| `etag` | CharField | max_length=255, blank=True | HTTP ETag header value for cache validation. |
-| `last_modified_header` | CharField | max_length=255, blank=True | HTTP Last-Modified header value. |
-| `http_status` | IntegerField | null=True, blank=True | Last recorded HTTP response code (e.g. 200, 404). |
-| `error_message` | TextField | blank=True | Details if scraping, parsing, or vector indexing failed. |
-| `last_scraped_at` | DateTimeField | null=True, blank=True | When the HTML was last retrieved. |
-| `last_indexed_at` | DateTimeField | null=True, blank=True | When embeddings were last stored in vector DB. |
-| `created_at` | DateTimeField | auto_now_add=True | Record creation timestamp. |
-| `updated_at` | DateTimeField | auto_now=True | Record update timestamp. |
-
-*Constraints:* `unique_together = [['web_source', 'url']]`
-
-### 4.3. Lifecycle State Machine
-
-```
-                   [ Discovery Pass ]
-                           │
-                           ▼
-                     [ PENDING ] ◄────────────────┐
-                           │                      │
-                   (Start Indexing)          (Content Differs)
-                           │                      │
-                           ▼                      │
-                     [ INDEXING ]                 │
-                     │          │                 │
-            (Success)│          │(Failure)        │
-                     ▼          ▼                 │
-                [ INDEXED ]   [ FAILED ]          │
-                     │                            │
-             (Check for Updates)                  │
-                     │                            │
-                     └───────► [ MODIFIED ] ──────┘
+# Production deployment
+./deploy.sh
 ```
 
 ---
 
-## 5. UI / UX Specifications & Workflows
+## 4. Project Structure
 
-### 5.1. Project Creation Flow
-- In the project creation modal/screen, alongside storage backend choices, allow the user to select **Source Type: Website**.
-- Input field: **Website Root URL** (with immediate client/server validation for valid HTTP/HTTPS syntax).
-- Checkbox / Options:
-  - *Max Pages* (Dropdown: 50, 100, 250, 500).
-  - *Include Subpaths Only* (Enforce strict URL prefix bounding).
-- On submit, Django creates the `Project` and associated `WebSource`, and automatically triggers Stage 1 Discovery.
-
-### 5.2. Web Source Dashboard Partial (HTMX-Driven)
-The document management view for website projects renders a dedicated **Web Management Section** (mirroring the UX of `partials/obsidian_section.html`):
-
-1. **Header & Statistics Bar:**
-   - Root URL display with outbound link.
-   - Status KPI cards:
-     - **Total Discovered Pages**
-     - **Indexed Pages** (Green)
-     - **Pending Indexing** (Amber badge)
-     - **Failed Pages** (Red badge)
-     - **Last Synced Timestamp**
-2. **Action Controls:**
-   - **`Check for Updates` Button (`POST /rag/<store_id>/web/sync/`):**
-     - Triggers delta discovery.
-     - HTMX swaps statistics and alerts: *"Discovered 14 new pages (14 pending indexing)."*
-   - **`Index New Pages` Button (`POST /rag/<store_id>/web/index-new/`):**
-     - Processes only pages in `PENDING` or `MODIFIED` state.
-     - Updates progress bar in real time via HTMX polling.
-   - **`Full Re-Index` Button (`POST /rag/<store_id>/web/reindex/`):**
-     - Confirmation modal before clearing and re-crawling all pages.
-3. **Discovered Pages Data Table:**
-   - Columns: `URL` (truncated link), `Page Title`, `Depth`, `HTTP Status`, `State Badge` (`INDEXED`, `PENDING`, `FAILED`), `Last Indexed At`, `Actions` (Individual "Retry" or "Exclude").
-   - Filter bar: Filter by status (`All`, `Pending`, `Indexed`, `Failed`) and search by URL keyword.
-
----
-
-## 6. Safety, Rate Limiting & Politeness Policies
-
-1. **`robots.txt` Compliance:**
-   - Parse `robots.txt` using Python's `urllib.robotparser`.
-   - Respect `Disallow` rules for the platform's User-Agent.
-   - If a custom `Crawl-delay` is declared in `robots.txt`, adjust delay accordingly (bounded by a maximum ceiling of 5 seconds).
-2. **Politeness Throttling:**
-   - Concurrency is restricted to single-threaded sequential crawling per domain with a default inter-request delay (250ms).
-   - Avoid flooding target hosts or triggering automated rate limits.
-3. **Request Timeouts & Retries:**
-   - Connect timeout: 5 seconds; Read timeout: 15 seconds.
-   - Maximum retries: 2 with exponential backoff on transient errors (HTTP 502, 503, 504).
-4. **Binary & Asset Guard:**
-   - Check HTTP `Content-Type` header before streaming response bodies.
-   - Immediately discard responses with non-HTML MIME types (e.g. `image/*`, `video/*`, `application/zip`, `application/octet-stream`), avoiding unnecessary memory usage.
+```
+my_rag/
+├── src/
+│   └── apps/
+│       ├── projects/
+│       │   ├── models.py                  → Project model (display_name, storage_type, project_id)
+│       │   ├── views.py                   → Project creation wizard with Website Preset
+│       │   └── urls.py                    → Project routes
+│       ├── documents/
+│       │   ├── models.py                  → WebSource, WebPage data models
+│       │   ├── web_crawler_services.py    → Discovery (Sitemap/BFS), Trafilatura cleaning, delta checks
+│       │   ├── services.py                → LlamaIndexIngestionPipeline, get_vector_store
+│       │   ├── views.py                   → HTMX endpoints: web_sync, web_index_new, web_status, web_reindex
+│       │   └── urls.py                    → Web source routing
+│       └── chat/
+│           ├── views.py                   → Grounded chat execution over vector store
+│           └── llm_router.py              → LiteLLM unified routing
+├── templates/
+│   └── partials/
+│       ├── web_source_section.html        → Dedicated HTMX web source dashboard & KPI cards
+│       ├── web_status_partial.html        → Real-time polling progress bar partial
+│       └── project_create_modal.html      → Project creation modal with Website Preset tab
+├── Testing/
+│   └── unit/
+│       └── documents/
+│           ├── test_web_crawler.py        → Unit tests for sitemap parser, spider, Trafilatura extractor
+│           └── test_web_views.py          → Unit tests for HTMX web endpoints and permissions
+└── Design/
+    └── Sep-26/
+        └── Sep1/
+            └── sep1-specs.md              → This specification document
+```
 
 ---
 
-## 7. Edge Cases & Error Handling Matrix
+## 5. Code Style & Conventions
 
-| Scenario | System Behavior & Fallback |
+- **Formatting:** PEP 8 compliance, 4-space indentation.
+- **Strings:** Use double quotes (`"..."`) instead of single quotes (`'...'`).
+- **String Interpolation:** Always use f-strings (`f"..."`) instead of `%` or `.format()`.
+- **Type Hints:** Type hints and docstrings are required for all non-trivial Python classes and functions.
+- **Frontend Interactivity:** Strictly use HTMX (`hx-get`, `hx-post`, `hx-trigger`, `hx-swap`) for dynamic updates rather than introducing custom JavaScript frameworks.
+- **URL Routing:** Never hardcode URLs; always use `reverse()` in Python and `{% url '...' %}` in Django templates.
+
+### Reference Code Snippet
+
+```python
+"""
+Web crawler service for sitemap-first discovery, HTML sanitization, and delta sync.
+"""
+
+import logging
+from typing import Any, Dict, List, Optional
+import httpx
+import trafilatura
+
+logger = logging.getLogger(__name__)
+
+
+def extract_clean_markdown(html_content: str) -> Optional[str]:
+    """
+    Extract semantic Markdown from raw HTML using base Trafilatura.
+    Falls back to empty string if content cannot be extracted.
+    """
+    if not html_content or len(html_content.strip()) < 50:
+        return None
+
+    extracted: Optional[str] = trafilatura.extract(
+        html_content,
+        output_format="markdown",
+        include_links=True,
+        include_tables=True,
+        favor_recall=True,
+    )
+    return extracted.strip() if extracted else None
+```
+
+---
+
+## 6. Testing Strategy
+
+- **Test Framework:** `pytest` using `pytest-django` and `pytest-mock`.
+- **Test Directory:** Tests strictly belong under `Testing/unit/documents/` (never `Tests/`).
+- **Hermeticity & Isolation:**
+  - Automated tests must **never** make live outbound HTTP network calls.
+  - All outbound requests to `sitemap.xml`, `robots.txt`, and web pages must be mocked using `pytest-mock` or `httpx.MockTransport`.
+  - Use in-memory SQLite database (`DJANGO_ENV=testing`) for testing database operations.
+- **Test Coverage Requirements:**
+  1. **URL Sanitization & Bounding:** Tests verifying subpath locking and domain boundary enforcement.
+  2. **Sitemap Discovery:** Tests parsing standard XML urlsets, sitemap index files, and missing sitemaps.
+  3. **Spider BFS Traversal:** Tests link queueing, depth limits, and cycle detection.
+  4. **Content Extraction:** Tests verifying boilerplate stripping (nav/footer/cookie banners) via Trafilatura.
+  5. **Delta Sync & Hash Comparison:** Tests confirming `PENDING` states for new URLs and `MODIFIED` for hash changes.
+  6. **Vector Purge on 404:** Tests ensuring deleted pages trigger vector deletions.
+  7. **HTMX Views & Status Polling:** Tests for view status codes, permissions, and partial rendering.
+
+---
+
+## 7. Boundaries
+
+| Category | Rules & Invariants |
 | :--- | :--- |
-| **No Sitemap & Bounded Crawl Disabled** | Gracefully fallback to parsing only the root page, recording discovered links in the queue; notify user if only 1 page was reachable. |
-| **HTTP 403 / 401 Forbidden** | Log HTTP status in `WebPage.http_status`, mark `status='FAILED'`, record error message *"Access denied by target web server"*. Do not crash the crawler. |
-| **HTTP 429 Too Many Requests** | Crawler immediately pauses for 10 seconds, backs off delay to 2.0s, and retries once. If 429 persists, abort crawl job and alert user. |
-| **Infinite Spider Traps (Calendars/Faceted Navigation)** | Guarded by strict `max_depth` (default 4) and `max_pages` cutoff. Also sanitize URLs by dropping query strings if path exceeds 6 segments. |
-| **Redirect Loops (301/302)** | Follow redirects up to a maximum of 5 hops; store final canonical URL in `WebPage.url`. |
-| **JavaScript-Only Blank Body** | If cleaned markdown content length is `< 50` characters, flag `WebPage.status='FAILED'` with warning: *"Page requires JavaScript rendering (static HTML empty)."* |
-| **Page Deleted on Remote Site** | If a previously indexed page returns `HTTP 404` or `410 Gone` during sync: Mark `status='FAILED'` / `DELETED`, and optionally delete corresponding document vectors from `PGVectorStore`. |
+| **ALWAYS DO** | - Run `DJANGO_ENV=testing .venv/bin/pytest Testing/unit/documents -v` before finalizing tasks.<br>- Follow PEP 8, double quotes, type annotations, and docstrings.<br>- Use `Project.project_id` as the stable lookup key across URLs, views, and vector tables.<br>- Enforce user project ownership and permission checks on all web endpoints.<br>- Respect `robots.txt` Disallow directives and domain boundaries.<br>- Strip tracking query parameters (`utm_*`, `fbclid`) and URL fragments. |
+| **ASK FIRST** | - Adding new heavyweight dependencies (e.g., `trafilatura[all]`, Playwright, Celery, Redis).<br>- Modifying existing core columns on the `Project` or `Document` models.<br>- Altering global authentication or authorization middleware.<br>- Changing default crawl limits beyond 100 pages. |
+| **NEVER DO** | - Run modifying git commands (`git add`, `git commit`, `git push`, `git checkout`, `git reset`).<br>- Make unmocked outbound HTTP calls during automated pytest test runs.<br>- Block Django WSGI request threads with synchronous long-running web crawls (always use background threading).<br>- Hardcode URLs in views, services, or templates. |
 
 ---
 
-## 8. Acceptance Criteria & Verifiable Scenarios
+## 8. Resolved Design Decisions (Grill-Me Alignment)
 
-### Scenario 1: Initial Crawl via Sitemap
-- **GIVEN** a new project created with root URL `https://example.com/` which has a valid `sitemap.xml` containing 25 URLs,
-- **WHEN** the initial project indexing is triggered,
-- **THEN** all 25 URLs are discovered, populated in the `WebPage` table with `PENDING`, scraped into clean Markdown, embedded into the vector store, and marked as `INDEXED` with `indexed_pages_count = 25`.
+| Decision Area | Selected Strategy | Rationale & Tradeoffs |
+| :--- | :--- | :--- |
+| **Model Architecture** | **Hybrid Architecture** | Source Connector (`WebSource` 1-to-1 with `Project`) under the hood preserves existing `postgres` / `google` vector retrieval, chat routing, and evaluation logic without code duplication; a dedicated "Website Project" preset in the creation UI gives the user a streamlined mental model. |
+| **Execution Model** | **Asynchronous Background Thread + Live HTMX Polling** | Long crawls (up to 100 pages) run in `threading.Thread`, avoiding Gunicorn HTTP request timeouts. The dashboard uses `hx-trigger="every 2s"` to poll status and render a live progress bar. |
+| **Incremental Updates Policy** | **Auto-Handle New & Modified Pages** | Ingests new URLs, and detects modified pages via SHA-256 hash or sitemap `<lastmod>`, automatically purging old vector chunks before re-embedding to prevent hallucinated duplicate citations. |
+| **Remote 404 / Deletion Policy** | **Automatic Vector Purge** | If a previously indexed page returns `404 Not Found`, `410 Gone`, or vanishes from the site graph during a sync, its vector embeddings are purged from the index and the record is marked `DELETED`. |
+| **Crawl Boundary Rules** | **Subpath-Bounded with Entire Domain Toggle** | Defaults to crawling strictly under the provided subpath (e.g. `https://example.com/docs/*`), with an optional *"Crawl entire domain"* checkbox for full-site coverage. |
+| **Extraction Engine & Dependencies** | **Base `trafilatura` with `markitdown` Fallback** | Use standard `trafilatura` (without `trafilatura[all]` extras like Spacy/PycURL) to keep the install footprint tiny, falling back to `markitdown`/`BeautifulSoup` if Trafilatura yields empty text. |
+| **Trigger Mechanism** | **On-Demand Only (MVP)** | Users click *"Check for Updates"* and *"Index New Pages"* directly in the dashboard UI. No periodic cron daemon is required. |
+| **Crawl Limits & Quotas** | **100 Pages Default (Max 500 Ceiling)** | Balances fast initial indexing (~25–45s) with low server load on 1 vCPU droplets. Max depth: 4. Politeness delay: 250ms. |
 
-### Scenario 2: Incremental Discovery of Newly Created Pages
-- **GIVEN** an existing project where all 25 original pages are `INDEXED`,
-- **WHEN** the remote website publishes 3 new pages and the user clicks "Check for Updates",
-- **THEN** the system discovers the 3 new URLs, creates 3 new `WebPage` records with `status='PENDING'`, updates `pending_pages_count = 3`, and displays a notification to the user without touching the 25 already indexed pages.
+---
 
-### Scenario 3: Targeted Indexing of Pending Pages
-- **GIVEN** a project with 3 `PENDING` web pages,
-- **WHEN** the user clicks "Index New Pages",
-- **THEN** only the 3 pending pages are scraped and vectorized; previously indexed vectors are not recomputed, and upon completion all 28 pages are in state `INDEXED`.
+## 9. Data Model Specifications
 
-### Scenario 4: Modified Content Detection
-- **GIVEN** an indexed page whose content has changed on the live website,
-- **WHEN** an incremental sync runs,
-- **THEN** the SHA-256 content hash mismatch is detected, the page is flagged as `MODIFIED`, and the user can re-index only the modified page to update its vector representations.
+Located in [`src/apps/documents/models.py`](file:///Users/chrys/Projects/my_rag/src/apps/documents/models.py):
+
+### 9.1. `WebSource` Model
+One-to-one relationship with `Project`.
+
+```python
+class WebSource(models.Model):
+    SYNC_STATUS_CHOICES = [
+        ("IDLE", "Idle"),
+        ("DISCOVERING", "Discovering Pages"),
+        ("INDEXING", "Indexing Vectors"),
+        ("COMPLETED", "Completed"),
+        ("FAILED", "Failed"),
+    ]
+
+    project = models.OneToOneField(
+        "projects.Project",
+        on_delete=models.CASCADE,
+        related_name="web_source",
+        help_text="The project this website source belongs to",
+    )
+    root_url = models.URLField(
+        max_length=1024,
+        help_text="Entrypoint website URL",
+    )
+    allowed_domain = models.CharField(
+        max_length=255,
+        help_text="Allowed domain/host (e.g. docs.example.com)",
+    )
+    subpath_only = models.BooleanField(
+        default=True,
+        help_text="Whether crawling is strictly constrained to the root URL subpath",
+    )
+    max_depth = models.PositiveIntegerField(
+        default=4,
+        help_text="Maximum link recursion depth",
+    )
+    max_pages = models.PositiveIntegerField(
+        default=100,
+        help_text="Maximum total pages to crawl",
+    )
+    sync_status = models.CharField(
+        max_length=20,
+        choices=SYNC_STATUS_CHOICES,
+        default="IDLE",
+    )
+    total_pages_count = models.IntegerField(default=0)
+    indexed_pages_count = models.IntegerField(default=0)
+    pending_pages_count = models.IntegerField(default=0)
+    failed_pages_count = models.IntegerField(default=0)
+    error_message = models.TextField(blank=True)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Web Source for {self.project.display_name} ({self.root_url})"
+```
+
+### 9.2. `WebPage` Model
+Tracks individual crawled URLs and their vector state.
+
+```python
+class WebPage(models.Model):
+    PAGE_STATES = [
+        ("PENDING", "Pending Indexing"),
+        ("INDEXING", "Indexing Vectors"),
+        ("INDEXED", "Successfully Indexed"),
+        ("MODIFIED", "Modified on Remote Site"),
+        ("FAILED", "Failed"),
+        ("DELETED", "Deleted from Remote Site"),
+    ]
+
+    web_source = models.ForeignKey(
+        WebSource,
+        on_delete=models.CASCADE,
+        related_name="pages",
+    )
+    url = models.URLField(max_length=2048, db_index=True)
+    title = models.CharField(max_length=500, blank=True)
+    depth = models.PositiveIntegerField(default=0)
+    status = models.CharField(
+        max_length=20,
+        choices=PAGE_STATES,
+        default="PENDING",
+    )
+    content_hash = models.CharField(max_length=64, blank=True, db_index=True)
+    etag = models.CharField(max_length=255, blank=True)
+    last_modified_header = models.CharField(max_length=255, blank=True)
+    http_status = models.IntegerField(null=True, blank=True)
+    error_message = models.TextField(blank=True)
+    last_scraped_at = models.DateTimeField(null=True, blank=True)
+    last_indexed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["url"]
+        unique_together = [["web_source", "url"]]
+
+    def __str__(self):
+        return f"{self.url} [{self.status}]"
+```
+
+---
+
+## 10. UI & HTMX Interaction Specifications
+
+### 10.1. Project Creation Modal
+- Add a dedicated **Website Project** preset in the Project Creation modal.
+- Form inputs:
+  - **Project Name:** e.g., `"Stripe Docs"`
+  - **Website URL:** e.g., `"https://docs.stripe.com/api"`
+  - **Crawl Limit:** Dropdown: 50, 100 *(default)*, 250, 500 pages.
+  - **Crawl Scope:** Checkbox: *"Constrain strictly to this subpath"* *(checked by default)*.
+  - **Storage Backend:** Defaults to `Postgres RAG` (`postgres`).
+- On submit: Project is created, `WebSource` is provisioned, and the background thread launches the auto-crawl & index immediately.
+
+### 10.2. Web Source Dashboard Section
+When viewing a project backed by a `WebSource` in [`apps/documents/views.py`](file:///Users/chrys/Projects/my_rag/src/apps/documents/views.py):
+1. **Live Status & KPI Cards:**
+   - **Total Pages:** e.g., `85`
+   - **Indexed Pages:** `80` (Green badge)
+   - **Pending / Modified:** `5` (Amber badge)
+   - **Failed / Deleted:** `0` (Red badge)
+   - **Last Synced:** `Sep 8, 2026, 17:05`
+2. **Real-Time Polling Progress Bar:**
+   - If `sync_status` is `DISCOVERING` or `INDEXING`, the partial includes:
+     ```html
+     <div hx-get="{% url 'documents:web_status' project.project_id %}" 
+          hx-trigger="every 2s" 
+          hx-swap="outerHTML">
+       <!-- Dynamic Progress Bar (e.g. 65%) -->
+     </div>
+     ```
+3. **Action Buttons:**
+   - **`Check for Updates` Button (`POST /rag/<store_id>/web/sync/`):**
+     - Scans for new or modified pages; updates counts and status table.
+   - **`Index New / Modified Pages` Button (`POST /rag/<store_id>/web/index-new/`):**
+     - Runs targeted background ingestion of `PENDING` and `MODIFIED` pages.
+   - **`Full Re-Index` Button (`POST /rag/<store_id>/web/reindex/`):**
+     - Confirmation modal before re-crawling and re-embedding everything.
+4. **Pages Table:**
+   - Columns: `URL` (external link), `Title`, `Depth`, `Status Badge`, `HTTP Code`, `Last Indexed`, `Actions` (Individual retry button).
+   - Instant search filter by URL or Title.
+
+---
+
+## 11. Success Criteria
+
+- [ ] Creating a project with a valid website URL triggers an asynchronous background crawl and auto-indexes discovered pages up to the configured limit.
+- [ ] Base `trafilatura` cleanly extracts article text into Markdown, omitting navbars, cookie banners, scripts, and footers.
+- [ ] During crawl, the HTMX dashboard polls and updates the progress indicator without page reloads or Gunicorn worker timeouts.
+- [ ] Clicking "Check for Updates" discovers newly added pages and sets their state to `PENDING` without touching indexed pages.
+- [ ] Clicking "Index New / Modified Pages" processes only `PENDING` and `MODIFIED` pages, updating vector embeddings and purging obsolete chunks for modified pages.
+- [ ] Disappearing / 404 pages have their vector chunks purged and are marked `DELETED`.
+- [ ] All automated unit tests in `Testing/unit/documents/` pass without live internet access.

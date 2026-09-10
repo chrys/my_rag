@@ -22,12 +22,17 @@
                        onchange="htmx.trigger(this.form, 'submit')"
                        class="text-purple-600 focus:ring-purple-500">
                 <span>Obsidian</span>
-            </label>
             <label class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 cursor-pointer">
                 <input type="radio" name="source_type" value="google_calendar" {% if source_type == 'google_calendar' %}checked{% endif %}
                        onchange="htmx.trigger(this.form, 'submit')"
                        class="text-emerald-600 focus:ring-emerald-500">
                 <span>Google Calendar</span>
+            </label>
+            <label class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 cursor-pointer">
+                <input type="radio" name="source_type" value="website" {% if source_type == 'website' %}checked{% endif %}
+                       onchange="htmx.trigger(this.form, 'submit')"
+                       class="text-indigo-600 focus:ring-indigo-500">
+                <span>Website</span>
             </label>
         </form>
     </div>
@@ -36,6 +41,8 @@
         {% include 'partials/obsidian_section.html' %}
     {% elif source_type == 'google_calendar' %}
         {% include 'partials/google_calendar_section.html' %}
+    {% elif source_type == 'website' %}
+        {% include 'partials/web_source_section.html' %}
     {% else %}
     <div class="p-4 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
         <form hx-post="{{ url_prefix }}/documents/{{ store_id }}/upload/"

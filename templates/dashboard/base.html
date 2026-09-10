@@ -26,22 +26,26 @@
             </a>
 
             <div class="top-navbar-controls">
-                {% if projects %}
                 <div class="project-select-wrapper">
+                    {% if projects %}
                     <select id="top-project-selector" 
                             name="project_id" 
-                            hx-get="{% url 'projects:dashboard' %}" 
-                            hx-target="body" 
-                            hx-push-url="true"
+                            onchange="handleProjectSelectChange(this)"
                             aria-label="Active Project">
                         {% for p in projects %}
                         <option value="{{ p.project_id }}" {% if current_project and current_project.project_id == p.project_id %}selected{% endif %}>
                             {{ p.display_name }} ({{ p.storage_type }})
                         </option>
                         {% endfor %}
+                        <option disabled>──────────</option>
+                        <option value="__new_project__">➕ Create New Project...</option>
                     </select>
+                    {% else %}
+                    <button type="button" class="outline primary" onclick="openCreateProjectModal()" style="padding: 0.35rem 0.75rem; margin-bottom: 0; font-size: 0.8rem;">
+                        ➕ Create New Project
+                    </button>
+                    {% endif %}
                 </div>
-                {% endif %}
 
                 <button id="theme-toggle-btn" 
                         class="outline secondary" 
@@ -169,6 +173,9 @@
         </div>
     </div>
 
+    <!-- Create Project Modal Dialog -->
+    {% include "dashboard/partials/create_project_modal.html" %}
+
     <script>
         function setActiveSidebarLink(clickedElement) {
             document.querySelectorAll('.sidebar-link').forEach(link => {
@@ -176,6 +183,18 @@
             });
             if (clickedElement) {
                 clickedElement.classList.add('active');
+            }
+        }
+
+        function handleProjectSelectChange(select) {
+            const val = select.value;
+            if (val === '__new_project__') {
+                select.value = '{{ current_project.project_id|default:"" }}';
+                openCreateProjectModal();
+                return false;
+            }
+            if (val && val !== '{{ current_project.project_id|default:"" }}') {
+                window.location.href = "{% url 'projects:dashboard' %}?project_id=" + encodeURIComponent(val);
             }
         }
     </script>

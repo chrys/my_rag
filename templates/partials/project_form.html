@@ -37,6 +37,7 @@
                 class="w-full px-3.5 py-2 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="postgres" selected>Postgres RAG (Self-Hosted pgvector VPS)</option>
                 <option value="google">Google File Search (Managed Enterprise Cloud Store)</option>
+                <option value="website">Website Project (Web Crawler & Incremental Indexing)</option>
             </select>
         </div>
 
@@ -101,6 +102,46 @@
             </div>
         </div>
 
+        <!-- Website Crawler Parameters (Visible only for Website Projects) -->
+        <div id="website-parameters-container" class="hidden space-y-4 pt-3 pb-1 border-t border-gray-100 dark:border-gray-700">
+            <div class="p-3.5 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs text-indigo-900 dark:text-indigo-200">
+                <div class="flex items-start gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                    </svg>
+                    <div>
+                        <strong>Website Spider & Vector Indexing:</strong> The engine crawls pages via sitemap and BFS spider, extracts clean Markdown with Trafilatura, and embeds chunks into Postgres.
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label for="web-root-url" class="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1.5">
+                    Website URL <span class="text-red-500">*</span>
+                </label>
+                <input type="url" id="web-root-url" name="web_root_url" placeholder="https://docs.example.com/guides"
+                    class="w-full px-3.5 py-2 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="web-max-pages" class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Crawl Page Limit</label>
+                    <select id="web-max-pages" name="web_max_pages" class="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-700">
+                        <option value="50">50 pages</option>
+                        <option value="100" selected>100 pages (Default)</option>
+                        <option value="250">250 pages</option>
+                        <option value="500">500 pages (Maximum)</option>
+                    </select>
+                </div>
+                <div class="flex items-center pt-5">
+                    <label class="inline-flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
+                        <input type="checkbox" name="web_subpath_only" checked class="rounded text-blue-600 focus:ring-blue-500">
+                        <span>Constrain strictly to this subpath</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
         <!-- Submit Button -->
         <div class="pt-4 flex justify-end">
             <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow transition-all flex items-center gap-2">
@@ -117,12 +158,14 @@
 function onStorageTypeChanged(storageType) {
     const gfsNotice = document.getElementById('gfs-parameter-notice');
     const postgresParams = document.getElementById('postgres-parameters-container');
+    const websiteParams = document.getElementById('website-parameters-container');
     const localOptions = document.querySelectorAll('.local-model-option');
     const llmSelect = document.getElementById('project-llm-model');
 
     if (storageType === 'google') {
         if (gfsNotice) gfsNotice.classList.remove('hidden');
         if (postgresParams) postgresParams.classList.add('hidden');
+        if (websiteParams) websiteParams.classList.add('hidden');
         localOptions.forEach(opt => {
             opt.disabled = true;
             opt.classList.add('hidden');
@@ -130,9 +173,18 @@ function onStorageTypeChanged(storageType) {
         if (llmSelect && !['gemini-2.5-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3.7-flash'].includes(llmSelect.value)) {
             llmSelect.value = 'gemini-2.5-flash-lite';
         }
+    } else if (storageType === 'website') {
+        if (gfsNotice) gfsNotice.classList.add('hidden');
+        if (postgresParams) postgresParams.classList.remove('hidden');
+        if (websiteParams) websiteParams.classList.remove('hidden');
+        localOptions.forEach(opt => {
+            opt.disabled = false;
+            opt.classList.remove('hidden');
+        });
     } else {
         if (gfsNotice) gfsNotice.classList.add('hidden');
         if (postgresParams) postgresParams.classList.remove('hidden');
+        if (websiteParams) websiteParams.classList.add('hidden');
         localOptions.forEach(opt => {
             opt.disabled = false;
             opt.classList.remove('hidden');

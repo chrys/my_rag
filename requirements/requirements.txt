@@ -7,6 +7,8 @@ pypdf
 numpy
 typing-extensions>=4.5.0
 pydantic<2.13.0
+trafilatura
+beautifulsoup4
 
 
 # Optional vector-indexing dependencies for local/postgres RAG features live in

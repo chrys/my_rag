@@ -20,8 +20,8 @@
     <article style="text-align: center; padding: 3rem 1.5rem;">
         <h3>No Project Selected</h3>
         <p style="color: var(--pico-muted-color);">You do not have any active RAG projects yet.</p>
-        <a href="{% url 'projects:create' %}" role="button" class="primary">
+        <button type="button" class="primary" onclick="openCreateProjectModal()" style="display: inline-block; width: auto; margin-top: 0.5rem;">
             + Create New Project
-        </a>
+        </button>
     </article>
 {% endif %}

@@ -99,3 +99,8 @@ The API supports three authentication strategies:
 | | `/rag/api/usage/by_key/?key_id={key_id}` | `GET` | Filter telemetry by API key. |
 | | `/rag/api/usage/by_endpoint/?endpoint={ep}` | `GET` | Filter telemetry by API endpoint path. |
 | | `/rag/api/usage/summary/` | `GET` | Fetch aggregate usage statistics (24h counts, avg latency, errors). |
+| **Web Source Connector** | `/rag/projects/{id}/web/status/` | `GET` | Fetch real-time polling progress bar and crawling status for attached website source. |
+| | `/rag/projects/{id}/web/sync/` | `POST` | Trigger asynchronous delta discovery and modification detection on website. |
+| | `/rag/projects/{id}/web/index-new/` | `POST` | Trigger asynchronous vector ingestion of pending and modified web pages. |
+| | `/rag/projects/{id}/web/reindex/` | `POST` | Trigger asynchronous full re-crawl and complete re-indexing of website. |
+

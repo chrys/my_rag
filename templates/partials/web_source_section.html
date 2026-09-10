@@ -1,0 +1,215 @@
+<div id="web-source-section-container" style="background: var(--pico-card-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 1.25rem;">
+
+    <!-- Real-time Polling Progress Banner -->
+    {% include "partials/web_status_partial.html" %}
+
+    <!-- Action Loading Indicator -->
+    <div id="web-action-indicator" class="htmx-indicator upload-progress-box" style="margin-bottom: 1.25rem;">
+        <svg class="animate-spin" style="width: 1.5rem; height: 1.5rem; color: var(--pico-primary);" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" style="opacity: 0.25;"></circle>
+            <path class="opacity-75" fill="currentColor" style="opacity: 0.75;" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <div>
+            <div style="font-weight: 600; font-size: 0.9rem; color: var(--pico-primary);">Processing Web Action...</div>
+            <div style="font-size: 0.8rem; color: var(--pico-muted-color); margin-top: 0.1rem;">Spawning background spider task. Please wait for progress update...</div>
+        </div>
+    </div>
+
+    <!-- Feedback Message Banner -->
+    {% if message %}
+    <div style="padding: 0.75rem 1rem; border-radius: var(--pico-border-radius); margin-bottom: 1.25rem; font-size: 0.85rem; font-weight: 500; {% if is_error %}background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5;{% else %}background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe;{% endif %}">
+        <span>{{ message }}</span>
+    </div>
+    {% endif %}
+
+    <!-- KPI Summary Cards -->
+    <div id="web-source-stats-cards" class="grid" style="margin-bottom: 1.25rem;">
+        <div style="background: var(--pico-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 0.75rem; text-align: center;">
+            <span style="font-size: 0.7rem; font-weight: 600; color: var(--pico-muted-color); text-transform: uppercase; display: block;">Total Discovered</span>
+            <span class="font-mono" style="font-size: 1.25rem; font-weight: 700; color: var(--pico-color);">{{ web_source.total_pages_count }}</span>
+        </div>
+        <div style="background: var(--pico-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 0.75rem; text-align: center;">
+            <span style="font-size: 0.7rem; font-weight: 600; color: #16a34a; text-transform: uppercase; display: block;">Indexed</span>
+            <span class="font-mono" style="font-size: 1.25rem; font-weight: 700; color: #15803d;">{{ web_source.indexed_pages_count }}</span>
+        </div>
+        <div style="background: var(--pico-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 0.75rem; text-align: center;">
+            <span style="font-size: 0.7rem; font-weight: 600; color: #ca8a04; text-transform: uppercase; display: block;">Pending / Modified</span>
+            <span class="font-mono" style="font-size: 1.25rem; font-weight: 700; color: #b45309;">{{ web_source.pending_pages_count }}</span>
+        </div>
+        <div style="background: var(--pico-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 0.75rem; text-align: center;">
+            <span style="font-size: 0.7rem; font-weight: 600; color: #dc2626; text-transform: uppercase; display: block;">Failed / Deleted</span>
+            <span class="font-mono" style="font-size: 1.25rem; font-weight: 700; color: #b91c1c;">{{ web_source.failed_pages_count }}</span>
+        </div>
+    </div>
+
+    <!-- Web Source Metadata Bar -->
+    <div style="background: var(--pico-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 0.75rem 1rem; margin-bottom: 1.25rem; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem; font-size: 0.8rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <strong style="text-transform: uppercase; font-size: 0.75rem; color: var(--pico-muted-color);">Target:</strong>
+            <a href="{{ web_source.root_url }}" target="_blank" rel="noopener noreferrer" class="font-mono" style="color: var(--pico-primary); font-weight: 600; text-decoration: underline; display: inline-flex; align-items: center; gap: 0.25rem;">
+                <span>{{ web_source.root_url }}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" style="width: 0.85rem; height: 0.85rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+            </a>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.75rem; color: var(--pico-muted-color); font-size: 0.8rem; flex-wrap: wrap;">
+            <span>Domain: <strong style="color: var(--pico-color);">{{ web_source.allowed_domain }}</strong></span>
+            <span>•</span>
+            <span>Scope: <strong style="color: var(--pico-color);">{% if web_source.subpath_only %}Subpath Only{% else %}Full Domain{% endif %}</strong></span>
+            <span>•</span>
+            <span>Max Pages: <strong style="color: var(--pico-color);">{{ web_source.max_pages }}</strong></span>
+        </div>
+    </div>
+
+    <!-- Action Toolbar -->
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; padding-top: 0.75rem; border-top: 1px solid var(--pico-card-border-color, #e2e8f0);">
+        <button hx-post="{% url 'documents:web_sync' store_id %}"
+                hx-target="#web-source-section-container"
+                hx-swap="outerHTML"
+                hx-indicator="#web-action-indicator"
+                hx-disabled-elt="this"
+                class="primary"
+                style="margin-bottom: 0; padding: 0.45rem 1rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.4rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width: 1rem; height: 1rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span>Check for Updates</span>
+        </button>
+
+        <button hx-post="{% url 'documents:web_index_new' store_id %}"
+                hx-target="#web-source-section-container"
+                hx-swap="outerHTML"
+                hx-indicator="#web-action-indicator"
+                hx-disabled-elt="this"
+                style="margin-bottom: 0; padding: 0.45rem 1rem; font-size: 0.85rem; background: #4f46e5; border-color: #4f46e5; color: #ffffff; display: inline-flex; align-items: center; gap: 0.4rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width: 1rem; height: 1rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span>Index New / Modified Pages</span>
+        </button>
+
+        <button hx-post="{% url 'documents:web_reindex' store_id %}"
+                hx-confirm="Are you sure you want to re-crawl and re-index all pages from {{ web_source.root_url }}? This will re-process all vectors."
+                hx-target="#web-source-section-container"
+                hx-swap="outerHTML"
+                hx-indicator="#web-action-indicator"
+                hx-disabled-elt="this"
+                class="outline secondary"
+                style="margin-bottom: 0; padding: 0.45rem 1rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.4rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width: 1rem; height: 1rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span>Full Re-Index</span>
+        </button>
+    </div>
+
+    <!-- Discovered Web Pages Section -->
+    <div style="padding-top: 1rem; border-top: 1px solid var(--pico-card-border-color, #e2e8f0);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;">
+            <div>
+                <h4 style="margin: 0; font-size: 1.05rem; font-weight: 600; color: var(--pico-color);">
+                    Discovered Web Pages
+                </h4>
+                <p style="margin: 0; font-size: 0.8rem; color: var(--pico-muted-color);">
+                    Track individual URL crawling status, extraction hygiene, and vector timestamps.
+                </p>
+            </div>
+            <!-- Client-side Instant Filter Search -->
+            <div style="min-width: 260px; max-width: 320px; width: 100%;">
+                <input type="search"
+                       id="web-page-search"
+                       placeholder="🔍 Filter pages by URL or title..."
+                       onkeyup="filterWebPages(this.value)"
+                       style="margin-bottom: 0; font-size: 0.85rem; padding: 0.4rem 0.75rem;">
+            </div>
+        </div>
+
+        <!-- Table of Pages: Fixed layout with strictly enforced column boundaries -->
+        <div class="overflow-auto" style="border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); width: 100%;">
+            <table class="table-compact" id="web-pages-table" style="table-layout: fixed; width: 100%; margin-bottom: 0;">
+                <colgroup>
+                    <col style="width: auto;"> <!-- URL & Title takes remaining space with ellipsis -->
+                    <col style="width: 70px;"> <!-- Depth -->
+                    <col style="width: 110px;"> <!-- Status badge -->
+                    <col style="width: 75px;"> <!-- HTTP status -->
+                    <col style="width: 125px;"> <!-- Last Indexed -->
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th style="padding: 0.6rem 0.75rem;">Web Page URL & Title</th>
+                        <th style="padding: 0.6rem 0.5rem; text-align: center;">Depth</th>
+                        <th style="padding: 0.6rem 0.5rem; text-align: center;">Status</th>
+                        <th style="padding: 0.6rem 0.5rem; text-align: center;">HTTP</th>
+                        <th style="padding: 0.6rem 0.75rem;">Last Indexed</th>
+                    </tr>
+                </thead>
+                <tbody id="web-pages-tbody">
+                    {% for page in web_pages %}
+                    <tr class="web-page-row" data-url="{{ page.url|lower }}" data-title="{{ page.title|lower }}">
+                        <td style="padding: 0.6rem 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 0;">
+                            <div style="font-weight: 600; color: var(--pico-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ page.title|default:page.url }}">
+                                {{ page.title|default:page.url }}
+                            </div>
+                            <div style="font-family: monospace; font-size: 0.75rem; color: var(--pico-muted-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                <a href="{{ page.url }}" target="_blank" rel="noopener noreferrer" style="color: var(--pico-primary); text-decoration: none;" title="{{ page.url }}">
+                                    {{ page.url }}
+                                </a>
+                            </div>
+                            {% if page.error_message %}
+                            <div style="font-size: 0.75rem; color: #dc2626; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 0.15rem;" title="{{ page.error_message }}">
+                                ⚠️ Error: {{ page.error_message }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.6rem 0.5rem; text-align: center; font-family: monospace; font-size: 0.8rem; color: var(--pico-muted-color);">
+                            {{ page.depth }}
+                        </td>
+                        <td style="padding: 0.6rem 0.5rem; text-align: center;">
+                            {% if page.status == 'INDEXED' %}
+                            <span class="badge badge-success">INDEXED</span>
+                            {% elif page.status == 'MODIFIED' %}
+                            <span class="badge badge-warning">MODIFIED</span>
+                            {% elif page.status == 'PENDING' %}
+                            <span class="badge badge-primary">PENDING</span>
+                            {% elif page.status == 'DELETED' %}
+                            <span class="badge badge-secondary">DELETED</span>
+                            {% else %}
+                            <span class="badge badge-danger">{{ page.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.6rem 0.5rem; text-align: center; font-family: monospace; font-size: 0.8rem; color: var(--pico-muted-color);">
+                            {{ page.http_status|default:"-" }}
+                        </td>
+                        <td style="padding: 0.6rem 0.75rem; font-size: 0.78rem; color: var(--pico-muted-color); white-space: nowrap;">
+                            {{ page.last_indexed_at|date:"M j, H:i"|default:"Never" }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--pico-muted-color); padding: 2rem 0; font-size: 0.85rem;">
+                            No web pages discovered yet. Click "Check for Updates" to start discovery.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterWebPages(query) {
+    const q = (query || '').toLowerCase().trim();
+    const rows = document.querySelectorAll('.web-page-row');
+    rows.forEach(row => {
+        const url = row.getAttribute('data-url') || '';
+        const title = row.getAttribute('data-title') || '';
+        if (!q || url.includes(q) || title.includes(q)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+</script>

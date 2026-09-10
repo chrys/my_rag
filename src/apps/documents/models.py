@@ -352,3 +352,167 @@ class GoogleCalendarEvent(models.Model):
     def __str__(self):
         return f"{self.summary} [{self.status}]"
 
+
+class WebSource(models.Model):
+    """
+    Represents a website source configuration for a project.
+    """
+    SYNC_STATUS_CHOICES = [
+        ('IDLE', 'Idle'),
+        ('DISCOVERING', 'Discovering Pages'),
+        ('INDEXING', 'Indexing Vectors'),
+        ('COMPLETED', 'Completed'),
+        ('FAILED', 'Failed'),
+    ]
+
+    project = models.OneToOneField(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='web_source',
+        help_text="The project this website source belongs to"
+    )
+    root_url = models.URLField(
+        max_length=1024,
+        help_text="Entrypoint website URL"
+    )
+    allowed_domain = models.CharField(
+        max_length=255,
+        help_text="Allowed domain/host (e.g. docs.example.com)"
+    )
+    subpath_only = models.BooleanField(
+        default=True,
+        help_text="Whether crawling is strictly constrained to the root URL subpath"
+    )
+    max_depth = models.PositiveIntegerField(
+        default=4,
+        help_text="Maximum link recursion depth"
+    )
+    max_pages = models.PositiveIntegerField(
+        default=100,
+        help_text="Maximum total pages to crawl"
+    )
+    sync_status = models.CharField(
+        max_length=20,
+        choices=SYNC_STATUS_CHOICES,
+        default='IDLE',
+        help_text="Current background crawl/indexing status"
+    )
+    total_pages_count = models.IntegerField(
+        default=0,
+        help_text="Total discovered pages"
+    )
+    indexed_pages_count = models.IntegerField(
+        default=0,
+        help_text="Total successfully indexed pages"
+    )
+    pending_pages_count = models.IntegerField(
+        default=0,
+        help_text="Pages pending vector indexing"
+    )
+    failed_pages_count = models.IntegerField(
+        default=0,
+        help_text="Pages that failed crawling or indexing"
+    )
+    error_message = models.TextField(
+        blank=True,
+        help_text="Error message if crawl or indexing failed"
+    )
+    last_synced_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the website source was last synced/crawled"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Web Source for {self.project.display_name} ({self.allowed_domain})"
+
+
+class WebPage(models.Model):
+    """
+    Tracks individual crawled URLs from a WebSource and their indexing status.
+    """
+    PAGE_STATES = [
+        ('PENDING', 'Pending Indexing'),
+        ('INDEXING', 'Indexing Vectors'),
+        ('INDEXED', 'Successfully Indexed'),
+        ('MODIFIED', 'Modified on Remote Site'),
+        ('FAILED', 'Failed'),
+        ('DELETED', 'Deleted from Remote Site'),
+    ]
+
+    web_source = models.ForeignKey(
+        WebSource,
+        on_delete=models.CASCADE,
+        related_name='pages',
+        help_text="The WebSource this page belongs to"
+    )
+    url = models.URLField(
+        max_length=2048,
+        db_index=True,
+        help_text="Normalized URL of the web page"
+    )
+    title = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text="Extracted page title"
+    )
+    depth = models.PositiveIntegerField(
+        default=0,
+        help_text="Link depth relative to root URL"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=PAGE_STATES,
+        default='PENDING',
+        help_text="Current indexing status of this page"
+    )
+    content_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        db_index=True,
+        help_text="SHA-256 hash of extracted clean Markdown content"
+    )
+    etag = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="HTTP ETag header for cache validation"
+    )
+    last_modified_header = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="HTTP Last-Modified header value"
+    )
+    http_status = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Last recorded HTTP response status code"
+    )
+    error_message = models.TextField(
+        blank=True,
+        help_text="Error message if scraping or indexing failed"
+    )
+    last_scraped_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp of when page was last fetched"
+    )
+    last_indexed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp of when page was last vector indexed"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['url']
+        unique_together = [['web_source', 'url']]
+
+    def __str__(self):
+        return f"{self.url} [{self.status}]"
+

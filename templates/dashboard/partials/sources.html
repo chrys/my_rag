@@ -7,9 +7,28 @@
             </p>
         </div>
         <div>
+            {% if web_source %}
+            <span class="badge badge-primary">{{ web_source.indexed_pages_count }} WEB PAGES INDEXED</span>
+            {% else %}
             <span class="badge badge-primary">{{ current_project.document_count }} INDEXED</span>
+            {% endif %}
         </div>
     </header>
+
+    {% if web_source %}
+    <!-- Website Connector & Crawler Pipeline Section -->
+    <div style="margin-bottom: 1.5rem;">
+        {% include "partials/web_source_section.html" %}
+    </div>
+
+    <!-- Supplementary Document Upload & Library Accordion for Website Projects -->
+    <details style="background: var(--pico-card-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 1rem 1.25rem; margin-bottom: 1.5rem;">
+        <summary style="font-weight: 600; cursor: pointer; color: var(--pico-color);">
+            📁 Upload Supplementary Documents (Optional) — Ingest files into this Website Project
+            <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ documents|length }} files</span>
+        </summary>
+        <div style="margin-top: 1.25rem;">
+    {% endif %}
 
     <!-- Upload Card -->
     <div style="background: var(--pico-card-background-color); border: 1px solid var(--pico-card-border-color, #e2e8f0); border-radius: var(--pico-border-radius); padding: 1.25rem; margin-bottom: 1.5rem;">
@@ -168,6 +187,11 @@
             </tbody>
         </table>
     </div>
+
+    {% if web_source %}
+        </div>
+    </details>
+    {% endif %}
 
     <!-- Third Party Connectors (Accordions) -->
     <div style="margin-top: 2rem;">

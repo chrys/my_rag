@@ -13,6 +13,7 @@ urlpatterns = [
     path('dashboard/', views.dashboard_view, name='dashboard'),
     path('list/', views.list_projects, name='list'),
     path('create/', views.create_project, name='create'),
+    path('projects/create/', views.create_project, name='projects_create'),
     path('delete/<str:store_id>/', views.delete_project, name='delete'),
     path('projects/<str:store_id>/parameters/', views.project_parameters_view, name='parameters'),
     path('projects/<str:store_id>/prompt/', views.project_prompt_view, name='prompt'),

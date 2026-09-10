@@ -26,5 +26,13 @@ urlpatterns = [
     path('projects/<str:store_id>/sources/filter/', views.filter_sources_view, name='filter_sources'),
     path('projects/<str:store_id>/sources/<int:doc_id>/delete/', views.delete_source_view, name='delete_source'),
     path('projects/<str:store_id>/sources/bulk-delete/', views.bulk_delete_sources_view, name='bulk_delete_sources'),
+    path('projects/<str:store_id>/web/status/', views.web_status, name='web_status'),
+    path('projects/<str:store_id>/web/sync/', views.web_sync, name='web_sync'),
+    path('projects/<str:store_id>/web/index-new/', views.web_index_new, name='web_index_new'),
+    path('projects/<str:store_id>/web/reindex/', views.web_reindex, name='web_reindex'),
+    path('documents/<str:store_id>/web/status/', views.web_status, name='web_status_doc'),
+    path('documents/<str:store_id>/web/sync/', views.web_sync, name='web_sync_doc'),
+    path('documents/<str:store_id>/web/index-new/', views.web_index_new, name='web_index_new_doc'),
+    path('documents/<str:store_id>/web/reindex/', views.web_reindex, name='web_reindex_doc'),
     path('google/oauth2callback/', views.google_calendar_oauth_callback, name='google_calendar_oauth_callback'),
 ]

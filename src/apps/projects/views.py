@@ -122,7 +122,7 @@ def create_project(request):
             safe_name = display_name.lower().replace(' ', '_')[:30]
             rand_suffix = uuid.uuid4().hex[:6]
             project_id = f"google_{timestamp}_{microseconds}_{safe_name}_{rand_suffix}"
-            Project.objects.create(
+            project = Project.objects.create(
                 project_id=project_id,
                 display_name=display_name,
                 storage_type='google',
@@ -147,13 +147,102 @@ def create_project(request):
             microseconds = int(time.time() * 1000000) % 1000000
             safe_name = display_name.lower().replace(' ', '_')[:30]
             project_id = f"postgres_{timestamp}_{microseconds}_{safe_name}"
-            Project.objects.create(
+            project = Project.objects.create(
                 project_id=project_id,
                 display_name=display_name,
                 storage_type='postgres',
                 user=user
             )
-    
+        elif storage_type == 'website':
+            success, error_message = test_postgres_connection()
+            if not success:
+                error_html = (
+                    f'<div id="project-error-container" hx-swap-oob="true" '
+                    f'class="mb-4 p-3 bg-red-50 text-red-700 rounded-md border border-red-200 text-sm">'
+                    f'<strong>Connection failed:</strong> {error_message}'
+                    f'</div>'
+                )
+                return HttpResponse(error_html)
+
+            web_root_url = request.POST.get('web_root_url', '').strip()
+            if not web_root_url:
+                error_html = (
+                    '<div id="project-error-container" hx-swap-oob="true" '
+                    'class="mb-4 p-3 bg-red-50 text-red-700 rounded-md border border-red-200 text-sm">'
+                    '<strong>Error:</strong> Website entrypoint URL is required for Website Projects.'
+                    '</div>'
+                )
+                return HttpResponse(error_html)
+
+            import urllib.parse
+            parsed = urllib.parse.urlparse(web_root_url)
+            if parsed.scheme.lower() not in ('http', 'https') or not parsed.netloc:
+                error_html = (
+                    '<div id="project-error-container" hx-swap-oob="true" '
+                    'class="mb-4 p-3 bg-red-50 text-red-700 rounded-md border border-red-200 text-sm">'
+                    '<strong>Error:</strong> Please provide a valid HTTP or HTTPS website URL.'
+                    '</div>'
+                )
+                return HttpResponse(error_html)
+
+            try:
+                web_max_pages = int(request.POST.get('web_max_pages', 100))
+            except (ValueError, TypeError):
+                web_max_pages = 100
+            web_max_pages = min(max(web_max_pages, 1), 500)
+
+            subpath_raw = request.POST.get('web_subpath_only')
+            web_subpath_only = subpath_raw in ('on', 'true', True)
+
+            from datetime import datetime
+            import time
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            microseconds = int(time.time() * 1000000) % 1000000
+            safe_name = display_name.lower().replace(' ', '_')[:30]
+            project_id = f"postgres_{timestamp}_{microseconds}_{safe_name}"
+
+            project = Project.objects.create(
+                project_id=project_id,
+                display_name=display_name,
+                storage_type='postgres',
+                user=user,
+            )
+
+            from src.apps.documents.models import WebSource
+            web_source = WebSource.objects.create(
+                project=project,
+                root_url=web_root_url,
+                allowed_domain=parsed.netloc.lower(),
+                subpath_only=web_subpath_only,
+                max_pages=web_max_pages,
+                sync_status="DISCOVERING",
+            )
+
+            # Detached asynchronous crawl thread
+            import threading
+            from src.apps.documents.web_crawler_services import run_web_lifecycle
+
+            def _background_crawl_and_index(ws_id):
+                try:
+                    from django.db import connection
+                    connection.close()
+                    ws = WebSource.objects.get(id=ws_id)
+                    run_web_lifecycle(ws, mode="full")
+                except Exception as exc:
+                    import logging
+                    logging.getLogger(__name__).error(f"Background web crawl failed for WebSource {ws_id}: {exc}")
+
+            crawl_thread = threading.Thread(
+                target=_background_crawl_and_index,
+                args=(web_source.id,),
+                daemon=True,
+            )
+            crawl_thread.start()
+
+    if 'project' in locals() and project:
+        if hasattr(request, 'session'):
+            request.session["active_project_id"] = project.project_id
+
     stores = get_combined_stores(request)
     response_content = (
         '<div id="project-error-container" hx-swap-oob="true"></div>\n'
@@ -161,6 +250,8 @@ def create_project(request):
     )
     response = HttpResponse(response_content)
     response["HX-Trigger"] = "projectCreated"
+    if 'project' in locals() and project:
+        response["X-Project-Id"] = project.project_id
     return response
 
 
@@ -536,6 +627,17 @@ def dashboard_view(request):
             context["api_keys"] = APIKey.objects.filter(project=current_project).order_by("-created_at")
         elif active_tab == "sources":
             context["documents"] = current_project.documents.all().order_by("-created_at")
+            context["store_id"] = current_project.project_id
+            web_source = getattr(current_project, 'web_source', None)
+            if not web_source:
+                from src.apps.documents.models import WebSource
+                web_source = WebSource.objects.filter(project=current_project).first()
+            if web_source:
+                from src.apps.documents.views import get_web_source_context
+                context.update(get_web_source_context(web_source))
+            else:
+                context["web_source"] = None
+                context["web_pages"] = []
             
     if request.headers.get("HX-Request") and not request.GET.get("project_id"):
         return render(request, "dashboard/workspace.html", context)
@@ -649,7 +751,19 @@ def project_sources_view(request, store_id):
         "current_project": project,
         "active_tab": "sources",
         "documents": documents,
+        "store_id": project.project_id,
     }
+    web_source = getattr(project, 'web_source', None)
+    if not web_source:
+        from src.apps.documents.models import WebSource
+        web_source = WebSource.objects.filter(project=project).first()
+    if web_source:
+        from src.apps.documents.views import get_web_source_context
+        context.update(get_web_source_context(web_source))
+    else:
+        context["web_source"] = None
+        context["web_pages"] = []
+
     if request.headers.get("HX-Request"):
         return render(request, "dashboard/partials/sources.html", context)
     return render(request, "dashboard/base.html", context)

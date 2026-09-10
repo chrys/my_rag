@@ -244,3 +244,7 @@ svg:not([width]):not([height]) {
   gap: 0.9rem;
 }
 
+.hidden {
+  display: none !important;
+}
+

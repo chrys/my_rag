@@ -17,7 +17,7 @@ from src.local_project_storage import get_local_project_storage
 from src.optional_dependencies import LazyModuleProxy
 from urllib.parse import unquote
 
-from .models import Document, ObsidianSource, ObsidianFile
+from .models import Document, ObsidianSource, ObsidianFile, WebSource, WebPage
 from .services import run_obsidian_lifecycle
 from src.apps.projects.models import Project
 from src.apps.projects.db_utils import test_postgres_connection
@@ -132,7 +132,16 @@ def list_documents(request, store_id):
         return render(request, 'partials/evaluate_document_items.html', {'documents': documents})
 
     obsidian_source = getattr(project, 'obsidian_source', None) if project else None
-    source_type = obsidian_source.source_type if obsidian_source else 'document'
+    web_source = getattr(project, 'web_source', None) if project else None
+    session_source_type = request.session.get(f'source_type_{project.project_id}') if project else None
+    if session_source_type:
+        source_type = session_source_type
+    elif web_source and not docs_qs.exists():
+        source_type = 'website'
+    elif obsidian_source:
+        source_type = obsidian_source.source_type
+    else:
+        source_type = 'document'
     gcal_source = getattr(project, 'google_calendar_source', None) if project else None
 
     ctx = {
@@ -146,6 +155,7 @@ def list_documents(request, store_id):
     }
     ctx.update(get_obsidian_context(obsidian_source))
     ctx.update(get_google_calendar_context(gcal_source))
+    ctx.update(get_web_source_context(web_source))
     return render(request, "partials/document_list.html", ctx)
 
 
@@ -267,14 +277,24 @@ def _render_document_list_response(request, project, store_id, storage=None):
         docs_qs = Document.objects.filter(project=project).order_by('-created_at') if project else []
         indexed_count = Document.objects.filter(project=project, state='INDEXED').count() if project else 0
         from src.apps.projects.views import _get_user_projects
-        return render(request, 'dashboard/partials/sources.html', {
+        context = {
             'current_project': project,
             'projects': _get_user_projects(request),
             'active_tab': 'sources',
             'documents': docs_qs,
             'documents_count': indexed_count,
             'store_id': store_id,
-        })
+        }
+        web_source = getattr(project, 'web_source', None) if project else None
+        if not web_source and project:
+            from src.apps.documents.models import WebSource
+            web_source = WebSource.objects.filter(project=project).first()
+        if web_source:
+            context.update(get_web_source_context(web_source))
+        else:
+            context['web_source'] = None
+            context['web_pages'] = []
+        return render(request, 'dashboard/partials/sources.html', context)
     
     if project and project.storage_type in ['google', 'postgres']:
         docs_qs = Document.objects.filter(project=project)
@@ -719,9 +739,10 @@ def delete_document(request, document_id):
 @csrf_exempt
 @require_http_methods(["POST"])
 def set_source_type(request, store_id):
-    """Switch project source type between Document and Obsidian."""
+    """Switch project source type between Document, Obsidian, Google Calendar, and Website."""
     project = get_object_or_404(Project, project_id=store_id)
     source_type = request.POST.get('source_type', 'document')
+    request.session[f'source_type_{project.project_id}'] = source_type
     obs_source, _ = ObsidianSource.objects.get_or_create(project=project)
     obs_source.source_type = source_type
     obs_source.save()
@@ -1156,6 +1177,169 @@ def bulk_delete_sources_view(request, store_id):
             logger.warning(f"Error deleting doc {doc_id}: {e}")
 
     return JsonResponse({"success": True, "deleted_count": deleted_count})
+
+
+def _check_project_permission(request, project) -> bool:
+    """Check if request.user has permission to access project."""
+    if project and project.user and project.user != request.user and not (getattr(request.user, "is_staff", False) or getattr(request.user, "is_superuser", False)):
+        return False
+    return True
+
+
+def get_web_source_context(web_source) -> dict:
+    """Return common context dictionary for WebSource and WebPages."""
+    if web_source:
+        total = web_source.total_pages_count
+        indexed = web_source.indexed_pages_count
+        progress_pct = int(round((indexed / total) * 100)) if total > 0 else 0
+        web_pages = list(web_source.pages.all().order_by("-updated_at", "url"))
+    else:
+        progress_pct = 0
+        web_pages = []
+
+    return {
+        "web_source": web_source,
+        "progress_pct": progress_pct,
+        "web_pages": web_pages,
+    }
+
+
+def render_web_section(request, project, web_source, message="", is_error=False):
+    """Render the WebSource dashboard section partial."""
+    context = {
+        "store_id": project.project_id,
+        "project": project,
+        "message": message,
+        "is_error": is_error,
+    }
+    context.update(get_web_source_context(web_source))
+    return render(request, "partials/web_source_section.html", context)
+
+
+@require_http_methods(["GET"])
+def web_status(request, store_id):
+    """Render WebSource real-time polling progress bar partial."""
+    project = get_object_or_404(Project, project_id=store_id)
+    if not _check_project_permission(request, project):
+        return JsonResponse({"error": "Permission denied."}, status=403)
+
+    web_source = get_object_or_404(WebSource, project=project)
+
+    context = {
+        "store_id": project.project_id,
+        "project": project,
+    }
+    context.update(get_web_source_context(web_source))
+    return render(request, "partials/web_status_partial.html", context)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def web_sync(request, store_id):
+    """Trigger background crawler delta check and sync."""
+    project = get_object_or_404(Project, project_id=store_id)
+    if not _check_project_permission(request, project):
+        return JsonResponse({"error": "Permission denied."}, status=403)
+
+    web_source = get_object_or_404(WebSource, project=project)
+    web_source.sync_status = "DISCOVERING"
+    web_source.save(update_fields=["sync_status", "updated_at"])
+
+    import threading
+    from src.apps.documents.web_crawler_services import run_web_lifecycle
+
+    def _bg_sync(ws_id):
+        try:
+            from django.db import connection
+            connection.close()
+            ws = WebSource.objects.get(id=ws_id)
+            run_web_lifecycle(ws, mode="sync")
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).error(f"Background web sync failed for WebSource {ws_id}: {exc}")
+
+    thread = threading.Thread(target=_bg_sync, args=(web_source.id,), daemon=True)
+    thread.start()
+
+    return render_web_section(
+        request,
+        project,
+        web_source,
+        message="Checking for website updates in background...",
+    )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def web_index_new(request, store_id):
+    """Trigger background targeted indexing of PENDING and MODIFIED pages."""
+    project = get_object_or_404(Project, project_id=store_id)
+    if not _check_project_permission(request, project):
+        return JsonResponse({"error": "Permission denied."}, status=403)
+
+    web_source = get_object_or_404(WebSource, project=project)
+    web_source.sync_status = "INDEXING"
+    web_source.save(update_fields=["sync_status", "updated_at"])
+
+    import threading
+    from src.apps.documents.web_crawler_services import run_web_lifecycle
+
+    def _bg_index_new(ws_id):
+        try:
+            from django.db import connection
+            connection.close()
+            ws = WebSource.objects.get(id=ws_id)
+            run_web_lifecycle(ws, mode="index_new")
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).error(f"Background web indexing failed for WebSource {ws_id}: {exc}")
+
+    thread = threading.Thread(target=_bg_index_new, args=(web_source.id,), daemon=True)
+    thread.start()
+
+    return render_web_section(
+        request,
+        project,
+        web_source,
+        message="Targeted indexing of new and modified pages started in background...",
+    )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def web_reindex(request, store_id):
+    """Trigger full re-crawl and re-indexing of all pages."""
+    project = get_object_or_404(Project, project_id=store_id)
+    if not _check_project_permission(request, project):
+        return JsonResponse({"error": "Permission denied."}, status=403)
+
+    web_source = get_object_or_404(WebSource, project=project)
+    web_source.sync_status = "DISCOVERING"
+    web_source.save(update_fields=["sync_status", "updated_at"])
+
+    import threading
+    from src.apps.documents.web_crawler_services import run_web_lifecycle
+
+    def _bg_reindex(ws_id):
+        try:
+            from django.db import connection
+            connection.close()
+            ws = WebSource.objects.get(id=ws_id)
+            run_web_lifecycle(ws, mode="full")
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).error(f"Background full re-indexing failed for WebSource {ws_id}: {exc}")
+
+    thread = threading.Thread(target=_bg_reindex, args=(web_source.id,), daemon=True)
+    thread.start()
+
+    return render_web_section(
+        request,
+        project,
+        web_source,
+        message="Full re-crawl and re-indexing started in background...",
+    )
+
 
 
 

@@ -1,0 +1,229 @@
+<!-- Create Project Modal Dialog -->
+<div class="pico-modal-backdrop" id="create-project-modal" style="display: none;" onclick="if(event.target===this) closeCreateProjectModal()">
+    <article style="max-width: 600px; width: 100%; margin: 0 1rem; max-height: 90vh; display: flex; flex-direction: column;">
+        <header style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--pico-card-border-color, #e2e8f0); padding-bottom: 0.75rem;">
+            <div>
+                <h4 style="margin: 0; font-size: 1.15rem; display: flex; align-items: center; gap: 0.4rem;">
+                    <span>➕</span> Create New Knowledge Project
+                </h4>
+                <p style="margin: 0; font-size: 0.8rem; color: var(--pico-muted-color);">
+                    Configure storage backend, ingestion pipeline & synthesis model
+                </p>
+            </div>
+            <button aria-label="Close" type="button" onclick="closeCreateProjectModal()"
+                    style="background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--pico-color); line-height: 1; padding: 0.2rem 0.4rem;">×</button>
+        </header>
+
+        <div style="flex: 1; overflow-y: auto; padding: 1rem 0;">
+            <!-- Error Banner Container (HTMX swapped out of band on validation or connection error) -->
+            <div id="project-error-container"></div>
+
+            <form id="modal-create-project-form"
+                  hx-post="{% url 'projects:create' %}"
+                  hx-target="#create-project-error-holder"
+                  hx-swap="innerHTML"
+                  hx-indicator="#modal-create-spinner">
+                {% csrf_token %}
+                <div id="create-project-error-holder" style="display: none;"></div>
+
+                <!-- Project Name -->
+                <div style="margin-bottom: 1rem;">
+                    <label for="modal-project-display-name" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem;">
+                        Project Name <span style="color: #ef4444;">*</span>
+                    </label>
+                    <input type="text" id="modal-project-display-name" name="display_name" required
+                           placeholder="e.g. Technical Documentation, Engineering Docs"
+                           style="margin-bottom: 0;">
+                </div>
+
+                <!-- Storage Engine Backend -->
+                <div style="margin-bottom: 1rem;">
+                    <label for="modal-project-storage-type" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem;">
+                        Storage Engine Backend <span style="color: #ef4444;">*</span>
+                    </label>
+                    <select id="modal-project-storage-type" name="storage_type" onchange="onModalStorageTypeChanged(this.value)" style="margin-bottom: 0;">
+                        <option value="postgres" selected>Postgres RAG (Self-Hosted pgvector VPS)</option>
+                        <option value="google">Google File Search (Managed Enterprise Cloud Store)</option>
+                        <option value="website">Website Project (Web Crawler & Incremental Indexing)</option>
+                    </select>
+                </div>
+
+                <!-- Synthesis & Chat Model -->
+                <div style="margin-bottom: 1rem;">
+                    <label for="modal-project-llm-model" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem;">
+                        Synthesis & Chat Model
+                    </label>
+                    <select id="modal-project-llm-model" name="llm_model" style="margin-bottom: 0;">
+                        <option value="gemini-2.5-flash-lite" selected>gemini-2.5-flash-lite (Cheapest & Fastest)</option>
+                        <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (Next-Gen Flash)</option>
+                        <option value="gemini-3.7-flash">gemini-3.7-flash (Hybrid Reasoning & Advanced Retrieval)</option>
+                        <option value="gemma4:12b-mlx" class="modal-local-model-option">gemma4:12b-mlx (Local Ollama)</option>
+                        <option value="gemma4:e4b-mlx" class="modal-local-model-option">gemma4:e4b-mlx (Local Ollama - Balanced)</option>
+                        <option value="gemma4:e2b-mlx" class="modal-local-model-option">gemma4:e2b-mlx (Local Ollama - Ultra Fast)</option>
+                    </select>
+                </div>
+
+                <!-- GFS Managed Notice Banner (Visible only for Google File Search) -->
+                <div id="modal-gfs-notice" class="hidden"
+                     style="margin-bottom: 1rem; padding: 0.75rem 1rem; background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(37, 99, 235, 0.3); border-radius: var(--pico-border-radius); font-size: 0.8rem;">
+                    <strong>Google File Search Managed Mode:</strong> Chunking and server-side embeddings (<code class="font-mono">text-embedding-004</code>) are automatically optimized by Google Cloud. HyDE, Synthesizer, and custom chunking are managed by the engine.
+                </div>
+
+                <!-- Postgres Advanced Parameters (Visible for Postgres & Website) -->
+                <div id="modal-postgres-params" style="margin-bottom: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--pico-card-border-color, #e2e8f0);">
+                    <div class="grid" style="margin-bottom: 0.75rem;">
+                        <div>
+                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Response Mode</label>
+                            <select name="response_mode" style="margin-bottom: 0; font-size: 0.85rem;">
+                                <option value="compact" selected>Compact (Fastest)</option>
+                                <option value="refine">Refine (Multi-Chunk Iteration)</option>
+                                <option value="tree_summarize">Tree Summarize</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Chunking Strategy</label>
+                            <select name="chunking" style="margin-bottom: 0; font-size: 0.85rem;">
+                                <option value="fixed-size" selected>Fixed-Size (512 tokens)</option>
+                                <option value="semantic">Semantic Splitter</option>
+                                <option value="markdown">Markdown Header Splitter</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+                        <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; cursor: pointer;">
+                            <input type="checkbox" name="use_hyde" style="margin-bottom: 0;">
+                            <span>Enable Adaptive HyDE</span>
+                        </label>
+                        <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; cursor: pointer;">
+                            <input type="checkbox" name="synthesizer" style="margin-bottom: 0;">
+                            <span>Enable Multi-Pass Synthesizer</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Website Crawler Parameters (Visible only for Website Projects) -->
+                <div id="modal-website-params" class="hidden" style="margin-bottom: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--pico-card-border-color, #e2e8f0);">
+                    <div style="margin-bottom: 0.75rem; padding: 0.75rem 1rem; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: var(--pico-border-radius); font-size: 0.8rem;">
+                        <strong>Website Spider & Vector Indexing:</strong> Automatically discovers and crawls web pages via sitemap and BFS spider, extracts clean Markdown, and indexes chunks into Postgres.
+                    </div>
+
+                    <div style="margin-bottom: 0.75rem;">
+                        <label for="modal-web-root-url" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem;">
+                            Website Entrypoint URL <span style="color: #ef4444;">*</span>
+                        </label>
+                        <input type="url" id="modal-web-root-url" name="web_root_url"
+                               placeholder="https://docs.example.com/guides"
+                               style="margin-bottom: 0;">
+                    </div>
+
+                    <div class="grid">
+                        <div>
+                            <label for="modal-web-max-pages" style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Crawl Page Limit</label>
+                            <select id="modal-web-max-pages" name="web_max_pages" style="margin-bottom: 0; font-size: 0.85rem;">
+                                <option value="50">50 pages</option>
+                                <option value="100" selected>100 pages (Default)</option>
+                                <option value="250">250 pages</option>
+                                <option value="500">500 pages (Maximum)</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; align-items: center; padding-top: 1.25rem;">
+                            <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; cursor: pointer;">
+                                <input type="checkbox" name="web_subpath_only" checked style="margin-bottom: 0;">
+                                <span>Constrain strictly to this subpath</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <footer style="display: flex; justify-content: flex-end; gap: 0.5rem; border-top: 1px solid var(--pico-card-border-color, #e2e8f0); padding-top: 0.75rem; margin-top: 1rem;">
+                    <button type="button" class="secondary" onclick="closeCreateProjectModal()" style="padding: 0.45rem 1rem; margin-bottom: 0; font-size: 0.85rem;">
+                        Cancel
+                    </button>
+                    <button type="submit" class="primary" style="padding: 0.45rem 1.2rem; margin-bottom: 0; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.4rem;">
+                        <span id="modal-create-spinner" class="htmx-indicator animate-spin" style="width: 0.9rem; height: 0.9rem; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%;"></span>
+                        <span>Create Project</span>
+                    </button>
+                </footer>
+            </form>
+        </div>
+    </article>
+</div>
+
+<script>
+function openCreateProjectModal() {
+    const modal = document.getElementById('create-project-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        // Reset form
+        const form = document.getElementById('modal-create-project-form');
+        if (form) form.reset();
+        const errContainer = document.getElementById('project-error-container');
+        if (errContainer) errContainer.innerHTML = '';
+        onModalStorageTypeChanged('postgres');
+        setTimeout(() => {
+            const nameInput = document.getElementById('modal-project-display-name');
+            if (nameInput) nameInput.focus();
+        }, 100);
+    }
+}
+
+function closeCreateProjectModal() {
+    const modal = document.getElementById('create-project-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+function onModalStorageTypeChanged(storageType) {
+    const gfsNotice = document.getElementById('modal-gfs-notice');
+    const postgresParams = document.getElementById('modal-postgres-params');
+    const websiteParams = document.getElementById('modal-website-params');
+    const localOptions = document.querySelectorAll('.modal-local-model-option');
+    const llmSelect = document.getElementById('modal-project-llm-model');
+    const webUrlInput = document.getElementById('modal-web-root-url');
+
+    if (storageType === 'google') {
+        if (gfsNotice) gfsNotice.classList.remove('hidden');
+        if (postgresParams) postgresParams.classList.add('hidden');
+        if (websiteParams) websiteParams.classList.add('hidden');
+        if (webUrlInput) webUrlInput.removeAttribute('required');
+        localOptions.forEach(opt => {
+            opt.disabled = true;
+            opt.classList.add('hidden');
+        });
+        if (llmSelect && !['gemini-2.5-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3.7-flash'].includes(llmSelect.value)) {
+            llmSelect.value = 'gemini-2.5-flash-lite';
+        }
+    } else if (storageType === 'website') {
+        if (gfsNotice) gfsNotice.classList.add('hidden');
+        if (postgresParams) postgresParams.classList.remove('hidden');
+        if (websiteParams) websiteParams.classList.remove('hidden');
+        if (webUrlInput) webUrlInput.setAttribute('required', 'required');
+        localOptions.forEach(opt => {
+            opt.disabled = false;
+            opt.classList.remove('hidden');
+        });
+    } else {
+        if (gfsNotice) gfsNotice.classList.add('hidden');
+        if (postgresParams) postgresParams.classList.remove('hidden');
+        if (websiteParams) websiteParams.classList.add('hidden');
+        if (webUrlInput) webUrlInput.removeAttribute('required');
+        localOptions.forEach(opt => {
+            opt.disabled = false;
+            opt.classList.remove('hidden');
+        });
+    }
+}
+
+// Listen for project creation success event from HTMX trigger
+document.body.addEventListener('projectCreated', function(evt) {
+    closeCreateProjectModal();
+    const createdId = (evt.detail && evt.detail.projectId) || null;
+    if (createdId) {
+        window.location.href = "{% url 'projects:dashboard' %}?project_id=" + encodeURIComponent(createdId);
+    } else {
+        window.location.href = "{% url 'projects:dashboard' %}";
+    }
+});
+</script>
