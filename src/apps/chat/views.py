@@ -145,7 +145,12 @@ def chat(request):
         query = data.get('query')
         system_prompt = data.get('system_prompt', '')
         additional_instructions = data.get('additional_instructions', '') or data.get('additional_prompt', '')
-        api_instructions = additional_instructions or system_prompt
+        api_instructions_parts = []
+        if additional_instructions and str(additional_instructions).strip():
+            api_instructions_parts.append(str(additional_instructions).strip())
+        if system_prompt and str(system_prompt).strip() and str(system_prompt).strip() != str(additional_instructions).strip():
+            api_instructions_parts.append(str(system_prompt).strip())
+        api_instructions = "\n".join(api_instructions_parts)
         customer_profile = data.get('customer_profile')
         
         if not store_id or not query:
@@ -263,12 +268,17 @@ def chat(request):
             query_engine = index.as_query_engine(llm=llm, response_mode=mode)
             
             from .services import generate_adaptive_hyde_passage
-            search_query = generate_adaptive_hyde_passage(query, model_id=target_llm, disable_thinking=disable_thinking) if (project and getattr(project, 'use_hyde', False)) else effective_query
+            use_hyde = bool(project and getattr(project, 'use_hyde', False))
+            if use_hyde:
+                hyde_passage = generate_adaptive_hyde_passage(query, model_id=target_llm, disable_thinking=disable_thinking)
+                engine_query_text = f"System Context: {effective_system_prompt}\n\nQuery: {effective_query}\n\nReference Context: {hyde_passage}"
+            else:
+                engine_query_text = f"System Context: {effective_system_prompt}\n\nQuery: {effective_query}"
 
             prompt = effective_system_prompt
             response = None
             try:
-                response = query_engine.query(f"System Context: {prompt}\n\nQuery: {search_query}")
+                response = query_engine.query(engine_query_text)
                 bot_response = str(response)
             except Exception as q_err:
                 err_str = str(q_err).lower()
@@ -380,7 +390,12 @@ def chat_submit(request):
     query = data.get("query")
     system_prompt = data.get("system_prompt", "")
     additional_instructions = data.get("additional_instructions", "") or data.get("additional_prompt", "")
-    api_instructions = additional_instructions or system_prompt
+    api_instructions_parts = []
+    if additional_instructions and str(additional_instructions).strip():
+        api_instructions_parts.append(str(additional_instructions).strip())
+    if system_prompt and str(system_prompt).strip() and str(system_prompt).strip() != str(additional_instructions).strip():
+        api_instructions_parts.append(str(system_prompt).strip())
+    api_instructions = "\n".join(api_instructions_parts)
 
     if not store_id or not query:
         from django.http import HttpResponse
@@ -460,12 +475,17 @@ def chat_submit(request):
             query_engine = index.as_query_engine(llm=llm, response_mode=mode)
             
             from .services import generate_adaptive_hyde_passage
-            search_query = generate_adaptive_hyde_passage(query, model_id=target_llm, disable_thinking=disable_thinking) if (project and getattr(project, 'use_hyde', False)) else effective_query
+            use_hyde = bool(project and getattr(project, 'use_hyde', False))
+            if use_hyde:
+                hyde_passage = generate_adaptive_hyde_passage(query, model_id=target_llm, disable_thinking=disable_thinking)
+                engine_query_text = f"System Context: {effective_system_prompt}\n\nQuery: {effective_query}\n\nReference Context: {hyde_passage}"
+            else:
+                engine_query_text = f"System Context: {effective_system_prompt}\n\nQuery: {effective_query}"
 
             prompt = effective_system_prompt
             response = None
             try:
-                response = query_engine.query(f"System Context: {prompt}\n\nQuery: {search_query}")
+                response = query_engine.query(engine_query_text)
                 bot_response = str(response)
             except Exception as q_err:
                 err_str = str(q_err).lower()

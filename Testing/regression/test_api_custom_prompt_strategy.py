@@ -196,3 +196,69 @@ class TestApiCustomPromptStrategyRegression:
         assert saved_msg is not None
         assert "PRIORITY 1 (ABSOLUTE)" in saved_msg.system_prompt_used
         assert "[Client Instructions Attached]" in saved_msg.system_prompt_used
+
+    def test_chat_api_combines_system_prompt_and_additional_instructions_with_hyde(self, auth_user, mocker):
+        """
+        Verify that when an API client sends BOTH system_prompt ('end your replies with END')
+        and additional_instructions ('Sprinkle nautical slang'), BOTH are combined and
+        preserved even when use_hyde is enabled on the project.
+        """
+        project = Project.objects.create(
+            user=auth_user,
+            project_id="postgres_both_instructions_hyde",
+            display_name="Both Instructions Project",
+            storage_type="postgres",
+            custom_prompt=True,
+            allow_api_custom_prompt=True,
+            use_hyde=True
+        )
+        SystemPrompt.objects.create(
+            project=project,
+            content="All your replies need to start with MAIN"
+        )
+
+        mock_query_engine = mocker.Mock()
+        mock_response = mocker.Mock()
+        mock_response.__str__ = lambda self: "MAIN Ahoy! Solutions are POS and terminals. END"
+        mock_response.source_nodes = []
+        mock_query_engine.query.return_value = mock_response
+
+        mock_index = mocker.Mock()
+        mock_index.as_query_engine.return_value = mock_query_engine
+        mocker.patch("llama_index.embeddings.google.GeminiEmbedding", return_value=mocker.Mock())
+        mocker.patch("llama_index.llms.litellm.LiteLLM", return_value=mocker.Mock())
+        mocker.patch("llama_index.core.VectorStoreIndex.from_vector_store", return_value=mock_index)
+        mocker.patch("llama_index.vector_stores.postgres.PGVectorStore.from_params", return_value=mocker.Mock())
+        mocker.patch(
+            "src.apps.chat.services.generate_adaptive_hyde_passage",
+            return_value="Hypothetical passage on retail POS solutions."
+        )
+
+        factory = RequestFactory()
+        payload = {
+            "store_id": project.project_id,
+            "query": "What solutions does Happy Payments provide for restaurants and retail?",
+            "system_prompt": "end your replies with the word END",
+            "additional_instructions": "Sprinkle nautical slang throughout the response."
+        }
+        req = factory.post(
+            "/rag/api/chat/",
+            data=json.dumps(payload),
+            content_type="application/json"
+        )
+        req.user = auth_user
+
+        response = chat(req)
+        assert response.status_code == 200
+
+        call_arg = mock_query_engine.query.call_args[0][0]
+
+        # 1. Base project prompt (Priority 1)
+        assert "All your replies need to start with MAIN" in call_arg
+        # 2. Both client instructions are preserved (Priority 2)
+        assert "end your replies with the word END" in call_arg
+        assert "Sprinkle nautical slang throughout the response." in call_arg
+        # 3. User query is preserved
+        assert "What solutions does Happy Payments provide for restaurants and retail?" in call_arg
+        # 4. HyDE passage is included
+        assert "Hypothetical passage on retail POS solutions." in call_arg
