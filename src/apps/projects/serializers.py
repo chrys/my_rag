@@ -31,6 +31,7 @@ class ProjectSerializer(serializers.ModelSerializer):
             'id', 'project_id', 'display_name', 'storage_type',
             'external_store_id', 'description', 'is_active',
             'embedding_model', 'llm_model', 'disable_thinking',
+            'custom_prompt', 'allow_api_custom_prompt',
             'document_count', 'last_indexed_at', 'created_at',
             'updated_at', 'system_prompt'
         ]

@@ -29,6 +29,16 @@
             </small>
         </div>
 
+        <div x-show="customEnabled" x-transition style="margin-bottom: 1.25rem; margin-left: 1.25rem; padding: 0.75rem 1rem; background-color: var(--pico-card-background-color, rgba(0,0,0,0.03)); border-left: 3px solid var(--pico-primary, #3b82f6); border-radius: var(--pico-border-radius, 4px);">
+            <label for="allow_api_custom_prompt_toggle" style="margin-bottom: 0;">
+                <input type="checkbox" id="allow_api_custom_prompt_toggle" name="allow_api_custom_prompt" {% if current_project.allow_api_custom_prompt %}checked{% endif %}>
+                <strong>Allow API to add additional prompt instructions</strong>
+            </label>
+            <small style="color: var(--pico-muted-color); display: block; margin-top: 0.25rem;">
+                When enabled, API requests can provide additional instructions that are safely layered (Priority 2) beneath your project's custom system prompt (Priority 1).
+            </small>
+        </div>
+
         <div x-show="customEnabled" x-transition style="margin-bottom: 1.25rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                 <label for="prompt_text" style="font-weight: 600; margin-bottom: 0;">System Prompt Instructions</label>

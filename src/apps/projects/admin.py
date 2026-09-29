@@ -53,6 +53,11 @@ class ProjectAdminForm(forms.ModelForm):
         if prompt_text and not custom_prompt:
             cleaned_data['custom_prompt'] = True
             self.instance.custom_prompt = True
+            custom_prompt = True
+
+        if not custom_prompt:
+            cleaned_data['allow_api_custom_prompt'] = False
+            self.instance.allow_api_custom_prompt = False
         return cleaned_data
 
     def save(self, commit=True):
@@ -116,6 +121,7 @@ class ProjectAdmin(ModelAdmin):
                 "classes": ("tab",),
                 "fields": (
                     "custom_prompt",
+                    "allow_api_custom_prompt",
                     "custom_prompt_text",
                 ),
             },

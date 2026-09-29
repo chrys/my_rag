@@ -1186,8 +1186,12 @@ components:
           example: "What is our company policy on remote work?"
         system_prompt:
           type: string
-          description: Optional transient system prompt override
+          description: Optional transient system prompt or additional instructions. If `allow_api_custom_prompt` is enabled on the project, these instructions are safely layered (Priority 2) beneath project guardrails (Priority 1) using Strategy A and Strategy C.
           example: "Answer concisely in bullet points."
+        additional_instructions:
+          type: string
+          description: Optional runtime instructions to augment the project's custom system prompt. Active only if `custom_prompt` and `allow_api_custom_prompt` are enabled for the project.
+          example: "Format output in concise bullet points suitable for mobile display."
 
     ChatQueryResponse:
       type: object
@@ -1254,6 +1258,14 @@ components:
           type: string
           format: date-time
           readOnly: true
+        custom_prompt:
+          type: boolean
+          description: Whether a custom system prompt persona is enabled for this project
+          example: true
+        allow_api_custom_prompt:
+          type: boolean
+          description: Whether API clients are permitted to append additional runtime prompt instructions (Priority 2) to the project's custom prompt (Priority 1)
+          example: true
         system_prompt:
           $ref: '#/components/schemas/SystemPrompt'
 

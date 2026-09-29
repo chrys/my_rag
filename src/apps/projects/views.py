@@ -694,8 +694,10 @@ def project_prompt_view(request, store_id):
 
     if request.method == "POST":
         custom_enabled = bool(request.POST.get("custom_prompt"))
+        allow_api_custom_prompt = bool(request.POST.get("allow_api_custom_prompt")) if custom_enabled else False
         prompt_text = request.POST.get("prompt_text", "").strip()
         project.custom_prompt = custom_enabled
+        project.allow_api_custom_prompt = allow_api_custom_prompt
         project.save()
 
         if custom_enabled:

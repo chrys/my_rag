@@ -81,7 +81,7 @@ def _extract_source_documents(source_nodes) -> list[str]:
 
 
 
-def _save_chat_messages(project, user, session_id: str, query: str, bot_response: str, bot_response_html: str = None):
+def _save_chat_messages(project, user, session_id: str, query: str, bot_response: str, bot_response_html: str = None, system_prompt_used: str = ""):
     """Persist user and assistant ChatMessage records."""
     from django.db import transaction
     user_for_msg = user if getattr(user, 'is_authenticated', False) else None
@@ -102,7 +102,8 @@ def _save_chat_messages(project, user, session_id: str, query: str, bot_response
                 session_id=session_id,
                 message_type='assistant',
                 content=bot_response,
-                response_html=html_content
+                response_html=html_content,
+                system_prompt_used=system_prompt_used
             )
     except Exception as db_err:
         import logging
@@ -143,6 +144,8 @@ def chat(request):
         store_id = data.get('store_id')
         query = data.get('query')
         system_prompt = data.get('system_prompt', '')
+        additional_instructions = data.get('additional_instructions', '') or data.get('additional_prompt', '')
+        api_instructions = additional_instructions or system_prompt
         customer_profile = data.get('customer_profile')
         
         if not store_id or not query:
@@ -150,6 +153,14 @@ def chat(request):
 
         # Look up project for storage type
         project = Project.objects.filter(project_id=store_id).first()
+
+        from .prompt_service import compose_rag_prompts
+        effective_system_prompt, effective_query, prompt_log = compose_rag_prompts(
+            project=project,
+            query=query,
+            api_instructions=api_instructions,
+            store_id=store_id
+        )
 
         # If API key was provided, validate it and enforce project scoping
         if api_key_value:
@@ -202,13 +213,13 @@ def chat(request):
         elif store_id.startswith('local_'):
             try:
                 rag_engine = get_rag_engine(store_id)
-                bot_response = rag_engine.query(query, system_prompt=system_prompt)
+                bot_response = rag_engine.query(effective_query, system_prompt=effective_system_prompt)
                 source_documents = _extract_source_documents(bot_response.get('source_nodes', [])) if isinstance(bot_response, dict) else []
                 if isinstance(bot_response, dict):
                     bot_response = bot_response.get('response', 'Error generating response.')
             except Exception:
                 from .llm_router import generate_llm_response
-                bot_response = generate_llm_response(prompt=query, model_id=target_llm, system_prompt=system_prompt)
+                bot_response = generate_llm_response(prompt=effective_query, model_id=target_llm, system_prompt=effective_system_prompt)
                 source_documents = []
         elif store_id.startswith('rag_') or store_id.startswith('postgres_') or (project and project.storage_type == 'postgres'):
             from llama_index.core import VectorStoreIndex, Settings
@@ -252,9 +263,9 @@ def chat(request):
             query_engine = index.as_query_engine(llm=llm, response_mode=mode)
             
             from .services import generate_adaptive_hyde_passage
-            search_query = generate_adaptive_hyde_passage(query, model_id=target_llm, disable_thinking=disable_thinking) if (project and getattr(project, 'use_hyde', False)) else query
+            search_query = generate_adaptive_hyde_passage(query, model_id=target_llm, disable_thinking=disable_thinking) if (project and getattr(project, 'use_hyde', False)) else effective_query
 
-            prompt = system_prompt or "You are a helpful assistant."
+            prompt = effective_system_prompt
             response = None
             try:
                 response = query_engine.query(f"System Context: {prompt}\n\nQuery: {search_query}")
@@ -267,7 +278,7 @@ def chat(request):
 
             # If vector store yields no matching nodes (LlamaIndex returns "Empty Response"), fall back to LLM router
             if not bot_response or bot_response.strip().lower() == "empty response":
-                bot_response = generate_llm_response(prompt=query, model_id=target_llm, system_prompt=prompt, disable_thinking=disable_thinking)
+                bot_response = generate_llm_response(prompt=effective_query, model_id=target_llm, system_prompt=prompt, disable_thinking=disable_thinking)
 
             source_documents = []
             if response and hasattr(response, 'source_nodes'):
@@ -277,8 +288,8 @@ def chat(request):
             target_model = getattr(project, 'llm_model', 'gemini/gemini-2.5-flash-lite') if project else 'gemini/gemini-2.5-flash-lite'
             bot_response = gfs.ask_store_question(
                 google_store_id,
-                query,
-                system_prompt=system_prompt,
+                effective_query,
+                system_prompt=effective_system_prompt,
                 model=target_model
             )
             source_documents = []
@@ -289,10 +300,10 @@ def chat(request):
             from .llm_router import stream_llm_response
             def rag_sse_stream():
                 full_text_parts = []
-                system_instruction = system_prompt or "You are a helpful assistant."
-                augmented_prompt = query
+                system_instruction = effective_system_prompt
+                augmented_prompt = effective_query
                 if source_documents:
-                    augmented_prompt = f"Context documents: {', '.join(source_documents)}\n\nQuery: {query}"
+                    augmented_prompt = f"Context documents: {', '.join(source_documents)}\n\nQuery: {effective_query}"
 
                 for chunk_event in stream_llm_response(prompt=augmented_prompt, model_id=target_llm, system_prompt=system_instruction, disable_thinking=getattr(project, 'disable_thinking', False) if project else False):
                     try:
@@ -306,7 +317,7 @@ def chat(request):
 
                 final_text = "".join(full_text_parts) if full_text_parts else bot_response
                 elapsed = round(time.time() - start_time, 2)
-                _save_chat_messages(project, request.user, session_id, query, final_text)
+                _save_chat_messages(project, request.user, session_id, query, final_text, system_prompt_used=prompt_log)
                 final_payload = json.dumps({
                     "done": True,
                     "sources": source_documents,
@@ -325,7 +336,7 @@ def chat(request):
         response_time_str = f"{elapsed_seconds:.2f}s"
         
         # Store in database
-        bot_msg = _save_chat_messages(project, request.user, session_id, query, bot_response, bot_response_html)
+        bot_msg = _save_chat_messages(project, request.user, session_id, query, bot_response, bot_response_html, system_prompt_used=prompt_log)
         
         return JsonResponse({
             'message_id': str(bot_msg.id) if bot_msg else '',
@@ -368,6 +379,8 @@ def chat_submit(request):
     store_id = data.get("store_id")
     query = data.get("query")
     system_prompt = data.get("system_prompt", "")
+    additional_instructions = data.get("additional_instructions", "") or data.get("additional_prompt", "")
+    api_instructions = additional_instructions or system_prompt
 
     if not store_id or not query:
         from django.http import HttpResponse
@@ -380,9 +393,13 @@ def chat_submit(request):
         from django.http import HttpResponseForbidden
         return HttpResponseForbidden("Forbidden")
 
-    # Get prompt if not provided
-    if not system_prompt:
-        system_prompt = _get_project_system_prompt(project, store_id)
+    from .prompt_service import compose_rag_prompts
+    effective_system_prompt, effective_query, prompt_log = compose_rag_prompts(
+        project=project,
+        query=query,
+        api_instructions=api_instructions,
+        store_id=store_id
+    )
 
     # Query the appropriate backend
     try:
@@ -397,7 +414,7 @@ def chat_submit(request):
             source_documents = []
         elif store_id.startswith("local_"):
             rag_engine = get_rag_engine(store_id)
-            bot_response = rag_engine.query(query, system_prompt=system_prompt)
+            bot_response = rag_engine.query(effective_query, system_prompt=effective_system_prompt)
             source_documents = _extract_source_documents(bot_response.get("source_nodes", [])) if isinstance(bot_response, dict) else []
             if isinstance(bot_response, dict):
                 bot_response = bot_response.get("response", "Error generating response.")
@@ -443,9 +460,9 @@ def chat_submit(request):
             query_engine = index.as_query_engine(llm=llm, response_mode=mode)
             
             from .services import generate_adaptive_hyde_passage
-            search_query = generate_adaptive_hyde_passage(query, model_id=target_llm, disable_thinking=disable_thinking) if (project and getattr(project, 'use_hyde', False)) else query
+            search_query = generate_adaptive_hyde_passage(query, model_id=target_llm, disable_thinking=disable_thinking) if (project and getattr(project, 'use_hyde', False)) else effective_query
 
-            prompt = system_prompt or "You are a helpful assistant."
+            prompt = effective_system_prompt
             response = None
             try:
                 response = query_engine.query(f"System Context: {prompt}\n\nQuery: {search_query}")
@@ -458,7 +475,7 @@ def chat_submit(request):
 
             if not bot_response or bot_response.strip().lower() == "empty response":
                 from .llm_router import generate_llm_response
-                bot_response = generate_llm_response(prompt=query, model_id=target_llm, system_prompt=prompt, disable_thinking=disable_thinking)
+                bot_response = generate_llm_response(prompt=effective_query, model_id=target_llm, system_prompt=prompt, disable_thinking=disable_thinking)
 
             source_documents = []
             if response and hasattr(response, "source_nodes"):
@@ -467,8 +484,8 @@ def chat_submit(request):
             google_store_id = project.external_store_id if project and project.external_store_id else store_id
             bot_response = gfs.ask_store_question(
                 google_store_id,
-                query,
-                system_prompt=system_prompt
+                effective_query,
+                system_prompt=effective_system_prompt
             )
             source_documents = []
 
@@ -500,7 +517,8 @@ def chat_submit(request):
                     user=request.user,
                     message_type="assistant",
                     content=bot_response,
-                    response_html=bot_response_html
+                    response_html=bot_response_html,
+                    system_prompt_used=prompt_log
                 )
 
         from django.http import HttpResponse

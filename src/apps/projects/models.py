@@ -102,6 +102,10 @@ class Project(models.Model):
         default=False,
         help_text="Whether to use a custom prompt"
     )
+    allow_api_custom_prompt = models.BooleanField(
+        default=False,
+        help_text="Whether to allow the API to append additional instructions to the system prompt"
+    )
     RESPONSE_MODE_CHOICES = [
         ("compact", "Compact (Fastest - Stuffs Context into 1 Call)"),
         ("refine", "Refine (Iterative - Thorough for Multi-Chunk Deep Analysis)"),
@@ -159,6 +163,9 @@ class Project(models.Model):
             self.response_mode = "compact"
             self.embedding_model = "models/gemini-embedding-001"
 
+        if not self.custom_prompt:
+            self.allow_api_custom_prompt = False
+
         if self.pk:
             original = Project.objects.filter(pk=self.pk).values("embedding_model", "document_count").first()
             if original and (original["document_count"] > 0 or self.document_count > 0):
@@ -198,6 +205,9 @@ class Project(models.Model):
             prefix = self.storage_type or "local"
             self.project_id = f"{prefix}_{timestamp}_{microseconds}_{safe_name}_{rand_suffix}"
             
+        if not self.custom_prompt:
+            self.allow_api_custom_prompt = False
+
         super().save(*args, **kwargs)
 
     def __str__(self):
